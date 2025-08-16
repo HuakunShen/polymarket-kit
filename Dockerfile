@@ -1,23 +1,17 @@
-
 FROM oven/bun:1 AS build
 
 WORKDIR /app
 
 # Cache packages
-COPY pnpm-workspace.yaml ./pnpm-workspace.yaml
 COPY package.json ./package.json
-COPY pnpm-lock.yaml ./pnpm-lock.yaml
-RUN bun install -g pnpm
-COPY apps/proxy/package.json ./apps/proxy/package.json
-COPY packages/sdk/package.json ./packages/sdk/package.json
+COPY bun.lock ./bun.lock
 
-RUN pnpm install --frozen-lockfile
+RUN bun install
 
-COPY apps/proxy ./apps/proxy
-COPY packages/sdk ./packages/sdk
+COPY ./src ./src
 
 ENV NODE_ENV=production
-RUN cd /app/apps/proxy && bun build \
+RUN bun build \
 	--compile \
 	--minify-whitespace \
 	--minify-syntax \
@@ -29,7 +23,7 @@ FROM gcr.io/distroless/base
 
 WORKDIR /app
 
-COPY --from=build /app/apps/proxy/server server
+COPY --from=build /app/server server
 
 ENV NODE_ENV=production
 
@@ -38,4 +32,5 @@ CMD ["./server"]
 EXPOSE 3000
 
 # Run in repo root
-# docker build -t polymarket-proxy -f apps/proxy/Dockerfile .
+# docker build -t polymarket-proxy .
+# docker run --rm -p 3000:3000 polymarket-proxy
