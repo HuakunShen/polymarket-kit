@@ -12,5 +12,7 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install
       - name: Publish package
         run: npx jsr publish --allow-slow-types
