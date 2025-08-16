@@ -1,10 +1,10 @@
 {
-  "name": "@hk/polymarket",
-  "version": "0.0.2",
-  "license": "MIT",
-  "exports": {
-    ".": "./src/mod.ts",
-    "./proxy": "./src/client.ts",
-    "./sdk": "./src/sdk/index.ts"
-  }
+	"name": "@hk/polymarket",
+	"version": "0.0.2",
+	"license": "MIT",
+	"exports": {
+		".": "./src/mod.ts",
+		"./proxy": "./src/client.ts",
+		"./sdk": "./src/sdk/index.ts"
+	}
 }

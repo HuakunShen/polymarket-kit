@@ -7,7 +7,7 @@
  * Provides complete type safety and can be used standalone or with Elysia servers.
  */
 
-export { PolymarketSDK } from "./client";
-export { GammaSDK } from "./gamma-client";
 // Re-export TypeBox schemas and types for convenience
 export * from "../types/elysia-schemas";
+export { PolymarketSDK } from "./client";
+export { GammaSDK } from "./gamma-client";

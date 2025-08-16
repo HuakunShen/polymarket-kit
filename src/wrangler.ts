@@ -1,43 +1,47 @@
 import { Container, getContainer, getRandom } from "@cloudflare/containers";
 import { Hono } from "hono";
-console.log("NODE_ENV", process.env.NODE_ENV)
+
+console.log("NODE_ENV", process.env.NODE_ENV);
 export class MyContainer extends Container<Env> {
-  // Port the container listens on (default: 8080)
-  override defaultPort = 3000;
-  // Time before container sleeps due to inactivity (default: 30s)
-  override sleepAfter = "2m";
-  // Environment variables passed to the container
-  override envVars = {
-    MESSAGE: "I was passed in via the container class!",
-    NODE_ENV: "production",
-    PORT: "3000",
-    BASE_URL: process.env.NODE_ENV === "production" ? "https://polymarket.huakun.tech" : "http://localhost:8787"
-  };
+	// Port the container listens on (default: 8080)
+	override defaultPort = 3000;
+	// Time before container sleeps due to inactivity (default: 30s)
+	override sleepAfter = "2m";
+	// Environment variables passed to the container
+	override envVars = {
+		MESSAGE: "I was passed in via the container class!",
+		NODE_ENV: "production",
+		PORT: "3000",
+		BASE_URL:
+			process.env.NODE_ENV === "production"
+				? "https://polymarket.huakun.tech"
+				: "http://localhost:8787",
+	};
 
-  // Optional lifecycle hooks
-  override onStart() {
-    console.log("Container successfully started");
-  }
+	// Optional lifecycle hooks
+	override onStart() {
+		console.log("Container successfully started");
+	}
 
-  override onStop() {
-    console.log("Container successfully shut down");
-  }
+	override onStop() {
+		console.log("Container successfully shut down");
+	}
 
-  override onError(error: unknown) {
-    console.log("Container error:", error);
-  }
+	override onError(error: unknown) {
+		console.log("Container error:", error);
+	}
 }
 
 // Create Hono app with proper typing for Cloudflare Workers
 const app = new Hono<{
-  Bindings: Env;
+	Bindings: Env;
 }>();
 
 // Home route with available endpoints
 app.get("/*", (c) => {
-  const container = getContainer(c.env.MY_CONTAINER);
-  return container.fetch(c.req.raw);
-})
+	const container = getContainer(c.env.MY_CONTAINER);
+	return container.fetch(c.req.raw);
+});
 // app.get("/", (c) => {
 //   return c.text(
 //     "Available endpoints:\n" +
