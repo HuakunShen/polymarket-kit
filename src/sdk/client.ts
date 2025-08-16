@@ -10,7 +10,7 @@ import { Wallet } from "@ethersproject/wallet";
 import {
 	ClobClient,
 	type PriceHistoryFilterParams,
-	PriceHistoryInterval,
+	type PriceHistoryInterval,
 } from "@polymarket/clob-client";
 import { LRUCache } from "lru-cache";
 import type {
@@ -56,11 +56,19 @@ export class PolymarketSDK {
 	 * ```
 	 */
 	constructor(config: ClobClientConfig) {
+		// Destructure to avoid duplicate keys with spreads and apply sensible defaults
+		const {
+			host: cfgHost,
+			chainId: cfgChainId,
+			signatureType: cfgSignatureType,
+			...rest
+		} = config;
+
 		this.config = {
-			host: "https://clob.polymarket.com",
-			chainId: 137,
-			signatureType: 1,
-			...config,
+			...rest,
+			host: cfgHost ?? "https://clob.polymarket.com",
+			chainId: cfgChainId ?? 137,
+			signatureType: cfgSignatureType ?? 1,
 		};
 		if (!config.privateKey || !config.funderAddress) {
 			throw new Error(
@@ -68,7 +76,7 @@ export class PolymarketSDK {
 			);
 		}
 		// Create cache key based on private key and config that affects client creation
-		this.cacheKey = `${config.privateKey}_${this.config.host}_${this.config.chainId}_${config.funderAddress}`;
+		this.cacheKey = `${this.config.privateKey}_${this.config.host}_${this.config.chainId}_${this.config.funderAddress}`;
 	}
 
 	/**
@@ -86,18 +94,18 @@ export class PolymarketSDK {
 			const signer = new Wallet(this.config.privateKey);
 
 			const creds = await new ClobClient(
-				this.config.host!,
-				this.config.chainId!,
+				this.config.host,
+				this.config.chainId,
 				signer,
 			).createOrDeriveApiKey();
 
 			const client = new ClobClient(
-				this.config.host!,
-				this.config.chainId!,
+				this.config.host,
+				this.config.chainId,
 				signer,
 				creds,
-				this.config.signatureType!,
-				this.config.funderAddress!,
+				this.config.signatureType,
+				this.config.funderAddress,
 			);
 
 			// Store in cache
@@ -106,28 +114,10 @@ export class PolymarketSDK {
 			return client;
 		} catch (error) {
 			throw new Error(
-				`Failed to initialize CLOB client: ${error instanceof Error ? error.message : "Unknown error"}`,
+				`Failed to initialize CLOB client: ${
+					error instanceof Error ? error.message : "Unknown error"
+				}`,
 			);
-		}
-	}
-
-	/**
-	 * Convert interval string to PriceHistoryInterval enum
-	 */
-	private getIntervalEnum(interval?: string): PriceHistoryInterval {
-		switch (interval) {
-			case "1h":
-				return PriceHistoryInterval.ONE_HOUR;
-			case "6h":
-				return PriceHistoryInterval.SIX_HOURS;
-			case "1d":
-				return PriceHistoryInterval.ONE_DAY;
-			case "1w":
-				return PriceHistoryInterval.ONE_WEEK;
-			case "max":
-				return PriceHistoryInterval.MAX;
-			default:
-				return PriceHistoryInterval.ONE_HOUR;
 		}
 	}
 
@@ -210,7 +200,9 @@ export class PolymarketSDK {
 			};
 		} catch (error) {
 			throw new Error(
-				`Failed to fetch price history: ${error instanceof Error ? error.message : "Unknown error"}`,
+				`Failed to fetch price history: ${
+					error instanceof Error ? error.message : "Unknown error"
+				}`,
 			);
 		}
 	}

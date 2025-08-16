@@ -1,4 +1,4 @@
-import { Container, getContainer, getRandom } from "@cloudflare/containers";
+import { Container, getContainer } from "@cloudflare/containers";
 import { Hono } from "hono";
 
 console.log("NODE_ENV", process.env.NODE_ENV);

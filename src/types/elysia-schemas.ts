@@ -377,9 +377,9 @@ export const PriceHistoryQuerySchema = t.Object({
 export const ClobClientConfigSchema = t.Object({
 	privateKey: t.String(),
 	funderAddress: t.String(),
-	host: t.Optional(t.String()),
-	chainId: t.Optional(t.Number()),
-	signatureType: t.Optional(t.Number()),
+	host: t.String(),
+	chainId: t.Number(),
+	signatureType: t.Number(),
 });
 
 /**

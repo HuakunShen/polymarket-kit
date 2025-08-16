@@ -9,7 +9,8 @@
 		"deploy": "wrangler deploy",
 		"dev:cf": "NODE_ENV=development wrangler dev",
 		"cf-typegen": "wrangler types",
-		"format": "biome format --write"
+		"format": "biome format --write",
+		"typecheck": "biome check"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.2.0",
