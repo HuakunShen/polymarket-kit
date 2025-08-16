@@ -1,6 +1,16 @@
 # Polymarket SDK & Proxy Server
 
+[![JSR](https://jsr.io/badges/@hk/polymarket)](https://jsr.io/@hk/polymarket)
+
 A fully typed SDK and proxy server built with Elysia for Polymarket APIs. This package provides both standalone SDK clients and a proxy server with type-safe endpoints for CLOB and Gamma APIs, featuring comprehensive validation and automatic OpenAPI schema generation.
+
+## Motivation & Approach
+
+- Reason: The official Polymarket SDKs in TypeScript and Python aren't fully typed; some return values are `unknown`/`any`.
+- Solution: A fully typed SDK plus a translation proxy server with end-to-end type safety and OpenAPI.
+- Codegen: Generate SDKs in other languages from the proxy server's OpenAPI schema.
+- Transformations: The proxy doesn't always return exactly the same payload as the original API. It normalizes data by parsing and validating fields. For example, some endpoints return an array of strings as a JSON-stringified string; the proxy parses this into a proper typed array for easier consumption and validation.
+- Status: Work in progress — not all APIs are included yet.
 
 ## Features
 
@@ -20,10 +30,12 @@ A fully typed SDK and proxy server built with Elysia for Polymarket APIs. This p
 This package provides two ways to use Polymarket APIs:
 
 ### 1. Standalone SDK Clients
+
 - **`PolymarketSDK`**: For CLOB operations (requires credentials)
 - **`GammaSDK`**: For Gamma API operations (no credentials required)
 
 ### 2. Proxy Server (Optional)
+
 - **Gamma API** (`/gamma/*`) - Market and event data from `gamma-api.polymarket.com`
 - **CLOB API** (`/clob/*`) - Trading and price history from Polymarket CLOB client
 
@@ -32,7 +44,7 @@ This package provides two ways to use Polymarket APIs:
 ```
 src/
 ├── mod.ts             # Main SDK exports (JSR entry point)
-├── index.ts           # Elysia server entry point 
+├── index.ts           # Elysia server entry point
 ├── client.ts          # Proxy client (referenced in JSR)
 ├── run.ts             # Server runner for development
 ├── sdk/               # Standalone SDK clients
@@ -41,13 +53,14 @@ src/
 │   └── gamma-client.ts # GammaSDK (Gamma API client)
 ├── routes/            # Elysia server routes
 │   ├── gamma.ts       # Gamma API endpoints
-│   └── clob.ts        # CLOB API endpoints  
+│   └── clob.ts        # CLOB API endpoints
 ├── types/
 │   └── elysia-schemas.ts  # Unified TypeBox schema definitions
 └── utils/             # Utility functions
 ```
 
 ### JSR Package Exports (from jsr.json)
+
 - **`.`** → `./src/mod.ts` - Main SDK exports
 - **`./proxy`** → `./src/client.ts` - Proxy client
 - **`./sdk`** → `./src/sdk/index.ts` - Direct SDK access
@@ -70,7 +83,7 @@ const markets = await gammaSDK.getActiveMarkets();
 const filteredMarkets = await gammaSDK.getMarkets({
   limit: "10",
   active: "true",
-  volume_num_min: "1000"
+  volume_num_min: "1000",
 });
 
 // Get specific market by slug
@@ -80,7 +93,7 @@ const market = await gammaSDK.getMarketBySlug("bitcoin-above-100k");
 const events = await gammaSDK.getEvents({
   limit: "5",
   active: "true",
-  end_date_min: "2024-01-01"
+  end_date_min: "2024-01-01",
 });
 ```
 
@@ -99,7 +112,7 @@ const priceHistory = await polymarketSDK.getPriceHistory({
   market: "0x123...", // CLOB token ID
   interval: "1h",
   startDate: "2024-01-01",
-  endDate: "2024-01-31"
+  endDate: "2024-01-31",
 });
 
 // Check CLOB connection health
@@ -117,7 +130,7 @@ import type {
   MarketQueryType,
   EventQueryType,
   PriceHistoryQueryType,
-  PriceHistoryResponseType
+  PriceHistoryResponseType,
 } from "@hk/polymarket";
 ```
 
@@ -133,7 +146,7 @@ import type {
 
 - `GET /gamma/markets` - Get markets with comprehensive filtering
   - Query params: `limit`, `offset`, `order`, `ascending`, `id`, `slug`, `archived`, `active`, `closed`, `clob_token_ids`, `condition_ids`, `liquidity_num_min`, `liquidity_num_max`, `volume_num_min`, `volume_num_max`, `start_date_min`, `start_date_max`, `end_date_min`, `end_date_max`, `tag_id`, `related_tags`
-- `GET /gamma/events` - Get events with comprehensive filtering  
+- `GET /gamma/events` - Get events with comprehensive filtering
   - Query params: `limit`, `offset`, `order`, `ascending`, `id`, `slug`, `archived`, `active`, `closed`, `liquidity_min`, `liquidity_max`, `volume_min`, `volume_max`, `start_date_min`, `start_date_max`, `end_date_min`, `end_date_max`, `tag`, `tag_id`, `related_tags`, `tag_slug`
 
 ### CLOB API Endpoints
@@ -153,13 +166,14 @@ import type {
 ### Using as SDK Only
 
 1. **Install from JSR**:
+
    ```bash
    # Using Deno
    deno add @hk/polymarket
-   
+
    # Using Bun
    bunx jsr add @hk/polymarket
-   
+
    # Using npm
    npx jsr add @hk/polymarket
    ```
@@ -173,16 +187,18 @@ import type {
 ### Running the Proxy Server
 
 1. **Install dependencies**:
+
    ```bash
    bun install
    ```
 
 2. **Environment Variables**:
+
    ```bash
    # Required for CLOB API endpoints
    POLYMARKET_KEY=your_private_key_here
    POLYMARKET_FUNDER=your_funder_address
-   
+
    # Optional
    PORT=3000  # defaults to 3000
    SDK_CACHE_MAX_SIZE=50  # defaults to 50
@@ -192,11 +208,13 @@ import type {
    ```
 
 3. **Development**:
+
    ```bash
    bun run dev
    ```
 
 4. **Production**:
+
    ```bash
    bun run src/index.ts
    ```
@@ -282,10 +300,12 @@ export type MarketType = typeof MarketSchema.static;
 ### Benefits Over Duplicate Schemas
 
 Previously, this package had duplicate schema definitions:
-- ❌ `sdk/types.ts` (Effect schemas) 
+
+- ❌ `sdk/types.ts` (Effect schemas)
 - ❌ `types/elysia-schemas.ts` (TypeBox schemas)
 
 Now we have:
+
 - ✅ **Single source**: `types/elysia-schemas.ts` (TypeBox schemas only)
 - ✅ **No duplicate maintenance**
 - ✅ **Consistent validation** across SDK and server
@@ -302,19 +322,19 @@ import { GammaSDK, PolymarketSDK, type MarketType } from "@hk/polymarket";
 const gamma = new GammaSDK();
 const markets: MarketType[] = await gamma.getMarkets({
   limit: "10",
-  active: "true"
+  active: "true",
 });
 
-// Using PolymarketSDK  
+// Using PolymarketSDK
 const polySdk = new PolymarketSDK({
   privateKey: process.env.POLYMARKET_KEY!,
-  funderAddress: process.env.POLYMARKET_FUNDER!
+  funderAddress: process.env.POLYMARKET_FUNDER!,
 });
 
 const priceHistory = await polySdk.getPriceHistory({
   market: "0x123...",
   interval: "1h",
-  startDate: "2024-01-01"
+  startDate: "2024-01-01",
 });
 ```
 
@@ -322,15 +342,19 @@ const priceHistory = await polySdk.getPriceHistory({
 
 ```typescript
 // Direct HTTP API calls to proxy server
-const markets = await fetch('http://localhost:3000/gamma/markets?limit=10&active=true')
-  .then(res => res.json());
+const markets = await fetch(
+  "http://localhost:3000/gamma/markets?limit=10&active=true"
+).then((res) => res.json());
 
-const priceHistory = await fetch('http://localhost:3000/clob/prices-history?market=0x123&interval=1h', {
-  headers: {
-    'x-polymarket-key': 'your_key',
-    'x-polymarket-funder': 'your_funder'
+const priceHistory = await fetch(
+  "http://localhost:3000/clob/prices-history?market=0x123&interval=1h",
+  {
+    headers: {
+      "x-polymarket-key": "your_key",
+      "x-polymarket-funder": "your_funder",
+    },
   }
-}).then(res => res.json());
+).then((res) => res.json());
 ```
 
 ### Python (with generated SDK)
@@ -344,9 +368,9 @@ api = polymarket_proxy_client.GammaAPIApi(client)
 # Get markets
 markets = api.gamma_markets_get(slug="bitcoin-above-100k")
 
-# Get price history  
+# Get price history
 price_data = api.clob_price_history_token_id_get(
-    token_id="0x123", 
+    token_id="0x123",
     interval="1h"
 )
 ```
@@ -354,9 +378,10 @@ price_data = api.clob_price_history_token_id_get(
 ## Development Plan
 
 ### Phase 1: Core Implementation ✅
+
 - [x] Basic Elysia server setup
 - [x] Gamma API routes with full typing
-- [x] CLOB API routes with full typing  
+- [x] CLOB API routes with full typing
 - [x] OpenAPI documentation generation
 - [x] CORS and error handling
 - [x] **Unified TypeBox schema system**
@@ -366,12 +391,14 @@ price_data = api.clob_price_history_token_id_get(
 - [x] **Comprehensive caching system**
 
 ### Phase 2: SDK Generation
+
 - [ ] Automated SDK generation pipeline for other languages
 - [ ] Python SDK with proper typing
 - [ ] Go SDK generation
 - [ ] Enhanced TypeScript client generation
 
 ### Phase 3: Enhanced Features
+
 - [ ] Rate limiting and request throttling
 - [ ] Authentication/API key management
 - [ ] Monitoring and metrics collection
@@ -379,6 +406,7 @@ price_data = api.clob_price_history_token_id_get(
 - [ ] Enhanced error recovery mechanisms
 
 ### Recent Updates ✅
+
 - **Schema Consolidation**: Migrated from dual Effect + TypeBox schemas to unified TypeBox-only approach
 - **Type Safety**: Eliminated all `any` types and improved TypeScript strictness
 - **Bundle Optimization**: Removed Effect dependency, reduced package size
