@@ -25,6 +25,51 @@ export class GammaSDK {
 	private readonly gammaApiBase = "https://gamma-api.polymarket.com";
 
 	/**
+	 * Transform market data from Gamma API to match expected schema
+	 * Parses JSON string fields that should be arrays
+	 */
+	private transformMarketData(item: any): Market {
+		return {
+			...item,
+			outcomes: this.parseJsonArray(item.outcomes),
+			outcomePrices: this.parseJsonArray(item.outcomePrices),
+			clobTokenIds: this.parseJsonArray(item.clobTokenIds),
+		};
+	}
+
+	/**
+	 * Transform event data from Gamma API to match expected schema
+	 * Transforms nested market data as well
+	 */
+	private transformEventData(item: any): Event {
+		return {
+			...item,
+			markets: item.markets?.map((market: any) => ({
+				...market,
+				outcomes: this.parseJsonArray(market.outcomes),
+				outcomePrices: this.parseJsonArray(market.outcomePrices),
+				clobTokenIds: this.parseJsonArray(market.clobTokenIds),
+			})) || [],
+		};
+	}
+
+	/**
+	 * Parse JSON array string or return as-is if already an array
+	 */
+	private parseJsonArray(value: string | string[]): string[] {
+		if (Array.isArray(value)) return value;
+		if (typeof value === 'string') {
+			try {
+				const parsed = JSON.parse(value);
+				return Array.isArray(parsed) ? parsed : [];
+			} catch {
+				return [];
+			}
+		}
+		return [];
+	}
+
+	/**
 	 * Fetch markets from Gamma API with full typing and validation
 	 *
 	 * @param query - Optional query parameters to filter markets
@@ -63,8 +108,8 @@ export class GammaSDK {
 				);
 			}
 
-			// Type-safe transformation - runtime validation is handled by Elysia routes
-			return data.map((item) => item as Market);
+			// Transform response data to match expected schema
+			return data.map((item) => this.transformMarketData(item));
 		} catch (error) {
 			throw new Error(
 				`Failed to fetch markets: ${error instanceof Error ? error.message : "Unknown error"}`,
@@ -110,8 +155,8 @@ export class GammaSDK {
 				);
 			}
 
-			// Type-safe transformation - runtime validation is handled by Elysia routes
-			return data.map((item) => item as Event);
+			// Transform response data to match expected schema
+			return data.map((item) => this.transformEventData(item));
 		} catch (error) {
 			throw new Error(
 				`Failed to fetch events: ${error instanceof Error ? error.message : "Unknown error"}`,

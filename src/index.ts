@@ -63,6 +63,10 @@ export const app = new Elysia()
 						url: process.env.BASE_URL || `http://localhost:${PORT}`,
 						description: "Development server",
 					},
+					{
+						url: process.env.BASE_URL || `https://polymarket.huakun.tech`,
+						description: "Production server",
+					},
 				],
 			},
 			path: "/docs",
