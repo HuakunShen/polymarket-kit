@@ -18,13 +18,11 @@ import { swagger } from "@elysiajs/swagger";
 import { Elysia } from "elysia";
 import { clobRoutes } from "./routes/clob";
 import { gammaRoutes } from "./routes/gamma";
-import { getBaseUrl, getHostname } from "./utils/env";
+import { getBaseUrl, getPort } from "./utils/env";
 
-export const PORT = process.env.PORT || Bun.env.PORT || 3000;
-const port = typeof PORT === "string" ? Number(PORT) : PORT;
-const hostname = getHostname();
-const baseUrl = getBaseUrl(port);
-const isLocalhost = hostname === "localhost";
+export const PORT = getPort();
+const baseUrl = getBaseUrl();
+const isLocalhost = baseUrl.includes("localhost");
 
 export const app = new Elysia()
   // Add CORS support

@@ -45,7 +45,7 @@
 		{
 			"class_name": "MyContainer",
 			"image": "./Dockerfile",
-			"image_build_context": "../..",
+			"image_build_context": ".",
 			"max_instances": 10
 		}
 	],

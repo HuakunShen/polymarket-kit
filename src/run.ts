@@ -1,11 +1,9 @@
 import { app, PORT } from "./index";
-import { getBaseUrl, getHostname } from "./utils/env";
+import { getBaseUrl } from "./utils/env";
 
-const port = typeof PORT === "string" ? Number(PORT) : PORT;
-const hostname = getHostname();
-app.listen({ port, hostname: "0.0.0.0" });
+app.listen({ port: PORT, hostname: "0.0.0.0" });
 
-const baseUrl = getBaseUrl(port);
+const baseUrl = getBaseUrl();
 
 console.log("🚀 Polymarket Proxy Server started!");
 console.log(`📖 API Documentation: ${baseUrl}/docs`);
