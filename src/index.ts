@@ -18,145 +18,148 @@ import { swagger } from "@elysiajs/swagger";
 import { Elysia } from "elysia";
 import { clobRoutes } from "./routes/clob";
 import { gammaRoutes } from "./routes/gamma";
+import { getBaseUrl, getHostname } from "./utils/env";
 
 export const PORT = process.env.PORT || Bun.env.PORT || 3000;
+const port = typeof PORT === "string" ? Number(PORT) : PORT;
+const hostname = getHostname();
+const baseUrl = getBaseUrl(port);
+const isLocalhost = hostname === "localhost";
 
 export const app = new Elysia()
-	// Add CORS support
-	.use(
-		cors({
-			origin: true, // Allow all origins in development
-			methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-		}),
-	)
+  // Add CORS support
+  .use(
+    cors({
+      origin: true, // Allow all origins in development
+      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    })
+  )
 
-	// Add Swagger/OpenAPI documentation
-	.use(
-		swagger({
-			documentation: {
-				info: {
-					title: "Polymarket Proxy API",
-					version: "1.0.0",
-					description:
-						"A fully typed proxy server for Polymarket CLOB and Gamma APIs. Provides type-safe endpoints with comprehensive validation and automatic OpenAPI schema generation.",
-					contact: {
-						name: "API Support",
-						url: "https://github.com/your-repo/polymarket-strategy",
-					},
-				},
-				tags: [
-					{
-						name: "Gamma API",
-						description: "Market and event data from gamma-api.polymarket.com",
-					},
-					{
-						name: "CLOB API",
-						description: "Trading and price history from CLOB client",
-					},
-					{
-						name: "System",
-						description: "Health checks and system information",
-					},
-				],
-				servers: [
-					{
-						url: process.env.BASE_URL || `http://localhost:${PORT}`,
-						description: "Development server",
-					},
-					{
-						url: process.env.BASE_URL || `https://polymarket.huakun.tech`,
-						description: "Production server",
-					},
-				],
-			},
-			path: "/docs",
-		}),
-	)
+  // Add Swagger/OpenAPI documentation
+  .use(
+    swagger({
+      documentation: {
+        info: {
+          title: "Polymarket Proxy API",
+          version: "1.0.0",
+          description:
+            "A fully typed proxy server for Polymarket CLOB and Gamma APIs. Provides type-safe endpoints with comprehensive validation and automatic OpenAPI schema generation.",
+          contact: {
+            name: "API Support",
+            url: "https://github.com/your-repo/polymarket-strategy",
+          },
+        },
+        tags: [
+          {
+            name: "Gamma API",
+            description: "Market and event data from gamma-api.polymarket.com",
+          },
+          {
+            name: "CLOB API",
+            description: "Trading and price history from CLOB client",
+          },
+          {
+            name: "System",
+            description: "Health checks and system information",
+          },
+        ],
+        servers: [
+          {
+            url: baseUrl,
+            description: isLocalhost
+              ? "Development server"
+              : "Production server",
+          },
+        ],
+      },
+      path: "/docs",
+    })
+  )
 
-	// Global error handler
-	.onError(({ code, error, set }) => {
-		const errorMessage =
-			error instanceof Error ? error.message : "Unknown error";
-		console.error(`[${code}] ${errorMessage}`);
+  // Global error handler
+  .onError(({ code, error, set }) => {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    console.error(`[${code}] ${errorMessage}`);
 
-		switch (code) {
-			case "VALIDATION":
-				set.status = 400;
-				return {
-					error: "Bad Request",
-					message: "Invalid request parameters or body",
-					details: errorMessage,
-				};
+    switch (code) {
+      case "VALIDATION":
+        set.status = 400;
+        return {
+          error: "Bad Request",
+          message: "Invalid request parameters or body",
+          details: errorMessage,
+        };
 
-			case "NOT_FOUND":
-				set.status = 404;
-				return {
-					error: "Not Found",
-					message: "The requested resource was not found",
-				};
+      case "NOT_FOUND":
+        set.status = 404;
+        return {
+          error: "Not Found",
+          message: "The requested resource was not found",
+        };
 
-			case "PARSE":
-				set.status = 400;
-				return {
-					error: "Bad Request",
-					message: "Invalid JSON in request body",
-				};
+      case "PARSE":
+        set.status = 400;
+        return {
+          error: "Bad Request",
+          message: "Invalid JSON in request body",
+        };
 
-			default:
-				set.status = 500;
-				return {
-					error: "Internal Server Error",
-					message: "An unexpected error occurred",
-				};
-		}
-	})
+      default:
+        set.status = 500;
+        return {
+          error: "Internal Server Error",
+          message: "An unexpected error occurred",
+        };
+    }
+  })
 
-	// Root endpoint with API information
-	.get(
-		"/",
-		() => ({
-			name: "Polymarket Proxy API",
-			version: "1.0.0",
-			description: "A fully typed proxy server for Polymarket APIs",
-			endpoints: {
-				documentation: "/docs",
-				gamma_api: "/gamma",
-				clob_api: "/clob",
-				health: "/health",
-			},
-			timestamp: new Date().toISOString(),
-		}),
-		{
-			detail: {
-				tags: ["System"],
-				summary: "API Information",
-				description:
-					"Get basic information about the API and available endpoints",
-			},
-		},
-	)
+  // Root endpoint with API information
+  .get(
+    "/",
+    () => ({
+      name: "Polymarket Proxy API",
+      version: "1.0.0",
+      description: "A fully typed proxy server for Polymarket APIs",
+      endpoints: {
+        documentation: "/docs",
+        gamma_api: "/gamma",
+        clob_api: "/clob",
+        health: "/health",
+      },
+      timestamp: new Date().toISOString(),
+    }),
+    {
+      detail: {
+        tags: ["System"],
+        summary: "API Information",
+        description:
+          "Get basic information about the API and available endpoints",
+      },
+    }
+  )
 
-	// Global health endpoint
-	.get(
-		"/health",
-		() => ({
-			status: "healthy",
-			timestamp: new Date().toISOString(),
-			uptime: process.uptime(),
-			memory: process.memoryUsage(),
-			version: "1.0.0",
-		}),
-		{
-			detail: {
-				tags: ["System"],
-				summary: "Health Check",
-				description: "Get the health status of the proxy server",
-			},
-		},
-	)
+  // Global health endpoint
+  .get(
+    "/health",
+    () => ({
+      status: "healthy",
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      version: "1.0.0",
+    }),
+    {
+      detail: {
+        tags: ["System"],
+        summary: "Health Check",
+        description: "Get the health status of the proxy server",
+      },
+    }
+  )
 
-	// Mount route modules
-	.use(gammaRoutes)
-	.use(clobRoutes);
+  // Mount route modules
+  .use(gammaRoutes)
+  .use(clobRoutes);
 
 export type App = typeof app;
