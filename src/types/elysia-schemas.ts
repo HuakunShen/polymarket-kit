@@ -377,9 +377,9 @@ export const PriceHistoryQuerySchema = t.Object({
 export const ClobClientConfigSchema = t.Object({
 	privateKey: t.String(),
 	funderAddress: t.String(),
-	host: t.String(),
-	chainId: t.Number(),
-	signatureType: t.Number(),
+	host: t.Optional(t.String()),
+	chainId: t.Optional(t.Number()),
+	signatureType: t.Optional(t.Number()),
 });
 
 /**
@@ -406,6 +406,113 @@ export const HealthResponseSchema = t.Object({
 	clob: t.String(),
 	cached: t.Optional(t.Boolean()),
 	error: t.Optional(t.String()),
+});
+
+/**
+ * Schema for order summary in order book
+ *
+ * Represents a single price level in the order book with price and size.
+ */
+export const OrderSummarySchema = t.Object({
+	price: t.String(),
+	size: t.String(),
+});
+
+/**
+ * Schema for order book summary response
+ *
+ * Complete order book data including bids, asks, and market metadata.
+ */
+export const OrderBookSummarySchema = t.Object({
+	market: t.String(),
+	asset_id: t.String(),
+	timestamp: t.String(),
+	bids: t.Array(OrderSummarySchema),
+	asks: t.Array(OrderSummarySchema),
+	min_order_size: t.String(),
+	tick_size: t.String(),
+	neg_risk: t.Boolean(),
+	hash: t.String(),
+});
+
+/**
+ * Schema for book parameters used in batch operations (requires side)
+ */
+export const BookParamsSchema = t.Object({
+	token_id: t.String(),
+	side: t.UnionEnum(["BUY", "SELL"]),
+});
+
+/**
+ * Schema for price query parameters
+ */
+export const PriceQuerySchema = t.Object({
+	tokenId: t.String(),
+	side: t.UnionEnum(["buy", "sell"]),
+});
+
+/**
+ * Schema for midpoint query parameters
+ */
+export const MidpointQuerySchema = t.Object({
+	tokenId: t.String(),
+});
+
+/**
+ * Schema for simple token parameters (just token_id)
+ */
+export const TokenParamsSchema = t.Object({
+	token_id: t.String(),
+});
+
+/**
+ * Schema for trade query parameters
+ */
+export const TradeParamsSchema = t.Object({
+	id: t.Optional(t.String()),
+	maker_address: t.Optional(t.String()),
+	market: t.Optional(t.String()),
+	asset_id: t.Optional(t.String()),
+	before: t.Optional(t.String()),
+	after: t.Optional(t.String()),
+});
+
+/**
+ * Schema for trade objects
+ */
+export const TradeSchema = t.Object({
+	id: t.String(),
+	taker_order_id: t.String(),
+	market: t.String(),
+	asset_id: t.String(),
+	side: t.UnionEnum(["BUY", "SELL"]),
+	size: t.String(),
+	fee_rate_bps: t.String(),
+	price: t.String(),
+	status: t.String(),
+	match_time: t.String(),
+	last_update: t.String(),
+	outcome: t.String(),
+	bucket_index: t.Number(),
+	owner: t.String(),
+	maker_address: t.String(),
+});
+
+/**
+ * Schema for pagination payload
+ */
+export const PaginationPayloadSchema = t.Object({
+	limit: t.Number(),
+	count: t.Number(),
+	next_cursor: t.String(),
+	data: t.Array(t.Any()),
+});
+
+/**
+ * Schema for market query parameters (with pagination)
+ */
+export const MarketPaginationQuerySchema = t.Object({
+	next_cursor: t.Optional(t.String()),
 });
 
 // Type exports for use in handlers and SDK
@@ -442,3 +549,34 @@ export type PriceHistoryQueryType = typeof PriceHistoryQuerySchema.static;
 
 /** TypeScript type for CLOB client configuration derived from ClobClientConfigSchema */
 export type ClobClientConfigType = typeof ClobClientConfigSchema.static;
+
+/** TypeScript type for order summary derived from OrderSummarySchema */
+export type OrderSummaryType = typeof OrderSummarySchema.static;
+
+/** TypeScript type for order book summary derived from OrderBookSummarySchema */
+export type OrderBookSummaryType = typeof OrderBookSummarySchema.static;
+
+/** TypeScript type for book parameters derived from BookParamsSchema */
+export type BookParamsType = typeof BookParamsSchema.static;
+
+/** TypeScript type for price query parameters derived from PriceQuerySchema */
+export type PriceQueryType = typeof PriceQuerySchema.static;
+
+/** TypeScript type for midpoint query parameters derived from MidpointQuerySchema */
+export type MidpointQueryType = typeof MidpointQuerySchema.static;
+
+/** TypeScript type for token parameters derived from TokenParamsSchema */
+export type TokenParamsType = typeof TokenParamsSchema.static;
+
+/** TypeScript type for trade parameters derived from TradeParamsSchema */
+export type TradeParamsType = typeof TradeParamsSchema.static;
+
+/** TypeScript type for trade objects derived from TradeSchema */
+export type TradeType = typeof TradeSchema.static;
+
+/** TypeScript type for pagination payload derived from PaginationPayloadSchema */
+export type PaginationPayloadType = typeof PaginationPayloadSchema.static;
+
+/** TypeScript type for market pagination query derived from MarketPaginationQuerySchema */
+export type MarketPaginationQueryType =
+	typeof MarketPaginationQuerySchema.static;

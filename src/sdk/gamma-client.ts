@@ -44,12 +44,13 @@ export class GammaSDK {
 	private transformEventData(item: any): Event {
 		return {
 			...item,
-			markets: item.markets?.map((market: any) => ({
-				...market,
-				outcomes: this.parseJsonArray(market.outcomes),
-				outcomePrices: this.parseJsonArray(market.outcomePrices),
-				clobTokenIds: this.parseJsonArray(market.clobTokenIds),
-			})) || [],
+			markets:
+				item.markets?.map((market: any) => ({
+					...market,
+					outcomes: this.parseJsonArray(market.outcomes),
+					outcomePrices: this.parseJsonArray(market.outcomePrices),
+					clobTokenIds: this.parseJsonArray(market.clobTokenIds),
+				})) || [],
 		};
 	}
 
@@ -58,7 +59,7 @@ export class GammaSDK {
 	 */
 	private parseJsonArray(value: string | string[]): string[] {
 		if (Array.isArray(value)) return value;
-		if (typeof value === 'string') {
+		if (typeof value === "string") {
 			try {
 				const parsed = JSON.parse(value);
 				return Array.isArray(parsed) ? parsed : [];

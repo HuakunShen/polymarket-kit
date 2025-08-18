@@ -9,8 +9,14 @@
 import { Wallet } from "@ethersproject/wallet";
 import {
 	ClobClient,
+	type OrderBookSummary,
 	type PriceHistoryFilterParams,
 	type PriceHistoryInterval,
+	type BookParams,
+	type TradeParams,
+	type Trade,
+	type PaginationPayload,
+	Side,
 } from "@polymarket/clob-client";
 import { LRUCache } from "lru-cache";
 import type {
@@ -29,6 +35,17 @@ const clobClientCache = new LRUCache<string, ClobClient>({
 });
 
 /**
+ * Internal config type with all required properties after defaults are applied
+ */
+interface ResolvedClobClientConfig {
+	privateKey: string;
+	funderAddress: string;
+	host: string;
+	chainId: number;
+	signatureType: number;
+}
+
+/**
  * Polymarket CLOB SDK for authenticated operations
  *
  * This SDK provides a high-level interface to the Polymarket CLOB API with automatic
@@ -36,7 +53,7 @@ const clobClientCache = new LRUCache<string, ClobClient>({
  * funderAddress for authentication.
  */
 export class PolymarketSDK {
-	private readonly config: ClobClientConfig;
+	private readonly config: ResolvedClobClientConfig;
 	private readonly cacheKey: string;
 
 	/**
@@ -56,19 +73,13 @@ export class PolymarketSDK {
 	 * ```
 	 */
 	constructor(config: ClobClientConfig) {
-		// Destructure to avoid duplicate keys with spreads and apply sensible defaults
-		const {
-			host: cfgHost,
-			chainId: cfgChainId,
-			signatureType: cfgSignatureType,
-			...rest
-		} = config;
-
+		// Apply sensible defaults for optional properties
 		this.config = {
-			...rest,
-			host: cfgHost ?? "https://clob.polymarket.com",
-			chainId: cfgChainId ?? 137,
-			signatureType: cfgSignatureType ?? 1,
+			privateKey: config.privateKey,
+			funderAddress: config.funderAddress,
+			host: config.host ?? "https://clob.polymarket.com",
+			chainId: config.chainId ?? 137,
+			signatureType: config.signatureType ?? 1,
 		};
 		if (!config.privateKey || !config.funderAddress) {
 			throw new Error(
@@ -113,6 +124,7 @@ export class PolymarketSDK {
 
 			return client;
 		} catch (error) {
+			console.error("CLOB Client initialization failed:", error);
 			throw new Error(
 				`Failed to initialize CLOB client: ${
 					error instanceof Error ? error.message : "Unknown error"
@@ -205,6 +217,78 @@ export class PolymarketSDK {
 				}`,
 			);
 		}
+	}
+
+	async getBook(tokenId: string): Promise<OrderBookSummary> {
+		const client = await this.initializeClobClient();
+		return client.getOrderBook(tokenId);
+	}
+
+	async getOrderBooks(params: BookParams[]): Promise<OrderBookSummary[]> {
+		const client = await this.initializeClobClient();
+		return client.getOrderBooks(params);
+	}
+
+	async getPrice(tokenId: string, side: "buy" | "sell"): Promise<number> {
+		const client = await this.initializeClobClient();
+		const sideEnum = side === "buy" ? Side.BUY : Side.SELL;
+		return client.getPrice(tokenId, sideEnum);
+	}
+
+	async getPrices(params: BookParams[]): Promise<number[]> {
+		const client = await this.initializeClobClient();
+		return client.getPrices(params);
+	}
+
+	async getMidpoint(tokenId: string): Promise<number> {
+		const client = await this.initializeClobClient();
+		return client.getMidpoint(tokenId);
+	}
+
+	async getMidpoints(params: BookParams[]): Promise<number[]> {
+		const client = await this.initializeClobClient();
+		return client.getMidpoints(params);
+	}
+
+	async getSpreads(params: BookParams[]): Promise<number[]> {
+		const client = await this.initializeClobClient();
+		return client.getSpreads(params);
+	}
+
+	async getTrades(
+		params?: TradeParams,
+		onlyFirstPage?: boolean,
+		nextCursor?: string,
+	): Promise<Trade[]> {
+		const client = await this.initializeClobClient();
+		return client.getTrades(params, onlyFirstPage, nextCursor);
+	}
+
+	async getMarket(conditionId: string): Promise<any> {
+		const client = await this.initializeClobClient();
+		return client.getMarket(conditionId);
+	}
+
+	async getMarkets(nextCursor?: string): Promise<PaginationPayload> {
+		const client = await this.initializeClobClient();
+		return client.getMarkets(nextCursor);
+	}
+
+	async getSamplingMarkets(nextCursor?: string): Promise<PaginationPayload> {
+		const client = await this.initializeClobClient();
+		return client.getSamplingMarkets(nextCursor);
+	}
+
+	async getSimplifiedMarkets(nextCursor?: string): Promise<PaginationPayload> {
+		const client = await this.initializeClobClient();
+		return client.getSimplifiedMarkets(nextCursor);
+	}
+
+	async getSamplingSimplifiedMarkets(
+		nextCursor?: string,
+	): Promise<PaginationPayload> {
+		const client = await this.initializeClobClient();
+		return client.getSamplingSimplifiedMarkets(nextCursor);
 	}
 
 	/**

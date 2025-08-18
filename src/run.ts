@@ -13,13 +13,13 @@ console.log("  GET  /                    - API information");
 console.log("  GET  /health              - Global health check");
 console.log("  GET  /docs                - Swagger documentation");
 console.log(
-  "  GET  /gamma/markets       - Get markets from Gamma API (with comprehensive filtering)"
+	"  GET  /gamma/markets       - Get markets from Gamma API (with comprehensive filtering)",
 );
 console.log(
-  "  GET  /gamma/events        - Get events from Gamma API (with comprehensive filtering)"
+	"  GET  /gamma/events        - Get events from Gamma API (with comprehensive filtering)",
 );
 console.log(
-  "  GET  /clob/prices-history    - Get price history (requires market query param)"
+	"  GET  /clob/prices-history    - Get price history (requires market query param)",
 );
 console.log("  GET  /clob/health         - CLOB client health check");
 
