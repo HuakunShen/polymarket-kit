@@ -6,7 +6,7 @@
 	"private": true,
 	"scripts": {
 		"dev": "bun run --hot src/run.ts",
-		"deploy": "wrangler deploy",
+		"deploy": "NODE_ENV=production wrangler deploy",
 		"dev:cf": "NODE_ENV=development wrangler dev",
 		"cf-typegen": "wrangler types",
 		"format": "biome format --write",

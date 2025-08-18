@@ -11,10 +11,7 @@ export class MyContainer extends Container<Env> {
     MESSAGE: "I was passed in via the container class!",
     NODE_ENV: "production",
     PORT: "3000",
-    BASE_URL:
-      process.env.NODE_ENV === "production"
-        ? "https://polymarket.huakun.tech"
-        : "http://localhost:8787",
+    BASE_URL: "https://polymarket.huakun.tech",
   };
 
   // Optional lifecycle hooks

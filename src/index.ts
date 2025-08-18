@@ -61,14 +61,14 @@ export const app = new Elysia()
             description: "Health checks and system information",
           },
         ],
-        servers: [
-          {
-            url: baseUrl,
-            description: isLocalhost
-              ? "Development server"
-              : "Production server",
-          },
-        ],
+        // servers: [
+        //   {
+        //     url: baseUrl,
+        //     description: isLocalhost
+        //       ? "Development server"
+        //       : "Production server",
+        //   },
+        // ],
       },
       path: "/docs",
     })
