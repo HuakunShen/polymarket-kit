@@ -4,6 +4,11 @@
 	"version": "0.0.1",
 	"type": "module",
 	"private": true,
+	"exports": {
+		".": "./src/mod.ts",
+		"./proxy": "./src/client.ts",
+		"./sdk": "./src/sdk/index.ts"
+	},
 	"scripts": {
 		"dev": "bun run --hot src/run.ts",
 		"deploy": "NODE_ENV=production wrangler deploy",
