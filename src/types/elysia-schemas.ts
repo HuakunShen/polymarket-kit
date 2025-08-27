@@ -145,7 +145,7 @@ export const SeriesSchema = t.Object({
 	volume24hr: OptionalNumber,
 	pythTokenID: OptionalString,
 	cgAssetName: OptionalString,
-	commentCount: t.Number(),
+	commentCount: t.Optional(t.Number()),
 });
 
 // Tag Schema
@@ -202,7 +202,7 @@ export const EventSchema = t.Object({
 	enableOrderBook: OptionalBoolean,
 	liquidityClob: OptionalNumber,
 	negRisk: OptionalBoolean,
-	commentCount: t.Number(),
+	commentCount: t.Optional(t.Number()),
 	markets: t.Array(EventMarketSchema),
 	series: t.Optional(t.Array(SeriesSchema)),
 	tags: t.Optional(t.Array(TagSchema)),
