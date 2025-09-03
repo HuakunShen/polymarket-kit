@@ -1,34 +1,115 @@
 /**
  * Polymarket Gamma API SDK Client
  *
- * A fully typed wrapper SDK for Polymarket Gamma API endpoints.
- * Provides type-safe methods for fetching markets and events without requiring credentials.
- * This is a standalone client that doesn't require CLOB authentication.
+ * A fully typed wrapper SDK for the new Polymarket Gamma API endpoints.
+ * Provides type-safe methods for all available API operations including
+ * health checks, sports, tags, events, markets, series, comments, and search.
  */
 
-// TypeBox validation is handled by Elysia internally
-// For SDK validation, we'll use a simple type-safe approach without runtime validation
 import type {
-	EventType as Event,
-	EventQueryType as EventQuery,
-	MarketType as Market,
-	MarketQueryType as MarketQuery,
+	GammaHealthResponseType,
+	TeamType,
+	TeamQueryType,
+	UpdatedTagType,
+	TagQueryType,
+	TagByIdQueryType,
+	RelatedTagRelationshipType,
+	RelatedTagsQueryType,
+	EventType,
+	UpdatedEventQueryType,
+	PaginatedEventQueryType,
+	EventByIdQueryType,
+	MarketType,
+	UpdatedMarketQueryType,
+	MarketByIdQueryType,
+	SeriesType,
+	SeriesQueryType,
+	SeriesByIdQueryType,
+	CommentType,
+	CommentQueryType,
+	CommentByIdQueryType,
+	CommentsByUserQueryType,
+	SearchQueryType,
+	SearchResponseType,
 } from "../types/elysia-schemas";
 
 /**
- * Polymarket Gamma API SDK for public data operations
+ * Polymarket Gamma API SDK for all public data operations
  *
- * This SDK provides a high-level interface to the Polymarket Gamma API for fetching
- * public market and event data. No authentication required.
+ * This SDK provides a comprehensive interface to the Polymarket Gamma API
+ * covering all available endpoints. No authentication required.
  */
 export class GammaSDK {
 	private readonly gammaApiBase = "https://gamma-api.polymarket.com";
 
 	/**
+	 * Helper method to build URL search params from query object
+	 */
+	private buildSearchParams(query: Record<string, any>): URLSearchParams {
+		const searchParams = new URLSearchParams();
+
+		Object.entries(query).forEach(([key, value]) => {
+			if (value !== undefined && value !== null) {
+				if (Array.isArray(value)) {
+					value.forEach((item) => searchParams.append(key, String(item)));
+				} else {
+					searchParams.append(key, String(value));
+				}
+			}
+		});
+
+		return searchParams;
+	}
+
+	/**
+	 * Helper method to make API requests with error handling
+	 */
+	private async makeRequest<T>(
+		endpoint: string,
+		query?: Record<string, any>,
+	): Promise<{
+		data: T | null;
+		status: number;
+		ok: boolean;
+		errorData?: any;
+	}> {
+		let url = `${this.gammaApiBase}${endpoint}`;
+
+		if (query && Object.keys(query).length > 0) {
+			const searchParams = this.buildSearchParams(query);
+			url += `?${searchParams.toString()}`;
+		}
+
+		try {
+			const response = await fetch(url);
+			const data = await response.json();
+
+			if (!response.ok) {
+				return {
+					data: null,
+					status: response.status,
+					ok: false,
+					errorData: data,
+				};
+			}
+
+			return {
+				data: data as T,
+				status: response.status,
+				ok: true,
+			};
+		} catch (error) {
+			throw new Error(
+				`Failed to fetch from ${endpoint}: ${error instanceof Error ? error.message : "Unknown error"}`,
+			);
+		}
+	}
+
+	/**
 	 * Transform market data from Gamma API to match expected schema
 	 * Parses JSON string fields that should be arrays
 	 */
-	private transformMarketData(item: any): Market {
+	private transformMarketData(item: any): MarketType {
 		return {
 			...item,
 			outcomes: this.parseJsonArray(item.outcomes),
@@ -41,7 +122,7 @@ export class GammaSDK {
 	 * Transform event data from Gamma API to match expected schema
 	 * Transforms nested market data as well
 	 */
-	private transformEventData(item: any): Event {
+	private transformEventData(item: any): EventType {
 		return {
 			...item,
 			markets:
@@ -70,153 +151,319 @@ export class GammaSDK {
 		return [];
 	}
 
+	// Sports API
 	/**
-	 * Fetch markets from Gamma API with full typing and validation
+	 * Get list of teams with optional filtering
 	 *
-	 * @param query - Optional query parameters to filter markets
-	 * @returns Promise resolving to array of market objects
-	 * @throws {Error} When API request fails or returns invalid data
+	 * @param query - Optional query parameters to filter teams
+	 * @returns Promise resolving to array of team objects
+	 * @throws {Error} When API request fails
 	 *
 	 * @example
 	 * ```ts
-	 * const gamma = new GammaSDK();
-	 * const markets = await gamma.getMarkets({ active: "true" });
+	 * const teams = await gamma.getTeams({ limit: 10, league: ["NFL"] });
 	 * ```
 	 */
-	async getMarkets(query: MarketQuery = {}): Promise<Market[]> {
-		const searchParams = new URLSearchParams();
-
-		Object.entries(query).forEach(([key, value]) => {
-			if (value !== undefined) {
-				searchParams.append(key, value);
-			}
-		});
-
-		const url = `${this.gammaApiBase}/markets?${searchParams.toString()}`;
-
-		try {
-			const response = await fetch(url);
-
-			if (!response.ok) {
-				throw new Error(`Gamma API responded with status: ${response.status}`);
-			}
-
-			const data = await response.json();
-
-			if (!Array.isArray(data)) {
-				throw new Error(
-					"Expected array response from Gamma API markets endpoint",
-				);
-			}
-
-			// Transform response data to match expected schema
-			return data.map((item) => this.transformMarketData(item));
-		} catch (error) {
-			throw new Error(
-				`Failed to fetch markets: ${error instanceof Error ? error.message : "Unknown error"}`,
-			);
+	async getTeams(query: TeamQueryType = {}): Promise<TeamType[]> {
+		const response = await this.makeRequest<TeamType[]>("/teams", query);
+		if (!response.ok) {
+			throw new Error(`Failed to get teams: ${response.status}`);
 		}
+		return response.data!;
+	}
+
+	// Tags API
+	/**
+	 * Get list of tags with optional filtering
+	 *
+	 * @param query - Query parameters for pagination and filtering
+	 * @returns Promise resolving to array of tag objects
+	 * @throws {Error} When API request fails
+	 *
+	 * @example
+	 * ```ts
+	 * const tags = await gamma.getTags({ limit: 20, is_carousel: true });
+	 * ```
+	 */
+	async getTags(query: TagQueryType): Promise<UpdatedTagType[]> {
+		const response = await this.makeRequest<UpdatedTagType[]>("/tags", query);
+		if (!response.ok) {
+			throw new Error(`Failed to get tags: ${response.status}`);
+		}
+		return response.data!;
 	}
 
 	/**
-	 * Fetch events from Gamma API with full typing and validation
+	 * Get a specific tag by ID
 	 *
-	 * @param query - Optional query parameters to filter events
+	 * @param id - The tag ID to fetch
+	 * @param query - Optional query parameters
+	 * @returns Promise resolving to tag object or null if not found
+	 *
+	 * @example
+	 * ```ts
+	 * const tag = await gamma.getTagById(123, { include_template: true });
+	 * ```
+	 */
+	async getTagById(
+		id: number,
+		query: TagByIdQueryType = {},
+	): Promise<UpdatedTagType | null> {
+		const response = await this.makeRequest<UpdatedTagType>(
+			`/tags/${id}`,
+			query,
+		);
+		if (response.status === 404) {
+			return null;
+		}
+		if (!response.ok) {
+			throw new Error(`Failed to get tag by ID: ${response.status}`);
+		}
+		return response.data!;
+	}
+
+	/**
+	 * Get a specific tag by slug
+	 *
+	 * @param slug - The tag slug to fetch
+	 * @param query - Optional query parameters
+	 * @returns Promise resolving to tag object or null if not found
+	 *
+	 * @example
+	 * ```ts
+	 * const tag = await gamma.getTagBySlug("politics");
+	 * ```
+	 */
+	async getTagBySlug(
+		slug: string,
+		query: TagByIdQueryType = {},
+	): Promise<UpdatedTagType | null> {
+		const response = await this.makeRequest<UpdatedTagType>(
+			`/tags/slug/${slug}`,
+			query,
+		);
+		if (response.status === 404) {
+			return null;
+		}
+		if (!response.ok) {
+			throw new Error(`Failed to get tag by slug: ${response.status}`);
+		}
+		return response.data!;
+	}
+
+	/**
+	 * Get related tags relationships by tag ID
+	 *
+	 * @param id - The tag ID to find relationships for
+	 * @param query - Optional query parameters
+	 * @returns Promise resolving to array of relationship objects
+	 *
+	 * @example
+	 * ```ts
+	 * const relationships = await gamma.getRelatedTagsRelationshipsByTagId(123);
+	 * ```
+	 */
+	async getRelatedTagsRelationshipsByTagId(
+		id: number,
+		query: RelatedTagsQueryType = {},
+	): Promise<RelatedTagRelationshipType[]> {
+		const response = await this.makeRequest<RelatedTagRelationshipType[]>(
+			`/tags/${id}/related-tags`,
+			query,
+		);
+		if (!response.ok) {
+			throw new Error(
+				`Failed to get related tags relationships: ${response.status}`,
+			);
+		}
+		return response.data!;
+	}
+
+	/**
+	 * Get related tags relationships by tag slug
+	 *
+	 * @param slug - The tag slug to find relationships for
+	 * @param query - Optional query parameters
+	 * @returns Promise resolving to array of relationship objects
+	 *
+	 * @example
+	 * ```ts
+	 * const relationships = await gamma.getRelatedTagsRelationshipsByTagSlug("politics");
+	 * ```
+	 */
+	async getRelatedTagsRelationshipsByTagSlug(
+		slug: string,
+		query: RelatedTagsQueryType = {},
+	): Promise<RelatedTagRelationshipType[]> {
+		const response = await this.makeRequest<RelatedTagRelationshipType[]>(
+			`/tags/slug/${slug}/related-tags`,
+			query,
+		);
+		if (!response.ok) {
+			throw new Error(
+				`Failed to get related tags relationships: ${response.status}`,
+			);
+		}
+		return response.data!;
+	}
+
+	/**
+	 * Get tags related to a tag ID
+	 *
+	 * @param id - The tag ID to find related tags for
+	 * @param query - Optional query parameters
+	 * @returns Promise resolving to array of related tag objects
+	 *
+	 * @example
+	 * ```ts
+	 * const relatedTags = await gamma.getTagsRelatedToTagId(123);
+	 * ```
+	 */
+	async getTagsRelatedToTagId(
+		id: number,
+		query: RelatedTagsQueryType = {},
+	): Promise<UpdatedTagType[]> {
+		const response = await this.makeRequest<UpdatedTagType[]>(
+			`/tags/${id}/related-tags/tags`,
+			query,
+		);
+		if (!response.ok) {
+			throw new Error(`Failed to get related tags: ${response.status}`);
+		}
+		return response.data!;
+	}
+
+	/**
+	 * Get tags related to a tag slug
+	 *
+	 * @param slug - The tag slug to find related tags for
+	 * @param query - Optional query parameters
+	 * @returns Promise resolving to array of related tag objects
+	 *
+	 * @example
+	 * ```ts
+	 * const relatedTags = await gamma.getTagsRelatedToTagSlug("politics");
+	 * ```
+	 */
+	async getTagsRelatedToTagSlug(
+		slug: string,
+		query: RelatedTagsQueryType = {},
+	): Promise<UpdatedTagType[]> {
+		const response = await this.makeRequest<UpdatedTagType[]>(
+			`/tags/slug/${slug}/related-tags/tags`,
+			query,
+		);
+		if (!response.ok) {
+			throw new Error(`Failed to get related tags: ${response.status}`);
+		}
+		return response.data!;
+	}
+
+	// Events API
+	/**
+	 * Get list of events with optional filtering
+	 *
+	 * @param query - Query parameters for pagination and filtering
 	 * @returns Promise resolving to array of event objects
-	 * @throws {Error} When API request fails or returns invalid data
+	 * @throws {Error} When API request fails
 	 *
 	 * @example
 	 * ```ts
-	 * const events = await gamma.getEvents({ active: "true", limit: "10" });
+	 * const events = await gamma.getEvents({ limit: 10, featured: true });
 	 * ```
 	 */
-	async getEvents(query: EventQuery = {}): Promise<Event[]> {
-		const searchParams = new URLSearchParams();
-
-		Object.entries(query).forEach(([key, value]) => {
-			if (value !== undefined) {
-				searchParams.append(key, value);
-			}
-		});
-
-		const url = `${this.gammaApiBase}/events?${searchParams.toString()}`;
-
-		try {
-			const response = await fetch(url);
-
-			if (!response.ok) {
-				throw new Error(`Gamma API responded with status: ${response.status}`);
-			}
-
-			const data = await response.json();
-
-			if (!Array.isArray(data)) {
-				throw new Error(
-					"Expected array response from Gamma API events endpoint",
-				);
-			}
-
-			// Transform response data to match expected schema
-			return data.map((item) => this.transformEventData(item));
-		} catch (error) {
-			throw new Error(
-				`Failed to fetch events: ${error instanceof Error ? error.message : "Unknown error"}`,
-			);
+	async getEvents(query: UpdatedEventQueryType = {}): Promise<EventType[]> {
+		const response = await this.makeRequest<any[]>("/events", query);
+		if (!response.ok) {
+			throw new Error(`Failed to get events: ${response.status}`);
 		}
+		// Transform the data to parse JSON string fields in nested markets
+		return response.data!.map((item) => this.transformEventData(item));
 	}
 
 	/**
-	 * Get a specific market by ID
+	 * Get paginated list of events
 	 *
-	 * @param id - The market ID to fetch
-	 * @returns Promise resolving to market object or null if not found
+	 * @param query - Query parameters for pagination and filtering
+	 * @returns Promise resolving to paginated event response
+	 * @throws {Error} When API request fails
 	 *
 	 * @example
 	 * ```ts
-	 * const market = await gamma.getMarketById("market-123");
+	 * const response = await gamma.getEventsPaginated({ limit: 10, offset: 0 });
 	 * ```
 	 */
-	async getMarketById(id: string): Promise<Market | null> {
-		const markets = await this.getMarkets({ id });
-		return markets.length > 0 ? (markets[0] ?? null) : null;
+	async getEventsPaginated(query: PaginatedEventQueryType): Promise<{
+		data: EventType[];
+		pagination: { hasMore: boolean; totalResults: number };
+	}> {
+		const response = await this.makeRequest<{
+			data: any[];
+			pagination: { hasMore: boolean; totalResults: number };
+		}>("/events/pagination", query);
+		if (!response.ok) {
+			throw new Error(`Failed to get paginated events: ${response.status}`);
+		}
+		// Transform the data to parse JSON string fields in nested markets
+		return {
+			data: response.data!.data.map((item) => this.transformEventData(item)),
+			pagination: response.data!.pagination,
+		};
 	}
 
 	/**
 	 * Get a specific event by ID
 	 *
 	 * @param id - The event ID to fetch
+	 * @param query - Optional query parameters
 	 * @returns Promise resolving to event object or null if not found
 	 *
 	 * @example
 	 * ```ts
-	 * const event = await gamma.getEventById("event-123");
+	 * const event = await gamma.getEventById(123, { include_chat: true });
 	 * ```
 	 */
-	async getEventById(id: string): Promise<Event | null> {
-		const events = await this.getEvents({ id });
-		return events.length > 0 ? (events[0] ?? null) : null;
+	async getEventById(
+		id: number,
+		query: EventByIdQueryType = {},
+	): Promise<EventType | null> {
+		const response = await this.makeRequest<any>(`/events/${id}`, query);
+		if (response.status === 404) {
+			return null;
+		}
+		if (!response.ok) {
+			throw new Error(`Failed to get event by ID: ${response.status}`);
+		}
+		// Transform the data to parse JSON string fields in nested markets
+		return this.transformEventData(response.data!);
 	}
 
 	/**
-	 * Get markets by slug
+	 * Get tags for a specific event
 	 *
-	 * @param slug - The market slug to fetch
-	 * @returns Promise resolving to market object or null if not found
+	 * @param id - The event ID to get tags for
+	 * @returns Promise resolving to array of tag objects
 	 *
 	 * @example
 	 * ```ts
-	 * const market = await gamma.getMarketBySlug("trump-2024");
+	 * const tags = await gamma.getEventTags(123);
 	 * ```
 	 */
-	async getMarketBySlug(slug: string): Promise<Market | null> {
-		const markets = await this.getMarkets({ slug });
-		return markets.length > 0 ? (markets[0] ?? null) : null;
+	async getEventTags(id: number): Promise<UpdatedTagType[]> {
+		const response = await this.makeRequest<UpdatedTagType[]>(
+			`/events/${id}/tags`,
+		);
+		if (!response.ok) {
+			throw new Error(`Failed to get event tags: ${response.status}`);
+		}
+		return response.data!;
 	}
 
 	/**
-	 * Get events by slug
+	 * Get a specific event by slug
 	 *
 	 * @param slug - The event slug to fetch
+	 * @param query - Optional query parameters
 	 * @returns Promise resolving to event object or null if not found
 	 *
 	 * @example
@@ -224,27 +471,278 @@ export class GammaSDK {
 	 * const event = await gamma.getEventBySlug("election-2024");
 	 * ```
 	 */
-	async getEventBySlug(slug: string): Promise<Event | null> {
-		const events = await this.getEvents({ slug });
-		return events.length > 0 ? (events[0] ?? null) : null;
+	async getEventBySlug(
+		slug: string,
+		query: EventByIdQueryType = {},
+	): Promise<EventType | null> {
+		const response = await this.makeRequest<any>(`/events/slug/${slug}`, query);
+		if (response.status === 404) {
+			return null;
+		}
+		if (!response.ok) {
+			throw new Error(`Failed to get event by slug: ${response.status}`);
+		}
+		// Transform the data to parse JSON string fields in nested markets
+		return this.transformEventData(response.data!);
 	}
 
+	// Markets API
 	/**
-	 * Get active markets
+	 * Get list of markets with optional filtering
 	 *
-	 * @param query - Optional query parameters (excluding active which is set to true)
-	 * @returns Promise resolving to array of active market objects
+	 * @param query - Query parameters for pagination and filtering
+	 * @returns Promise resolving to array of market objects
+	 * @throws {Error} When API request fails
 	 *
 	 * @example
 	 * ```ts
-	 * const activeMarkets = await gamma.getActiveMarkets({ limit: "20" });
+	 * const markets = await gamma.getMarkets({ limit: 20, active: true });
 	 * ```
 	 */
-	async getActiveMarkets(
-		query: Omit<MarketQuery, "active"> = {},
-	): Promise<Market[]> {
-		return this.getMarkets({ ...query, active: "true" });
+	async getMarkets(query: UpdatedMarketQueryType = {}): Promise<MarketType[]> {
+		const response = await this.makeRequest<any[]>("/markets", query);
+		if (!response.ok) {
+			throw new Error(`Failed to get markets: ${response.status}`);
+		}
+		// Transform the data to parse JSON string fields
+		return response.data!.map((item) => this.transformMarketData(item));
 	}
+
+	/**
+	 * Get a specific market by ID
+	 *
+	 * @param id - The market ID to fetch
+	 * @param query - Optional query parameters
+	 * @returns Promise resolving to market object or null if not found
+	 *
+	 * @example
+	 * ```ts
+	 * const market = await gamma.getMarketById(123, { include_tag: true });
+	 * ```
+	 */
+	async getMarketById(
+		id: number,
+		query: MarketByIdQueryType = {},
+	): Promise<MarketType | null> {
+		const response = await this.makeRequest<any>(`/markets/${id}`, query);
+		if (response.status === 404) {
+			return null;
+		}
+		if (!response.ok) {
+			throw new Error(`Failed to get market by ID: ${response.status}`);
+		}
+		// Transform the data to parse JSON string fields
+		return this.transformMarketData(response.data!);
+	}
+
+	/**
+	 * Get tags for a specific market
+	 *
+	 * @param id - The market ID to get tags for
+	 * @returns Promise resolving to array of tag objects
+	 *
+	 * @example
+	 * ```ts
+	 * const tags = await gamma.getMarketTags(123);
+	 * ```
+	 */
+	async getMarketTags(id: number): Promise<UpdatedTagType[]> {
+		const response = await this.makeRequest<UpdatedTagType[]>(
+			`/markets/${id}/tags`,
+		);
+		if (!response.ok) {
+			throw new Error(`Failed to get market tags: ${response.status}`);
+		}
+		return response.data!;
+	}
+
+	/**
+	 * Get a specific market by slug
+	 *
+	 * @param slug - The market slug to fetch
+	 * @param query - Optional query parameters
+	 * @returns Promise resolving to market object or null if not found
+	 *
+	 * @example
+	 * ```ts
+	 * const market = await gamma.getMarketBySlug("trump-2024");
+	 * ```
+	 */
+	async getMarketBySlug(
+		slug: string,
+		query: MarketByIdQueryType = {},
+	): Promise<MarketType | null> {
+		const response = await this.makeRequest<any>(
+			`/markets/slug/${slug}`,
+			query,
+		);
+		if (response.status === 404) {
+			return null;
+		}
+		if (!response.ok) {
+			throw new Error(`Failed to get market by slug: ${response.status}`);
+		}
+		// Transform the data to parse JSON string fields
+		return this.transformMarketData(response.data!);
+	}
+
+	// Series API
+	/**
+	 * Get list of series with filtering and pagination
+	 *
+	 * @param query - Query parameters for pagination and filtering
+	 * @returns Promise resolving to array of series objects
+	 * @throws {Error} When API request fails
+	 *
+	 * @example
+	 * ```ts
+	 * const series = await gamma.getSeries({ limit: 10, offset: 0, closed: false });
+	 * ```
+	 */
+	async getSeries(query: SeriesQueryType): Promise<SeriesType[]> {
+		const response = await this.makeRequest<SeriesType[]>("/series", query);
+		if (!response.ok) {
+			throw new Error(`Failed to get series: ${response.status}`);
+		}
+		return response.data!;
+	}
+
+	/**
+	 * Get a specific series by ID
+	 *
+	 * @param id - The series ID to fetch
+	 * @param query - Optional query parameters
+	 * @returns Promise resolving to series object or null if not found
+	 *
+	 * @example
+	 * ```ts
+	 * const series = await gamma.getSeriesById(123, { include_chat: true });
+	 * ```
+	 */
+	async getSeriesById(
+		id: number,
+		query: SeriesByIdQueryType = {},
+	): Promise<SeriesType | null> {
+		const response = await this.makeRequest<SeriesType>(`/series/${id}`, query);
+		if (response.status === 404) {
+			return null;
+		}
+		if (!response.ok) {
+			throw new Error(`Failed to get series by ID: ${response.status}`);
+		}
+		return response.data!;
+	}
+
+	// Comments API
+	/**
+	 * Get list of comments with optional filtering
+	 *
+	 * @param query - Query parameters for pagination and filtering
+	 * @returns Promise resolving to array of comment objects
+	 * @throws {Error} When API request fails
+	 *
+	 * @example
+	 * ```ts
+	 * const comments = await gamma.getComments({
+	 *   limit: 20,
+	 *   parent_entity_type: "Event",
+	 *   parent_entity_id: 123
+	 * });
+	 * ```
+	 */
+	async getComments(query: CommentQueryType = {}): Promise<CommentType[]> {
+		const response = await this.makeRequest<CommentType[]>("/comments", query);
+		if (!response.ok) {
+			throw new Error(`Failed to get comments: ${response.status}`);
+		}
+		return response.data!;
+	}
+
+	/**
+	 * Get comments by comment ID (returns array of related comments)
+	 *
+	 * @param id - The comment ID to fetch
+	 * @param query - Optional query parameters
+	 * @returns Promise resolving to array of comment objects
+	 *
+	 * @example
+	 * ```ts
+	 * const comments = await gamma.getCommentsByCommentId(123);
+	 * ```
+	 */
+	async getCommentsByCommentId(
+		id: number,
+		query: CommentByIdQueryType = {},
+	): Promise<CommentType[]> {
+		const response = await this.makeRequest<CommentType[]>(
+			`/comments/${id}`,
+			query,
+		);
+		if (!response.ok) {
+			throw new Error(
+				`Failed to get comments by comment ID: ${response.status}`,
+			);
+		}
+		return response.data!;
+	}
+
+	/**
+	 * Get comments by user address
+	 *
+	 * @param userAddress - The user address to get comments for
+	 * @param query - Query parameters for pagination
+	 * @returns Promise resolving to array of comment objects
+	 *
+	 * @example
+	 * ```ts
+	 * const comments = await gamma.getCommentsByUserAddress("0x123...", { limit: 10 });
+	 * ```
+	 */
+	async getCommentsByUserAddress(
+		userAddress: string,
+		query: CommentsByUserQueryType = {},
+	): Promise<CommentType[]> {
+		const response = await this.makeRequest<CommentType[]>(
+			`/comments/user_address/${userAddress}`,
+			query,
+		);
+		if (!response.ok) {
+			throw new Error(
+				`Failed to get comments by user address: ${response.status}`,
+			);
+		}
+		return response.data!;
+	}
+
+	// Search API
+	/**
+	 * Search across markets, events, and profiles
+	 *
+	 * @param query - Search query parameters
+	 * @returns Promise resolving to search results
+	 * @throws {Error} When API request fails
+	 *
+	 * @example
+	 * ```ts
+	 * const results = await gamma.search({
+	 *   q: "election",
+	 *   limit_per_type: 5,
+	 *   events_status: "active"
+	 * });
+	 * ```
+	 */
+	async search(query: SearchQueryType): Promise<SearchResponseType> {
+		const response = await this.makeRequest<SearchResponseType>(
+			"/public-search",
+			query,
+		);
+		if (!response.ok) {
+			throw new Error(`Failed to search: ${response.status}`);
+		}
+		return response.data!;
+	}
+
+	// Convenience methods for common use cases
 
 	/**
 	 * Get active events
@@ -254,30 +752,13 @@ export class GammaSDK {
 	 *
 	 * @example
 	 * ```ts
-	 * const activeEvents = await gamma.getActiveEvents({ limit: "10" });
+	 * const activeEvents = await gamma.getActiveEvents({ limit: 10 });
 	 * ```
 	 */
 	async getActiveEvents(
-		query: Omit<EventQuery, "active"> = {},
-	): Promise<Event[]> {
-		return this.getEvents({ ...query, active: "true" });
-	}
-
-	/**
-	 * Get closed markets
-	 *
-	 * @param query - Optional query parameters (excluding closed which is set to true)
-	 * @returns Promise resolving to array of closed market objects
-	 *
-	 * @example
-	 * ```ts
-	 * const closedMarkets = await gamma.getClosedMarkets({ limit: "50" });
-	 * ```
-	 */
-	async getClosedMarkets(
-		query: Omit<MarketQuery, "closed"> = {},
-	): Promise<Market[]> {
-		return this.getMarkets({ ...query, closed: "true" });
+		query: Omit<UpdatedEventQueryType, "active"> = {},
+	): Promise<EventType[]> {
+		return this.getEvents({ ...query, active: true });
 	}
 
 	/**
@@ -288,12 +769,63 @@ export class GammaSDK {
 	 *
 	 * @example
 	 * ```ts
-	 * const closedEvents = await gamma.getClosedEvents({ limit: "25" });
+	 * const closedEvents = await gamma.getClosedEvents({ limit: 25 });
 	 * ```
 	 */
 	async getClosedEvents(
-		query: Omit<EventQuery, "closed"> = {},
-	): Promise<Event[]> {
-		return this.getEvents({ ...query, closed: "true" });
+		query: Omit<UpdatedEventQueryType, "closed"> = {},
+	): Promise<EventType[]> {
+		return this.getEvents({ ...query, closed: true });
+	}
+
+	/**
+	 * Get featured events
+	 *
+	 * @param query - Optional query parameters (excluding featured which is set to true)
+	 * @returns Promise resolving to array of featured event objects
+	 *
+	 * @example
+	 * ```ts
+	 * const featuredEvents = await gamma.getFeaturedEvents({ limit: 5 });
+	 * ```
+	 */
+	async getFeaturedEvents(
+		query: Omit<UpdatedEventQueryType, "featured"> = {},
+	): Promise<EventType[]> {
+		return this.getEvents({ ...query, featured: true });
+	}
+
+	/**
+	 * Get active markets
+	 *
+	 * @param query - Optional query parameters (excluding active which is set to true)
+	 * @returns Promise resolving to array of active market objects
+	 *
+	 * @example
+	 * ```ts
+	 * const activeMarkets = await gamma.getActiveMarkets({ limit: 20 });
+	 * ```
+	 */
+	async getActiveMarkets(
+		query: Omit<UpdatedMarketQueryType, "active"> = {},
+	): Promise<MarketType[]> {
+		return this.getMarkets({ ...query, active: true });
+	}
+
+	/**
+	 * Get closed markets
+	 *
+	 * @param query - Optional query parameters (excluding closed which is set to true)
+	 * @returns Promise resolving to array of closed market objects
+	 *
+	 * @example
+	 * ```ts
+	 * const closedMarkets = await gamma.getClosedMarkets({ limit: 50 });
+	 * ```
+	 */
+	async getClosedMarkets(
+		query: Omit<UpdatedMarketQueryType, "closed"> = {},
+	): Promise<MarketType[]> {
+		return this.getMarkets({ ...query, closed: true });
 	}
 }

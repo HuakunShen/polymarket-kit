@@ -5,7 +5,7 @@
  * Uses Elysia's built-in type validation system with `t` from 'elysia'.
  */
 
-import { t } from "elysia";
+import { t, type TSchema } from "elysia";
 
 // Base types used across different schemas
 const StringArray = t.Array(t.String());
@@ -395,6 +395,17 @@ export const ErrorResponseSchema = t.Object({
 });
 
 /**
+ * Schema for Gamma API specific error responses
+ *
+ * Error response format specific to Gamma API endpoints
+ * when requests fail (especially 404 errors).
+ */
+export const GammaErrorResponseSchema = t.Object({
+	type: t.String(),
+	error: t.String(),
+});
+
+/**
  * Schema for health check responses
  *
  * Response format for API health check endpoints that indicate
@@ -515,6 +526,322 @@ export const MarketPaginationQuerySchema = t.Object({
 	next_cursor: t.Optional(t.String()),
 });
 
+// Health Check Schema
+/**
+ * Schema for health check response
+ */
+export const GammaHealthResponseSchema = t.Object({
+	data: t.String(),
+});
+
+// Team Schema for Sports API
+/**
+ * Schema for team objects returned by the Sports API
+ */
+export const TeamSchema = t.Object({
+	id: t.Number(),
+	name: t.String(),
+	league: t.String(),
+	record: t.String(),
+	logo: t.String(),
+	abbreviation: t.String(),
+	alias: t.String(),
+	createdAt: t.String(),
+	updatedAt: t.String(),
+});
+
+// Team Query Schema
+/**
+ * Schema for team query parameters
+ */
+export const TeamQuerySchema = t.Object({
+	limit: t.Optional(t.Number()),
+	offset: t.Optional(t.Number()),
+	order: OptionalString,
+	ascending: OptionalBoolean,
+	league: t.Optional(t.Array(t.String())),
+	name: t.Optional(t.Array(t.String())),
+	abbreviation: t.Optional(t.Array(t.String())),
+});
+
+// Updated Tag Schema with new fields
+/**
+ * Updated schema for tag objects with new API fields
+ */
+export const UpdatedTagSchema = t.Object({
+	id: t.String(),
+	label: t.String(),
+	slug: t.String(),
+	forceShow: OptionalBoolean,
+	publishedAt: OptionalString,
+	createdBy: OptionalNumber,
+	updatedBy: OptionalNumber,
+	createdAt: t.String(),
+	updatedAt: t.String(),
+	forceHide: OptionalBoolean,
+	isCarousel: OptionalBoolean,
+});
+
+// Tag Query Schema
+/**
+ * Schema for tag query parameters
+ */
+export const TagQuerySchema = t.Object({
+	limit: t.Optional(t.Number()),
+	offset: t.Optional(t.Number()),
+	order: OptionalString,
+	ascending: OptionalBoolean,
+	include_template: OptionalBoolean,
+	is_carousel: OptionalBoolean,
+});
+
+// Tag by ID Query Schema
+/**
+ * Schema for tag by ID query parameters
+ */
+export const TagByIdQuerySchema = t.Object({
+	include_template: OptionalBoolean,
+});
+
+// Related Tags Relationship Schema
+/**
+ * Schema for related tags relationship objects
+ */
+export const RelatedTagRelationshipSchema = t.Object({
+	id: t.String(),
+	tagID: t.Number(),
+	relatedTagID: t.Number(),
+	rank: t.Number(),
+});
+
+// Related Tags Query Schema
+/**
+ * Schema for related tags query parameters
+ */
+export const RelatedTagsQuerySchema = t.Object({
+	omit_empty: OptionalBoolean,
+	status: t.Optional(
+		t.Union([t.Literal("active"), t.Literal("closed"), t.Literal("all")]),
+	),
+});
+
+// Updated Event Query Schema with new fields
+/**
+ * Updated schema for event query parameters with new API fields
+ */
+export const UpdatedEventQuerySchema = t.Object({
+	// Pagination
+	limit: t.Optional(t.Number()),
+	offset: t.Optional(t.Number()),
+
+	// Sorting
+	order: OptionalString,
+	ascending: OptionalBoolean,
+
+	// Filters
+	id: t.Optional(t.Array(t.Number())),
+	slug: t.Optional(t.Array(t.String())),
+	tag_id: OptionalNumber,
+	exclude_tag_id: t.Optional(t.Array(t.Number())),
+	featured: OptionalBoolean,
+	cyom: OptionalBoolean,
+	archived: OptionalBoolean,
+	active: OptionalBoolean,
+	closed: OptionalBoolean,
+
+	// Additional filters
+	include_chat: OptionalBoolean,
+	include_template: OptionalBoolean,
+	recurrence: OptionalString,
+
+	// Date filters
+	start_date_min: OptionalString,
+	start_date_max: OptionalString,
+	end_date_min: OptionalString,
+	end_date_max: OptionalString,
+});
+
+// Paginated Event Query Schema
+/**
+ * Schema for paginated event query parameters
+ */
+export const PaginatedEventQuerySchema = t.Object({
+	limit: t.Number(),
+	offset: t.Number(),
+	order: OptionalString,
+	ascending: OptionalBoolean,
+	include_chat: OptionalBoolean,
+	include_template: OptionalBoolean,
+	recurrence: OptionalString,
+});
+
+// Paginated Response Schema
+/**
+ * Schema for paginated responses
+ */
+export const PaginatedResponseSchema = <T extends TSchema>(schema: T) =>
+	t.Object({
+		data: t.Array(schema),
+		pagination: t.Object({
+			hasMore: t.Boolean(),
+			totalResults: t.Number(),
+		}),
+	});
+
+// Event by ID Query Schema
+/**
+ * Schema for event by ID query parameters
+ */
+export const EventByIdQuerySchema = t.Object({
+	include_chat: OptionalBoolean,
+	include_template: OptionalBoolean,
+});
+
+// Updated Market Query Schema with new fields
+/**
+ * Updated schema for market query parameters with new API fields
+ */
+export const UpdatedMarketQuerySchema = t.Object({
+	// Pagination
+	limit: t.Optional(t.Number()),
+	offset: t.Optional(t.Number()),
+
+	// Sorting
+	order: OptionalString,
+	ascending: OptionalBoolean,
+
+	// Filters
+	id: t.Optional(t.Array(t.Number())),
+	slug: t.Optional(t.Array(t.String())),
+	tag_id: OptionalNumber,
+	closed: OptionalBoolean,
+	active: OptionalBoolean,
+	archived: OptionalBoolean,
+	sports_market_types: t.Optional(t.Array(t.String())),
+
+	// Date filters
+	start_date_min: OptionalString,
+	start_date_max: OptionalString,
+	end_date_min: OptionalString,
+	end_date_max: OptionalString,
+});
+
+// Market by ID Query Schema
+/**
+ * Schema for market by ID query parameters
+ */
+export const MarketByIdQuerySchema = t.Object({
+	include_tag: OptionalBoolean,
+});
+
+// Series Query Schema
+/**
+ * Schema for series query parameters
+ */
+export const SeriesQuerySchema = t.Object({
+	limit: t.Number(),
+	offset: t.Number(),
+	order: OptionalString,
+	ascending: OptionalBoolean,
+	slug: t.Optional(t.Array(t.String())),
+	categories_ids: t.Optional(t.Array(t.Number())),
+	categories_labels: t.Optional(t.Array(t.String())),
+	closed: OptionalBoolean,
+	include_chat: OptionalBoolean,
+	recurrence: OptionalString,
+});
+
+// Series by ID Query Schema
+/**
+ * Schema for series by ID query parameters
+ */
+export const SeriesByIdQuerySchema = t.Object({
+	include_chat: OptionalBoolean,
+});
+
+// Comment Schema
+/**
+ * Schema for comment objects
+ */
+export const CommentSchema = t.Object({
+	id: t.String(),
+	body: t.String(),
+	parentEntityType: t.String(),
+	parentEntityID: t.Number(),
+	userAddress: t.String(),
+	createdAt: t.String(),
+	profile: t.Optional(t.Any()), // Profile object structure can vary
+	reactions: t.Optional(t.Array(t.Any())), // Reaction objects can vary
+	reportCount: t.Number(),
+	reactionCount: t.Number(),
+});
+
+// Comment Query Schema
+/**
+ * Schema for comment query parameters
+ */
+export const CommentQuerySchema = t.Object({
+	limit: t.Optional(t.Number()),
+	offset: t.Optional(t.Number()),
+	order: OptionalString,
+	ascending: OptionalBoolean,
+	parent_entity_type: t.Optional(
+		t.Union([t.Literal("Event"), t.Literal("Series"), t.Literal("market")]),
+	),
+	parent_entity_id: OptionalNumber,
+	get_positions: OptionalBoolean,
+	holders_only: OptionalBoolean,
+});
+
+// Comment by ID Query Schema
+/**
+ * Schema for comment by ID query parameters
+ */
+export const CommentByIdQuerySchema = t.Object({
+	get_positions: OptionalBoolean,
+});
+
+// Comments by User Address Query Schema
+/**
+ * Schema for comments by user address query parameters
+ */
+export const CommentsByUserQuerySchema = t.Object({
+	limit: t.Optional(t.Number()),
+	offset: t.Optional(t.Number()),
+	order: OptionalString,
+	ascending: OptionalBoolean,
+});
+
+// Search Query Schema
+/**
+ * Schema for public search query parameters
+ */
+export const SearchQuerySchema = t.Object({
+	q: t.String(), // Required search query
+	cache: OptionalBoolean,
+	events_status: OptionalString,
+	limit_per_type: OptionalNumber,
+	page: OptionalNumber,
+	events_tag: t.Optional(t.Array(t.String())),
+	sort: OptionalString,
+	ascending: OptionalBoolean,
+});
+
+// Search Response Schema
+/**
+ * Schema for public search response
+ */
+export const SearchResponseSchema = t.Object({
+	events: t.Optional(t.Array(t.Any())), // Event objects
+	tags: t.Optional(t.Array(t.Any())), // Tag objects with counts
+	profiles: t.Optional(t.Array(t.Any())), // Profile objects
+	pagination: t.Optional(
+		t.Object({
+			hasMore: OptionalBoolean,
+		}),
+	),
+});
+
 // Type exports for use in handlers and SDK
 
 /** TypeScript type for market objects derived from MarketSchema */
@@ -580,3 +907,72 @@ export type PaginationPayloadType = typeof PaginationPayloadSchema.static;
 /** TypeScript type for market pagination query derived from MarketPaginationQuerySchema */
 export type MarketPaginationQueryType =
 	typeof MarketPaginationQuerySchema.static;
+
+// New type exports for Gamma API endpoints
+
+/** TypeScript type for gamma health response derived from GammaHealthResponseSchema */
+export type GammaHealthResponseType = typeof GammaHealthResponseSchema.static;
+
+/** TypeScript type for team objects derived from TeamSchema */
+export type TeamType = typeof TeamSchema.static;
+
+/** TypeScript type for team query parameters derived from TeamQuerySchema */
+export type TeamQueryType = typeof TeamQuerySchema.static;
+
+/** TypeScript type for updated tag objects derived from UpdatedTagSchema */
+export type UpdatedTagType = typeof UpdatedTagSchema.static;
+
+/** TypeScript type for tag query parameters derived from TagQuerySchema */
+export type TagQueryType = typeof TagQuerySchema.static;
+
+/** TypeScript type for tag by ID query parameters derived from TagByIdQuerySchema */
+export type TagByIdQueryType = typeof TagByIdQuerySchema.static;
+
+/** TypeScript type for related tag relationship objects derived from RelatedTagRelationshipSchema */
+export type RelatedTagRelationshipType =
+	typeof RelatedTagRelationshipSchema.static;
+
+/** TypeScript type for related tags query parameters derived from RelatedTagsQuerySchema */
+export type RelatedTagsQueryType = typeof RelatedTagsQuerySchema.static;
+
+/** TypeScript type for updated event query parameters derived from UpdatedEventQuerySchema */
+export type UpdatedEventQueryType = typeof UpdatedEventQuerySchema.static;
+
+/** TypeScript type for paginated event query parameters derived from PaginatedEventQuerySchema */
+export type PaginatedEventQueryType = typeof PaginatedEventQuerySchema.static;
+
+/** TypeScript type for event by ID query parameters derived from EventByIdQuerySchema */
+export type EventByIdQueryType = typeof EventByIdQuerySchema.static;
+
+/** TypeScript type for updated market query parameters derived from UpdatedMarketQuerySchema */
+export type UpdatedMarketQueryType = typeof UpdatedMarketQuerySchema.static;
+
+/** TypeScript type for market by ID query parameters derived from MarketByIdQuerySchema */
+export type MarketByIdQueryType = typeof MarketByIdQuerySchema.static;
+
+/** TypeScript type for series query parameters derived from SeriesQuerySchema */
+export type SeriesQueryType = typeof SeriesQuerySchema.static;
+
+/** TypeScript type for series by ID query parameters derived from SeriesByIdQuerySchema */
+export type SeriesByIdQueryType = typeof SeriesByIdQuerySchema.static;
+
+/** TypeScript type for comment objects derived from CommentSchema */
+export type CommentType = typeof CommentSchema.static;
+
+/** TypeScript type for comment query parameters derived from CommentQuerySchema */
+export type CommentQueryType = typeof CommentQuerySchema.static;
+
+/** TypeScript type for comment by ID query parameters derived from CommentByIdQuerySchema */
+export type CommentByIdQueryType = typeof CommentByIdQuerySchema.static;
+
+/** TypeScript type for comments by user address query parameters derived from CommentsByUserQuerySchema */
+export type CommentsByUserQueryType = typeof CommentsByUserQuerySchema.static;
+
+/** TypeScript type for search query parameters derived from SearchQuerySchema */
+export type SearchQueryType = typeof SearchQuerySchema.static;
+
+/** TypeScript type for search response derived from SearchResponseSchema */
+export type SearchResponseType = typeof SearchResponseSchema.static;
+
+/** TypeScript type for Gamma API error response derived from GammaErrorResponseSchema */
+export type GammaErrorResponseType = typeof GammaErrorResponseSchema.static;

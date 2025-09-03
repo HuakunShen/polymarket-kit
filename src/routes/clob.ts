@@ -131,20 +131,22 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 		},
 		{
 			query: PriceHistoryQuerySchema,
-			headers: t.Optional(t.Object({
-				"x-polymarket-key": t.Optional(
-					t.String({
-						description:
-							"Polymarket private key for CLOB authentication (required in production, optional in development)",
-					}),
-				),
-				"x-polymarket-funder": t.Optional(
-					t.String({
-						description:
-							"Polymarket funder address for CLOB operations (required in production, optional in development)",
-					}),
-				),
-			})),
+			headers: t.Optional(
+				t.Object({
+					"x-polymarket-key": t.Optional(
+						t.String({
+							description:
+								"Polymarket private key for CLOB authentication (required in production, optional in development)",
+						}),
+					),
+					"x-polymarket-funder": t.Optional(
+						t.String({
+							description:
+								"Polymarket funder address for CLOB operations (required in production, optional in development)",
+						}),
+					),
+				}),
+			),
 			response: {
 				200: PriceHistoryResponseSchema,
 				400: t.Object({

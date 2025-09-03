@@ -2,17 +2,48 @@
  * Gamma API Routes
  *
  * This file handles all routes for the Polymarket Gamma API (https://gamma-api.polymarket.com).
- * Provides typed endpoints for markets and events with proper validation and error handling.
+ * Provides typed endpoints for all available Gamma API operations including health checks,
+ * sports, tags, events, markets, series, comments, and search functionality.
  * Uses the dedicated GammaSDK for credential-free API access.
  */
 
 import { Elysia, t } from "elysia";
 import { GammaSDK } from "../sdk/";
 import {
-	EventQuerySchema,
+	// Health & Sports
+	GammaHealthResponseSchema,
+	TeamSchema,
+	TeamQuerySchema,
+	// Tags
+	UpdatedTagSchema,
+	TagQuerySchema,
+	TagByIdQuerySchema,
+	RelatedTagRelationshipSchema,
+	RelatedTagsQuerySchema,
+	// Events
 	EventSchema,
-	MarketQuerySchema,
+	UpdatedEventQuerySchema,
+	PaginatedEventQuerySchema,
+	EventByIdQuerySchema,
+	// Markets
 	MarketSchema,
+	UpdatedMarketQuerySchema,
+	MarketByIdQuerySchema,
+	// Series
+	SeriesSchema,
+	SeriesQuerySchema,
+	SeriesByIdQuerySchema,
+	// Comments
+	CommentSchema,
+	CommentQuerySchema,
+	CommentByIdQuerySchema,
+	CommentsByUserQuerySchema,
+	// Search
+	SearchQuerySchema,
+	SearchResponseSchema,
+	// Error responses
+	ErrorResponseSchema,
+	GammaErrorResponseSchema,
 } from "../types/elysia-schemas";
 
 // Helper function to create SDK instance for Gamma API calls
@@ -21,38 +52,198 @@ function createGammaSDK(): GammaSDK {
 }
 
 /**
- * Create Gamma API routes with proper typing and validation
+ * Create Gamma API routes with proper typing and validation for all available endpoints
  */
 export const gammaRoutes = new Elysia({ prefix: "/gamma" })
+
+	// Sports API
 	.get(
-		"/markets",
-		({ query }) => {
+		"/teams",
+		async ({ query }) => {
 			const gammaSDK = createGammaSDK();
-			return gammaSDK.getMarkets(query);
+			return await gammaSDK.getTeams(query);
 		},
 		{
-			query: MarketQuerySchema,
+			query: TeamQuerySchema,
 			response: {
-				200: t.Array(MarketSchema),
-				400: t.Object({
-					error: t.String(),
-					message: t.String(),
-					details: t.Optional(t.String()),
-				}),
-				500: t.Object({
-					error: t.String(),
-					message: t.String(),
-				}),
+				200: t.Array(TeamSchema),
+				500: ErrorResponseSchema,
 			},
 			detail: {
-				tags: ["Gamma API"],
-				summary: "Get markets",
+				tags: ["Gamma API - Sports"],
+				summary: "Get teams",
 				description:
-					"Retrieve markets from Gamma API with comprehensive filtering options including pagination (limit, offset), sorting (order, ascending), status filters (active, closed, archived), date ranges, liquidity/volume filters, and tag filtering.",
+					"Retrieve sports teams with optional filtering by league, name, or abbreviation",
 			},
 		},
 	)
 
+	// Tags API
+	.get(
+		"/tags",
+		async ({ query }) => {
+			const gammaSDK = createGammaSDK();
+			return await gammaSDK.getTags(query);
+		},
+		{
+			query: TagQuerySchema,
+			response: {
+				200: t.Array(UpdatedTagSchema),
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["Gamma API - Tags"],
+				summary: "Get tags",
+				description: "Retrieve tags with pagination and filtering options",
+			},
+		},
+	)
+
+	.get(
+		"/tags/:id",
+		async ({ params, query, error }) => {
+			const gammaSDK = createGammaSDK();
+			const result = await gammaSDK.getTagById(Number(params.id), query);
+			if (result === null) {
+				return error(404, { type: "not found error", error: "id not found" });
+			}
+			return result;
+		},
+		{
+			params: t.Object({ id: t.String() }),
+			query: TagByIdQuerySchema,
+			response: {
+				200: UpdatedTagSchema,
+				404: GammaErrorResponseSchema,
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["Gamma API - Tags"],
+				summary: "Get tag by ID",
+				description: "Retrieve a specific tag by its ID",
+			},
+		},
+	)
+
+	.get(
+		"/tags/slug/:slug",
+		async ({ params, query, error }) => {
+			const gammaSDK = createGammaSDK();
+			const result = await gammaSDK.getTagBySlug(params.slug, query);
+			if (result === null) {
+				return error(404, { type: "not found error", error: "slug not found" });
+			}
+			return result;
+		},
+		{
+			params: t.Object({ slug: t.String() }),
+			query: TagByIdQuerySchema,
+			response: {
+				200: UpdatedTagSchema,
+				404: GammaErrorResponseSchema,
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["Gamma API - Tags"],
+				summary: "Get tag by slug",
+				description: "Retrieve a specific tag by its slug",
+			},
+		},
+	)
+
+	.get(
+		"/tags/:id/related-tags",
+		async ({ params, query }) => {
+			const gammaSDK = createGammaSDK();
+			return await gammaSDK.getRelatedTagsRelationshipsByTagId(
+				Number(params.id),
+				query,
+			);
+		},
+		{
+			params: t.Object({ id: t.String() }),
+			query: RelatedTagsQuerySchema,
+			response: {
+				200: t.Array(RelatedTagRelationshipSchema),
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["Gamma API - Tags"],
+				summary: "Get related tags relationships by tag ID",
+				description: "Retrieve related tag relationships for a specific tag ID",
+			},
+		},
+	)
+
+	.get(
+		"/tags/slug/:slug/related-tags",
+		async ({ params, query }) => {
+			const gammaSDK = createGammaSDK();
+			return await gammaSDK.getRelatedTagsRelationshipsByTagSlug(
+				params.slug,
+				query,
+			);
+		},
+		{
+			params: t.Object({ slug: t.String() }),
+			query: RelatedTagsQuerySchema,
+			response: {
+				200: t.Array(RelatedTagRelationshipSchema),
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["Gamma API - Tags"],
+				summary: "Get related tags relationships by tag slug",
+				description:
+					"Retrieve related tag relationships for a specific tag slug",
+			},
+		},
+	)
+
+	.get(
+		"/tags/:id/related-tags/tags",
+		async ({ params, query }) => {
+			const gammaSDK = createGammaSDK();
+			return await gammaSDK.getTagsRelatedToTagId(Number(params.id), query);
+		},
+		{
+			params: t.Object({ id: t.String() }),
+			query: RelatedTagsQuerySchema,
+			response: {
+				200: t.Array(UpdatedTagSchema),
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["Gamma API - Tags"],
+				summary: "Get tags related to a tag ID",
+				description: "Retrieve actual tag objects related to a specific tag ID",
+			},
+		},
+	)
+
+	.get(
+		"/tags/slug/:slug/related-tags/tags",
+		async ({ params, query }) => {
+			const gammaSDK = createGammaSDK();
+			return await gammaSDK.getTagsRelatedToTagSlug(params.slug, query);
+		},
+		{
+			params: t.Object({ slug: t.String() }),
+			query: RelatedTagsQuerySchema,
+			response: {
+				200: t.Array(UpdatedTagSchema),
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["Gamma API - Tags"],
+				summary: "Get tags related to a tag slug",
+				description:
+					"Retrieve actual tag objects related to a specific tag slug",
+			},
+		},
+	)
+
+	// Events API
 	.get(
 		"/events",
 		async ({ query }) => {
@@ -60,24 +251,341 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 			return await gammaSDK.getEvents(query);
 		},
 		{
-			query: EventQuerySchema,
+			query: UpdatedEventQuerySchema,
 			response: {
 				200: t.Array(EventSchema),
-				400: t.Object({
-					error: t.String(),
-					message: t.String(),
-					details: t.Optional(t.String()),
-				}),
-				500: t.Object({
-					error: t.String(),
-					message: t.String(),
-				}),
+				500: ErrorResponseSchema,
 			},
 			detail: {
-				tags: ["Gamma API"],
+				tags: ["Gamma API - Events"],
 				summary: "Get events",
+				description: "Retrieve events with comprehensive filtering options",
+			},
+		},
+	)
+
+	.get(
+		"/events/pagination",
+		async ({ query }) => {
+			const gammaSDK = createGammaSDK();
+			return await gammaSDK.getEventsPaginated(query);
+		},
+		{
+			query: PaginatedEventQuerySchema,
+			response: {
+				200: t.Object({
+					data: t.Array(EventSchema),
+					pagination: t.Object({
+						hasMore: t.Boolean(),
+						totalResults: t.Number(),
+					}),
+				}),
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["Gamma API - Events"],
+				summary: "Get paginated events",
+				description: "Retrieve events with pagination metadata",
+			},
+		},
+	)
+
+	.get(
+		"/events/:id",
+		async ({ params, query, error }) => {
+			const gammaSDK = createGammaSDK();
+			const result = await gammaSDK.getEventById(Number(params.id), query);
+			if (result === null) {
+				return error(404, { error: "Not Found", message: "Event not found" });
+			}
+			return result;
+		},
+		{
+			params: t.Object({ id: t.String() }),
+			query: EventByIdQuerySchema,
+			response: {
+				200: EventSchema,
+				404: ErrorResponseSchema,
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["Gamma API - Events"],
+				summary: "Get event by ID",
+				description: "Retrieve a specific event by its ID",
+			},
+		},
+	)
+
+	.get(
+		"/events/:id/tags",
+		async ({ params }) => {
+			const gammaSDK = createGammaSDK();
+			return await gammaSDK.getEventTags(Number(params.id));
+		},
+		{
+			params: t.Object({ id: t.String() }),
+			response: {
+				200: t.Array(UpdatedTagSchema),
+				404: ErrorResponseSchema,
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["Gamma API - Events"],
+				summary: "Get event tags",
+				description: "Retrieve tags associated with a specific event",
+			},
+		},
+	)
+
+	.get(
+		"/events/slug/:slug",
+		async ({ params, query, error }) => {
+			const gammaSDK = createGammaSDK();
+			const result = await gammaSDK.getEventBySlug(params.slug, query);
+			if (result === null) {
+				return error(404, { type: "not found error", error: "slug not found" });
+			}
+			return result;
+		},
+		{
+			params: t.Object({ slug: t.String() }),
+			query: EventByIdQuerySchema,
+			response: {
+				200: EventSchema,
+				404: ErrorResponseSchema,
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["Gamma API - Events"],
+				summary: "Get event by slug",
+				description: "Retrieve a specific event by its slug",
+			},
+		},
+	)
+
+	// Markets API
+	.get(
+		"/markets",
+		async ({ query }) => {
+			const gammaSDK = createGammaSDK();
+			return await gammaSDK.getMarkets(query);
+		},
+		{
+			query: UpdatedMarketQuerySchema,
+			response: {
+				200: t.Array(MarketSchema),
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["Gamma API - Markets"],
+				summary: "Get markets",
+				description: "Retrieve markets with comprehensive filtering options",
+			},
+		},
+	)
+
+	.get(
+		"/markets/:id",
+		async ({ params, query, error }) => {
+			const gammaSDK = createGammaSDK();
+			const result = await gammaSDK.getMarketById(Number(params.id), query);
+			if (result === null) {
+				return error(404, { type: "not found error", error: "id not found" });
+			}
+			return result;
+		},
+		{
+			params: t.Object({ id: t.String() }),
+			query: MarketByIdQuerySchema,
+			response: {
+				200: MarketSchema,
+				404: ErrorResponseSchema,
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["Gamma API - Markets"],
+				summary: "Get market by ID",
+				description: "Retrieve a specific market by its ID",
+			},
+		},
+	)
+
+	.get(
+		"/markets/:id/tags",
+		async ({ params }) => {
+			const gammaSDK = createGammaSDK();
+			return await gammaSDK.getMarketTags(Number(params.id));
+		},
+		{
+			params: t.Object({ id: t.String() }),
+			response: {
+				200: t.Array(UpdatedTagSchema),
+				404: ErrorResponseSchema,
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["Gamma API - Markets"],
+				summary: "Get market tags",
+				description: "Retrieve tags associated with a specific market",
+			},
+		},
+	)
+
+	.get(
+		"/markets/slug/:slug",
+		async ({ params, query, error }) => {
+			const gammaSDK = createGammaSDK();
+			const result = await gammaSDK.getMarketBySlug(params.slug, query);
+			if (result === null) {
+				return error(404, { type: "not found error", error: "slug not found" });
+			}
+			return result;
+		},
+		{
+			params: t.Object({ slug: t.String() }),
+			query: MarketByIdQuerySchema,
+			response: {
+				200: MarketSchema,
+				404: ErrorResponseSchema,
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["Gamma API - Markets"],
+				summary: "Get market by slug",
+				description: "Retrieve a specific market by its slug",
+			},
+		},
+	)
+
+	// Series API
+	.get(
+		"/series",
+		async ({ query }) => {
+			const gammaSDK = createGammaSDK();
+			return await gammaSDK.getSeries(query);
+		},
+		{
+			query: SeriesQuerySchema,
+			response: {
+				200: t.Array(SeriesSchema),
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["Gamma API - Series"],
+				summary: "Get series",
+				description: "Retrieve series with filtering and pagination",
+			},
+		},
+	)
+
+	.get(
+		"/series/:id",
+		async ({ params, query, error }) => {
+			const gammaSDK = createGammaSDK();
+			const result = await gammaSDK.getSeriesById(Number(params.id), query);
+			if (result === null) {
+				return error(404, { type: "not found error", error: "id not found" });
+			}
+			return result;
+		},
+		{
+			params: t.Object({ id: t.String() }),
+			query: SeriesByIdQuerySchema,
+			response: {
+				200: SeriesSchema,
+				404: ErrorResponseSchema,
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["Gamma API - Series"],
+				summary: "Get series by ID",
+				description: "Retrieve a specific series by its ID",
+			},
+		},
+	)
+
+	// Comments API
+	.get(
+		"/comments",
+		async ({ query }) => {
+			const gammaSDK = createGammaSDK();
+			return await gammaSDK.getComments(query);
+		},
+		{
+			query: CommentQuerySchema,
+			response: {
+				200: t.Array(CommentSchema),
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["Gamma API - Comments"],
+				summary: "Get comments",
 				description:
-					"Retrieve events from Gamma API with comprehensive filtering options including pagination (limit, offset), sorting (order, ascending), status filters (active, closed, archived), date ranges, liquidity/volume filters, and tag filtering (tag, tag_id, tag_slug, related_tags).",
+					"Retrieve comments with optional filtering by entity type and ID",
+			},
+		},
+	)
+
+	.get(
+		"/comments/:id",
+		async ({ params, query }) => {
+			const gammaSDK = createGammaSDK();
+			return await gammaSDK.getCommentsByCommentId(Number(params.id), query);
+		},
+		{
+			params: t.Object({ id: t.String() }),
+			query: CommentByIdQuerySchema,
+			response: {
+				200: t.Array(CommentSchema),
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["Gamma API - Comments"],
+				summary: "Get comments by comment ID",
+				description: "Retrieve comments related to a specific comment ID",
+			},
+		},
+	)
+
+	.get(
+		"/comments/user_address/:userAddress",
+		async ({ params, query }) => {
+			const gammaSDK = createGammaSDK();
+			return await gammaSDK.getCommentsByUserAddress(params.userAddress, query);
+		},
+		{
+			params: t.Object({ userAddress: t.String() }),
+			query: CommentsByUserQuerySchema,
+			response: {
+				200: t.Array(CommentSchema),
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["Gamma API - Comments"],
+				summary: "Get comments by user address",
+				description: "Retrieve comments made by a specific user address",
+			},
+		},
+	)
+
+	// Search API
+	.get(
+		"/search",
+		async ({ query }) => {
+			const gammaSDK = createGammaSDK();
+			return await gammaSDK.search(query);
+		},
+		{
+			query: SearchQuerySchema,
+			response: {
+				200: SearchResponseSchema,
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["Gamma API - Search"],
+				summary: "Search markets, events, and profiles",
+				description:
+					"Perform a comprehensive search across markets, events, and user profiles",
 			},
 		},
 	);

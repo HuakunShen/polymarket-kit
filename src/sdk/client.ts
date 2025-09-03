@@ -184,7 +184,7 @@ export class PolymarketSDK {
 			console.log({ requestParams });
 			const priceHistory = await client.getPricesHistory(requestParams);
 			if ((priceHistory as any).error) {
-				throw new Error((priceHistory as any).error)
+				throw new Error((priceHistory as any).error);
 			}
 			const historyData = (priceHistory as any)?.history || [];
 
