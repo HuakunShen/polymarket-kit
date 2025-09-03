@@ -81,9 +81,9 @@ describe("GammaSDK", () => {
 			// Each tag should have required fields
 			if (tags.length > 0) {
 				const tag = tags[0];
-				expect(tag.id).toBeDefined();
-				expect(tag.label).toBeDefined();
-				expect(tag.slug).toBeDefined();
+				expect(tag?.id).toBeDefined();
+				expect(tag?.label).toBeDefined();
+				expect(tag?.slug).toBeDefined();
 			}
 		});
 
@@ -144,9 +144,9 @@ describe("GammaSDK", () => {
 			// Each event should have required fields
 			if (events.length > 0) {
 				const event = events[0];
-				expect(event.id).toBeDefined();
-				expect(event.title).toBeDefined();
-				expect(event.slug).toBeDefined();
+				expect(event?.id).toBeDefined();
+				expect(event?.title).toBeDefined();
+				expect(event?.slug).toBeDefined();
 			}
 		});
 
@@ -231,11 +231,11 @@ describe("GammaSDK", () => {
 			// Each market should have required fields
 			if (markets.length > 0) {
 				const market = markets[0];
-				expect(market.id).toBeDefined();
-				expect(market.question).toBeDefined();
-				expect(market.slug).toBeDefined();
-				expect(Array.isArray(market.outcomes)).toBe(true);
-				expect(Array.isArray(market.outcomePrices)).toBe(true);
+				expect(market?.id).toBeDefined();
+				expect(market?.question).toBeDefined();
+				expect(market?.slug).toBeDefined();
+				expect(Array.isArray(market?.outcomes)).toBe(true);
+				expect(Array.isArray(market?.outcomePrices)).toBe(true);
 			}
 		});
 
@@ -302,9 +302,9 @@ describe("GammaSDK", () => {
 			// Each series should have required fields
 			if (series.length > 0) {
 				const singleSeries = series[0];
-				expect(singleSeries.id).toBeDefined();
-				expect(singleSeries.title).toBeDefined();
-				expect(singleSeries.slug).toBeDefined();
+				expect(singleSeries?.id).toBeDefined();
+				expect(singleSeries?.title).toBeDefined();
+				expect(singleSeries?.slug).toBeDefined();
 			}
 		});
 
@@ -390,7 +390,7 @@ describe("GammaSDK", () => {
 			const invalidGamma = new (class extends GammaSDK {
 				constructor() {
 					super();
-					// @ts-ignore - accessing private field for testing
+					// @ts-expect-error - accessing private field for testing
 					this.gammaApiBase = "https://invalid-domain-12345.com";
 				}
 			})();
@@ -433,6 +433,54 @@ describe("GammaSDK", () => {
 				closed: undefined, // Should be ignored
 			});
 			expect(Array.isArray(markets)).toBe(true);
+		});
+	});
+
+	describe("Proxy Configuration", () => {
+		test("should create SDK instance with proxy configuration", () => {
+			const proxyConfig = {
+				host: "proxy.example.com",
+				port: 8080,
+				protocol: "http" as const,
+			};
+
+			const proxyGamma = new GammaSDK({ proxy: proxyConfig });
+			expect(proxyGamma).toBeInstanceOf(GammaSDK);
+		});
+
+		test("should create SDK instance with proxy authentication", () => {
+			const proxyConfig = {
+				host: "proxy.example.com",
+				port: 8080,
+				username: "testuser",
+				password: "testpass",
+				protocol: "https" as const,
+			};
+
+			const proxyGamma = new GammaSDK({ proxy: proxyConfig });
+			expect(proxyGamma).toBeInstanceOf(GammaSDK);
+		});
+
+		test("should work without proxy configuration", async () => {
+			const normalGamma = new GammaSDK();
+
+			// Test that it still works normally
+			const teams = await normalGamma.getTeams({ limit: 1 });
+			expect(Array.isArray(teams)).toBe(true);
+		});
+
+		test("should handle proxy configuration gracefully", async () => {
+			// Test with a non-existent proxy (should fall back gracefully)
+			const proxyConfig = {
+				host: "non-existent-proxy.example.com",
+				port: 8080,
+			};
+
+			const proxyGamma = new GammaSDK({ proxy: proxyConfig });
+
+			// The request should still work (either via proxy or fallback)
+			// We don't expect it to fail just because proxy config exists
+			expect(proxyGamma).toBeInstanceOf(GammaSDK);
 		});
 	});
 });

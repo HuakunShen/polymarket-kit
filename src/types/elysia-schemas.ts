@@ -14,6 +14,29 @@ const OptionalNumber = t.Optional(t.Number());
 const OptionalBoolean = t.Optional(t.Boolean());
 
 /**
+ * HTTP Proxy Configuration Schema
+ *
+ * Configuration for HTTP/HTTPS proxy settings
+ */
+export const ProxyConfigSchema = t.Optional(
+	t.Object({
+		host: t.String({ description: "Proxy server hostname or IP address" }),
+		port: t.Number({ description: "Proxy server port number" }),
+		username: t.Optional(
+			t.String({ description: "Proxy authentication username" }),
+		),
+		password: t.Optional(
+			t.String({ description: "Proxy authentication password" }),
+		),
+		protocol: t.Optional(
+			t.Union([t.Literal("http"), t.Literal("https")], {
+				description: "Proxy protocol (defaults to http)",
+			}),
+		),
+	}),
+);
+
+/**
  * Schema for market objects returned by the Gamma API
  *
  * Defines the structure for Polymarket prediction market data including
@@ -976,3 +999,6 @@ export type SearchResponseType = typeof SearchResponseSchema.static;
 
 /** TypeScript type for Gamma API error response derived from GammaErrorResponseSchema */
 export type GammaErrorResponseType = typeof GammaErrorResponseSchema.static;
+
+/** TypeScript type for HTTP proxy configuration derived from ProxyConfigSchema */
+export type ProxyConfigType = typeof ProxyConfigSchema.static;

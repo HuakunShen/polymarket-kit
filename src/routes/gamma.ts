@@ -8,10 +8,9 @@
  */
 
 import { Elysia, t } from "elysia";
-import { GammaSDK } from "../sdk/";
+import { GammaSDK, type ProxyConfigType } from "../sdk/";
 import {
-	// Health & Sports
-	GammaHealthResponseSchema,
+	// Sports
 	TeamSchema,
 	TeamQuerySchema,
 	// Tags
@@ -46,21 +45,66 @@ import {
 	GammaErrorResponseSchema,
 } from "../types/elysia-schemas";
 
-// Helper function to create SDK instance for Gamma API calls
-function createGammaSDK(): GammaSDK {
-	return new GammaSDK();
+/**
+ * Parse proxy string into ProxyConfigType
+ * Supports formats like:
+ * - http://proxy.com:8080
+ * - http://user:pass@proxy.com:8080
+ * - https://proxy.com:3128
+ */
+function parseProxyString(proxyString: string): ProxyConfigType {
+	try {
+		const url = new URL(proxyString);
+		const config: ProxyConfigType = {
+			protocol: url.protocol.slice(0, -1) as "http" | "https",
+			host: url.hostname,
+			port: parseInt(url.port, 10),
+		};
+
+		if (url.username) {
+			config.username = decodeURIComponent(url.username);
+		}
+		if (url.password) {
+			config.password = decodeURIComponent(url.password);
+		}
+
+		return config;
+	} catch (_error) {
+		throw new Error(`Invalid proxy URL format: ${proxyString}`);
+	}
 }
 
 /**
  * Create Gamma API routes with proper typing and validation for all available endpoints
  */
 export const gammaRoutes = new Elysia({ prefix: "/gamma" })
+	// Middleware to create GammaSDK instance based on proxy header
+	.derive(({ headers }) => {
+		const proxyHeader = headers["x-http-proxy"];
+
+		let gammaSDK: GammaSDK;
+		if (proxyHeader) {
+			try {
+				const proxyConfig = parseProxyString(proxyHeader);
+				gammaSDK = new GammaSDK({ proxy: proxyConfig });
+			} catch (error) {
+				// If proxy parsing fails, create SDK without proxy and log warning
+				console.warn(`Invalid proxy header format: ${proxyHeader}`, error);
+				gammaSDK = new GammaSDK();
+			}
+		} else {
+			gammaSDK = new GammaSDK();
+		}
+
+		return {
+			gammaSDK,
+		};
+	})
 
 	// Sports API
 	.get(
 		"/teams",
-		async ({ query }) => {
-			const gammaSDK = createGammaSDK();
+		async ({ query, gammaSDK }) => {
 			return await gammaSDK.getTeams(query);
 		},
 		{
@@ -81,8 +125,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 	// Tags API
 	.get(
 		"/tags",
-		async ({ query }) => {
-			const gammaSDK = createGammaSDK();
+		async ({ query, gammaSDK }) => {
 			return await gammaSDK.getTags(query);
 		},
 		{
@@ -101,11 +144,11 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 
 	.get(
 		"/tags/:id",
-		async ({ params, query, error }) => {
-			const gammaSDK = createGammaSDK();
+		async ({ params, query, set, gammaSDK }) => {
 			const result = await gammaSDK.getTagById(Number(params.id), query);
 			if (result === null) {
-				return error(404, { type: "not found error", error: "id not found" });
+				set.status = 404;
+				return { type: "not found error", error: "id not found" };
 			}
 			return result;
 		},
@@ -127,11 +170,11 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 
 	.get(
 		"/tags/slug/:slug",
-		async ({ params, query, error }) => {
-			const gammaSDK = createGammaSDK();
+		async ({ params, query, set, gammaSDK }) => {
 			const result = await gammaSDK.getTagBySlug(params.slug, query);
 			if (result === null) {
-				return error(404, { type: "not found error", error: "slug not found" });
+				set.status = 404;
+				return { type: "not found error", error: "slug not found" };
 			}
 			return result;
 		},
@@ -153,8 +196,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 
 	.get(
 		"/tags/:id/related-tags",
-		async ({ params, query }) => {
-			const gammaSDK = createGammaSDK();
+		async ({ params, query, gammaSDK }) => {
 			return await gammaSDK.getRelatedTagsRelationshipsByTagId(
 				Number(params.id),
 				query,
@@ -177,8 +219,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 
 	.get(
 		"/tags/slug/:slug/related-tags",
-		async ({ params, query }) => {
-			const gammaSDK = createGammaSDK();
+		async ({ params, query, gammaSDK }) => {
 			return await gammaSDK.getRelatedTagsRelationshipsByTagSlug(
 				params.slug,
 				query,
@@ -202,8 +243,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 
 	.get(
 		"/tags/:id/related-tags/tags",
-		async ({ params, query }) => {
-			const gammaSDK = createGammaSDK();
+		async ({ params, query, gammaSDK }) => {
 			return await gammaSDK.getTagsRelatedToTagId(Number(params.id), query);
 		},
 		{
@@ -223,8 +263,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 
 	.get(
 		"/tags/slug/:slug/related-tags/tags",
-		async ({ params, query }) => {
-			const gammaSDK = createGammaSDK();
+		async ({ params, query, gammaSDK }) => {
 			return await gammaSDK.getTagsRelatedToTagSlug(params.slug, query);
 		},
 		{
@@ -246,8 +285,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 	// Events API
 	.get(
 		"/events",
-		async ({ query }) => {
-			const gammaSDK = createGammaSDK();
+		async ({ query, gammaSDK }) => {
 			return await gammaSDK.getEvents(query);
 		},
 		{
@@ -266,8 +304,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 
 	.get(
 		"/events/pagination",
-		async ({ query }) => {
-			const gammaSDK = createGammaSDK();
+		async ({ query, gammaSDK }) => {
 			return await gammaSDK.getEventsPaginated(query);
 		},
 		{
@@ -292,11 +329,11 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 
 	.get(
 		"/events/:id",
-		async ({ params, query, error }) => {
-			const gammaSDK = createGammaSDK();
+		async ({ params, query, set, gammaSDK }) => {
 			const result = await gammaSDK.getEventById(Number(params.id), query);
 			if (result === null) {
-				return error(404, { error: "Not Found", message: "Event not found" });
+				set.status = 404;
+				return { error: "Not Found", message: "Event not found" };
 			}
 			return result;
 		},
@@ -318,8 +355,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 
 	.get(
 		"/events/:id/tags",
-		async ({ params }) => {
-			const gammaSDK = createGammaSDK();
+		async ({ params, gammaSDK }) => {
 			return await gammaSDK.getEventTags(Number(params.id));
 		},
 		{
@@ -339,11 +375,11 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 
 	.get(
 		"/events/slug/:slug",
-		async ({ params, query, error }) => {
-			const gammaSDK = createGammaSDK();
+		async ({ params, query, set, gammaSDK }) => {
 			const result = await gammaSDK.getEventBySlug(params.slug, query);
 			if (result === null) {
-				return error(404, { type: "not found error", error: "slug not found" });
+				set.status = 404;
+				return { error: "Not Found", message: "Event not found" };
 			}
 			return result;
 		},
@@ -366,8 +402,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 	// Markets API
 	.get(
 		"/markets",
-		async ({ query }) => {
-			const gammaSDK = createGammaSDK();
+		async ({ query, gammaSDK }) => {
 			return await gammaSDK.getMarkets(query);
 		},
 		{
@@ -386,11 +421,11 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 
 	.get(
 		"/markets/:id",
-		async ({ params, query, error }) => {
-			const gammaSDK = createGammaSDK();
+		async ({ params, query, set, gammaSDK }) => {
 			const result = await gammaSDK.getMarketById(Number(params.id), query);
 			if (result === null) {
-				return error(404, { type: "not found error", error: "id not found" });
+				set.status = 404;
+				return { error: "Not Found", message: "Market not found" };
 			}
 			return result;
 		},
@@ -412,8 +447,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 
 	.get(
 		"/markets/:id/tags",
-		async ({ params }) => {
-			const gammaSDK = createGammaSDK();
+		async ({ params, gammaSDK }) => {
 			return await gammaSDK.getMarketTags(Number(params.id));
 		},
 		{
@@ -433,11 +467,11 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 
 	.get(
 		"/markets/slug/:slug",
-		async ({ params, query, error }) => {
-			const gammaSDK = createGammaSDK();
+		async ({ params, query, set, gammaSDK }) => {
 			const result = await gammaSDK.getMarketBySlug(params.slug, query);
 			if (result === null) {
-				return error(404, { type: "not found error", error: "slug not found" });
+				set.status = 404;
+				return { error: "Not Found", message: "Market not found" };
 			}
 			return result;
 		},
@@ -460,8 +494,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 	// Series API
 	.get(
 		"/series",
-		async ({ query }) => {
-			const gammaSDK = createGammaSDK();
+		async ({ query, gammaSDK }) => {
 			return await gammaSDK.getSeries(query);
 		},
 		{
@@ -480,11 +513,11 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 
 	.get(
 		"/series/:id",
-		async ({ params, query, error }) => {
-			const gammaSDK = createGammaSDK();
+		async ({ params, query, set, gammaSDK }) => {
 			const result = await gammaSDK.getSeriesById(Number(params.id), query);
 			if (result === null) {
-				return error(404, { type: "not found error", error: "id not found" });
+				set.status = 404;
+				return { error: "Not Found", message: "Series not found" };
 			}
 			return result;
 		},
@@ -507,8 +540,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 	// Comments API
 	.get(
 		"/comments",
-		async ({ query }) => {
-			const gammaSDK = createGammaSDK();
+		async ({ query, gammaSDK }) => {
 			return await gammaSDK.getComments(query);
 		},
 		{
@@ -528,8 +560,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 
 	.get(
 		"/comments/:id",
-		async ({ params, query }) => {
-			const gammaSDK = createGammaSDK();
+		async ({ params, query, gammaSDK }) => {
 			return await gammaSDK.getCommentsByCommentId(Number(params.id), query);
 		},
 		{
@@ -549,8 +580,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 
 	.get(
 		"/comments/user_address/:userAddress",
-		async ({ params, query }) => {
-			const gammaSDK = createGammaSDK();
+		async ({ params, query, gammaSDK }) => {
 			return await gammaSDK.getCommentsByUserAddress(params.userAddress, query);
 		},
 		{
@@ -571,8 +601,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 	// Search API
 	.get(
 		"/search",
-		async ({ query }) => {
-			const gammaSDK = createGammaSDK();
+		async ({ query, gammaSDK }) => {
 			return await gammaSDK.search(query);
 		},
 		{

@@ -10,4 +10,4 @@
 // Re-export TypeBox schemas and types for convenience
 export * from "../types/elysia-schemas";
 export { PolymarketSDK } from "./client";
-export { GammaSDK } from "./gamma-client";
+export { GammaSDK, type GammaSDKConfig } from "./gamma-client";

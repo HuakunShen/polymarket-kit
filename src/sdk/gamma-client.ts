@@ -31,7 +31,16 @@ import type {
 	CommentsByUserQueryType,
 	SearchQueryType,
 	SearchResponseType,
+	ProxyConfigType,
 } from "../types/elysia-schemas";
+
+/**
+ * Configuration options for the GammaSDK
+ */
+export interface GammaSDKConfig {
+	/** HTTP/HTTPS proxy configuration */
+	proxy?: ProxyConfigType;
+}
 
 /**
  * Polymarket Gamma API SDK for all public data operations
@@ -41,6 +50,55 @@ import type {
  */
 export class GammaSDK {
 	private readonly gammaApiBase = "https://gamma-api.polymarket.com";
+	private readonly proxyConfig?: ProxyConfigType;
+
+	constructor(config?: GammaSDKConfig) {
+		this.proxyConfig = config?.proxy;
+	}
+
+	/**
+	 * Helper method to create fetch options with proxy support
+	 */
+	private createFetchOptions(): RequestInit {
+		const options: RequestInit = {
+			headers: {
+				"Content-Type": "application/json",
+			},
+		};
+
+		// Add proxy configuration if available
+		if (this.proxyConfig) {
+			const proxyUrl = this.buildProxyUrl(this.proxyConfig);
+
+			// For Bun, we can use the dispatcher option with undici's ProxyAgent
+			// This is the most compatible approach for Bun
+			try {
+				// Import undici dynamically for proxy support
+				const { ProxyAgent } = require("undici");
+				// Add dispatcher option for proxy
+				(options as any).dispatcher = new ProxyAgent(proxyUrl);
+			} catch (error) {
+				console.warn("Proxy configuration failed:", error);
+				// Fall back to environment proxy variables
+				process.env.HTTP_PROXY = proxyUrl;
+				process.env.HTTPS_PROXY = proxyUrl;
+			}
+		}
+
+		return options;
+	}
+
+	/**
+	 * Helper method to build proxy URL from configuration
+	 */
+	private buildProxyUrl(proxy: ProxyConfigType): string {
+		const protocol = proxy.protocol || "http";
+		const auth =
+			proxy.username && proxy.password
+				? `${proxy.username}:${proxy.password}@`
+				: "";
+		return `${protocol}://${auth}${proxy.host}:${proxy.port}`;
+	}
 
 	/**
 	 * Helper method to build URL search params from query object
@@ -81,7 +139,8 @@ export class GammaSDK {
 		}
 
 		try {
-			const response = await fetch(url);
+			const fetchOptions = this.createFetchOptions();
+			const response = await fetch(url, fetchOptions);
 			const data = await response.json();
 
 			if (!response.ok) {
