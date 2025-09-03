@@ -7,6 +7,7 @@ const baseUrl = getBaseUrl();
 
 console.log("🚀 Polymarket Proxy Server started!");
 console.log(`📖 API Documentation: ${baseUrl}/docs`);
+console.log(`📖 OpenAPI JSON Schema: ${baseUrl}/docs/json`);
 console.log(`🌐 Server running at: ${baseUrl}`);
 console.log("\n📋 Available endpoints:");
 console.log("  GET  /                    - API information");

@@ -1,0 +1,17 @@
+overlay: 1.0.0
+info:
+  title: "Fix for timeRange nullability"
+  version: 1.0.0
+actions:
+  - target: "$.paths[\'/clob/prices-history\'].get.responses[\'200\'].content[\'application/json\'].schema.properties.timeRange"
+    update:
+      type: object
+      properties:
+        start:
+          type: string
+        end:
+          type: string
+      required:
+        - start
+        - end
+      nullable: true
