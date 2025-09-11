@@ -4,15 +4,15 @@
     "": {
       "name": "@hk/polymarket",
       "dependencies": {
-        "@cloudflare/containers": "^0.0.19",
+        "@cloudflare/containers": "^0.0.28",
         "@elysiajs/cors": "^1.3.3",
         "@elysiajs/eden": "^1.3.2",
         "@elysiajs/openapi": "^1.3.7",
         "@elysiajs/swagger": "^1.3.1",
         "@ethersproject/wallet": "^5.8.0",
-        "@polymarket/clob-client": "^4.20.0",
+        "@polymarket/clob-client": "^4.21.0",
         "elysia": "^1.3.8",
-        "hono": "4.8.2",
+        "hono": "4.9.6",
         "lru-cache": "^11.1.0",
         "tslib": "^2.6.2",
         "undici": "^7.15.0",
@@ -48,7 +48,7 @@
 
     "@borewit/text-codec": ["@borewit/text-codec@0.1.1", "", {}, "sha512-5L/uBxmjaCIX5h8Z+uu+kA9BQLkc/Wl06UGR5ajNRxu+/XjonB5i8JpgFMrPj3LXTCPA0pv8yxUvbUi+QthGGA=="],
 
-    "@cloudflare/containers": ["@cloudflare/containers@0.0.19", "", {}, "sha512-3Atns+EiKk9xW3aHG3KdTMbkCz4vkf71314CDJpc/h6MiCIUW8Ub5tPbCcdR3NxpZe2sgD1v1zEVPQjgZ5bKXw=="],
+    "@cloudflare/containers": ["@cloudflare/containers@0.0.28", "", {}, "sha512-wzR9UWcGvZ9znd4elkXklilPcHX6srncsjSkx696SZRZyTygNbWsLlHegvc1C+e9gn28HRZU3dLiAzXiC9IY1w=="],
 
     "@cloudflare/kv-asset-handler": ["@cloudflare/kv-asset-handler@0.4.0", "", { "dependencies": { "mime": "^3.0.0" } }, "sha512-+tv3z+SPp+gqTIcImN9o0hqE9xyfQjI1XD9pL6NuKjua9B1y7mNYv0S9cP+QEbA4ppVgGZEmKOvHX5G5Ei1CVA=="],
 
@@ -240,7 +240,7 @@
 
     "@noble/hashes": ["@noble/hashes@1.4.0", "", {}, "sha512-V1JJ1WTRUqHHrOSh597hURcMqVKVGL/ea3kv0gSnEdsEZ0/+VyPghM1lMNGc00z7CIQorSvbKpuJkxvuHbvdbg=="],
 
-    "@polymarket/clob-client": ["@polymarket/clob-client@4.20.0", "", { "dependencies": { "@polymarket/order-utils": "^2.1.0", "axios": "^0.27.2", "browser-or-node": "^2.1.1", "ethers": "^5.7.1" } }, "sha512-+oUfsEhrANF4b33Ekl1pkQKC4DhCXZyPeoO8LLc2PypsexIm5XdMIsG8VbXSBE9gfHihu2DcfC7ffHQ5y91W5Q=="],
+    "@polymarket/clob-client": ["@polymarket/clob-client@4.21.0", "", { "dependencies": { "@polymarket/order-utils": "^2.1.0", "axios": "^0.27.2", "browser-or-node": "^2.1.1", "ethers": "^5.7.1" } }, "sha512-1B2gIB0hq330t/018BWA3cYeDRANGfD44emO+xpCCU/FN4RReI4GGHHN3D0sP2k8+oGczVw8dS7A+roKuoxHHg=="],
 
     "@polymarket/order-utils": ["@polymarket/order-utils@2.1.0", "", { "dependencies": { "@metamask/eth-sig-util": "^5.0.0", "ethers": "^5.7.1" } }, "sha512-vUFj1WiEtm4vB0dxx2NweKKioPu7ehBoJ8fTTaVbR8Dur6AazVWyS+KhgrDE66fKTNneOxxgfdEpbNgxZ4pOIA=="],
 
@@ -390,7 +390,7 @@
 
     "hmac-drbg": ["hmac-drbg@1.0.1", "", { "dependencies": { "hash.js": "^1.0.3", "minimalistic-assert": "^1.0.0", "minimalistic-crypto-utils": "^1.0.1" } }, "sha512-Tti3gMqLdZfhOQY1Mzf/AanLiqh1WTiJgEj26ZuYQ9fbkLomzGchCws4FyrSd4VkpBfiNhaE1On+lOz894jvXg=="],
 
-    "hono": ["hono@4.8.2", "", {}, "sha512-hM+1RIn9PK1I6SiTNS6/y7O1mvg88awYLFEuEtoiMtRyT3SD2iu9pSFgbBXT3b1Ua4IwzvSTLvwO0SEhDxCi4w=="],
+    "hono": ["hono@4.9.6", "", {}, "sha512-doVjXhSFvYZ7y0dNokjwwSahcrAfdz+/BCLvAMa/vHLzjj8+CFyV5xteThGUsKdkaasgN+gF2mUxao+SGLpUeA=="],
 
     "hookable": ["hookable@5.5.3", "", {}, "sha512-Yc+BQe8SvoXH1643Qez1zqLRmbA5rCL+sSmk6TVos0LWVfNIB7PGncdlId77WzLGSIB5KaWgTaNTs2lNVEI6VQ=="],
 
