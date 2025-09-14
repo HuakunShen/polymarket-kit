@@ -335,7 +335,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 			const result = await gammaSDK.getEventById(Number(params.id), query);
 			if (result === null) {
 				set.status = 404;
-				return { error: "Not Found", message: "Event not found" };
+				return { type: "not found error", error: "id not found" };
 			}
 			return result;
 		},
@@ -344,7 +344,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 			query: EventByIdQuerySchema,
 			response: {
 				200: EventSchema,
-				404: ErrorResponseSchema,
+				404: GammaErrorResponseSchema,
 				500: ErrorResponseSchema,
 			},
 			detail: {
@@ -413,7 +413,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 
 			const markdownOptions = {
 				verbose: verbose as 0 | 1 | 2 | undefined,
-				includeMarkets: include_markets
+				includeMarkets: include_markets,
 			};
 			const markdown = formatEventToMarkdown(result, markdownOptions);
 
@@ -434,9 +434,11 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 			response: {
 				200: t.Union([
 					t.Object({
-						markdown: t.String({ description: "Event data formatted as markdown for LLM analysis" })
+						markdown: t.String({
+							description: "Event data formatted as markdown for LLM analysis",
+						}),
 					}),
-					t.String({ description: "Raw markdown content" })
+					t.String({ description: "Raw markdown content" }),
 				]),
 				404: ErrorResponseSchema,
 				500: ErrorResponseSchema,
@@ -444,7 +446,8 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 			detail: {
 				tags: ["Gamma API - Events"],
 				summary: "Get event as markdown by ID",
-				description: "Convert event data to markdown format optimized for LLM arbitrage analysis. Supports verbose levels (0-2) and include_markets flag. Returns JSON if Accept: application/json, otherwise plain markdown text.",
+				description:
+					"Convert event data to markdown format optimized for LLM arbitrage analysis. Supports verbose levels (0-2) and include_markets flag. Returns JSON if Accept: application/json, otherwise plain markdown text.",
 			},
 		},
 	)
@@ -461,7 +464,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 
 			const markdownOptions = {
 				verbose: verbose as 0 | 1 | 2 | undefined,
-				includeMarkets: include_markets
+				includeMarkets: include_markets,
 			};
 			const markdown = formatEventToMarkdown(result, markdownOptions);
 
@@ -482,9 +485,11 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 			response: {
 				200: t.Union([
 					t.Object({
-						markdown: t.String({ description: "Event data formatted as markdown for LLM analysis" })
+						markdown: t.String({
+							description: "Event data formatted as markdown for LLM analysis",
+						}),
 					}),
-					t.String({ description: "Raw markdown content" })
+					t.String({ description: "Raw markdown content" }),
 				]),
 				404: ErrorResponseSchema,
 				500: ErrorResponseSchema,
@@ -492,7 +497,8 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 			detail: {
 				tags: ["Gamma API - Events"],
 				summary: "Get event as markdown by slug",
-				description: "Convert event data to markdown format optimized for LLM arbitrage analysis. Supports verbose levels (0-2) and include_markets flag. Returns JSON if Accept: application/json, otherwise plain markdown text.",
+				description:
+					"Convert event data to markdown format optimized for LLM arbitrage analysis. Supports verbose levels (0-2) and include_markets flag. Returns JSON if Accept: application/json, otherwise plain markdown text.",
 			},
 		},
 	)
@@ -523,7 +529,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 			const result = await gammaSDK.getMarketById(Number(params.id), query);
 			if (result === null) {
 				set.status = 404;
-				return { error: "Not Found", message: "Market not found" };
+				return { type: "not found error", error: "id not found" };
 			}
 			return result;
 		},
@@ -532,7 +538,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 			query: MarketByIdQuerySchema,
 			response: {
 				200: MarketSchema,
-				404: ErrorResponseSchema,
+				404: GammaErrorResponseSchema,
 				500: ErrorResponseSchema,
 			},
 			detail: {

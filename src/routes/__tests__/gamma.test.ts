@@ -40,6 +40,12 @@ describe("Gamma API Routes", () => {
 			const response = await app.handle(
 				new Request("http://localhost/gamma/teams?limit=5"),
 			);
+
+			if (response.status !== 200) {
+				const errorBody = await response.text();
+				console.log(`Status: ${response.status}, Body:`, errorBody);
+			}
+
 			expect(response.status).toBe(200);
 
 			const teams = await response.json();
@@ -62,6 +68,12 @@ describe("Gamma API Routes", () => {
 			const response = await app.handle(
 				new Request("http://localhost/gamma/tags?limit=10&offset=0"),
 			);
+
+			if (response.status !== 200) {
+				const errorBody = await response.text();
+				console.log(`Tags Status: ${response.status}, Body:`, errorBody);
+			}
+
 			expect(response.status).toBe(200);
 
 			const tags = await response.json();
@@ -288,7 +300,7 @@ describe("Gamma API Routes", () => {
 	describe("Response Format", () => {
 		test("should return properly formatted JSON responses", async () => {
 			const response = await app.handle(
-				new Request("http://localhost/gamma/health"),
+				new Request("http://localhost/gamma/teams?limit=1"),
 			);
 			expect(response.headers.get("content-type")).toMatch(/application\/json/);
 		});
