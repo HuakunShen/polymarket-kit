@@ -720,6 +720,20 @@ export const EventByIdQuerySchema = t.Object({
 	include_template: OptionalBoolean,
 });
 
+/**
+ * Schema for markdown formatting options
+ */
+export const MarkdownOptionsSchema = t.Object({
+	verbose: t.Optional(t.Union([t.Literal(0), t.Literal(1), t.Literal(2)], {
+		description: "Verbosity level: 0=basic, 1=medium, 2=full details",
+		default: 2
+	})),
+	include_markets: t.Optional(t.Boolean({
+		description: "Whether to include market details in event markdown",
+		default: true
+	})),
+});
+
 // Updated Market Query Schema with new fields
 /**
  * Updated schema for market query parameters with new API fields

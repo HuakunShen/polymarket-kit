@@ -9,6 +9,7 @@
 
 import { Elysia, t } from "elysia";
 import { GammaSDK, type ProxyConfigType } from "../sdk/";
+import { formatEventToMarkdown } from "../utils/markdown-formatters";
 import {
 	// Sports
 	TeamSchema,
@@ -24,6 +25,7 @@ import {
 	UpdatedEventQuerySchema,
 	PaginatedEventQuerySchema,
 	EventByIdQuerySchema,
+	MarkdownOptionsSchema,
 	// Markets
 	MarketSchema,
 	UpdatedMarketQuerySchema,
@@ -395,6 +397,102 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 				tags: ["Gamma API - Events"],
 				summary: "Get event by slug",
 				description: "Retrieve a specific event by its slug",
+			},
+		},
+	)
+
+	.get(
+		"/events/:id/markdown",
+		async ({ params, query, set, headers, gammaSDK }) => {
+			const { verbose, include_markets, ...eventQuery } = query;
+			const result = await gammaSDK.getEventById(Number(params.id), eventQuery);
+			if (result === null) {
+				set.status = 404;
+				return { error: "Not Found", message: "Event not found" };
+			}
+
+			const markdownOptions = {
+				verbose: verbose as 0 | 1 | 2 | undefined,
+				includeMarkets: include_markets
+			};
+			const markdown = formatEventToMarkdown(result, markdownOptions);
+
+			// Check Accept header to determine response format
+			const acceptHeader = headers.accept || "";
+			const wantsJson = acceptHeader.includes("application/json");
+
+			if (wantsJson) {
+				return { markdown };
+			} else {
+				set.headers["content-type"] = "text/plain; charset=utf-8";
+				return markdown;
+			}
+		},
+		{
+			params: t.Object({ id: t.String() }),
+			query: t.Composite([EventByIdQuerySchema, MarkdownOptionsSchema]),
+			response: {
+				200: t.Union([
+					t.Object({
+						markdown: t.String({ description: "Event data formatted as markdown for LLM analysis" })
+					}),
+					t.String({ description: "Raw markdown content" })
+				]),
+				404: ErrorResponseSchema,
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["Gamma API - Events"],
+				summary: "Get event as markdown by ID",
+				description: "Convert event data to markdown format optimized for LLM arbitrage analysis. Supports verbose levels (0-2) and include_markets flag. Returns JSON if Accept: application/json, otherwise plain markdown text.",
+			},
+		},
+	)
+
+	.get(
+		"/events/slug/:slug/markdown",
+		async ({ params, query, set, headers, gammaSDK }) => {
+			const { verbose, include_markets, ...eventQuery } = query;
+			const result = await gammaSDK.getEventBySlug(params.slug, eventQuery);
+			if (result === null) {
+				set.status = 404;
+				return { error: "Not Found", message: "Event not found" };
+			}
+
+			const markdownOptions = {
+				verbose: verbose as 0 | 1 | 2 | undefined,
+				includeMarkets: include_markets
+			};
+			const markdown = formatEventToMarkdown(result, markdownOptions);
+
+			// Check Accept header to determine response format
+			const acceptHeader = headers.accept || "";
+			const wantsJson = acceptHeader.includes("application/json");
+
+			if (wantsJson) {
+				return { markdown };
+			} else {
+				set.headers["content-type"] = "text/plain; charset=utf-8";
+				return markdown;
+			}
+		},
+		{
+			params: t.Object({ slug: t.String() }),
+			query: t.Composite([EventByIdQuerySchema, MarkdownOptionsSchema]),
+			response: {
+				200: t.Union([
+					t.Object({
+						markdown: t.String({ description: "Event data formatted as markdown for LLM analysis" })
+					}),
+					t.String({ description: "Raw markdown content" })
+				]),
+				404: ErrorResponseSchema,
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["Gamma API - Events"],
+				summary: "Get event as markdown by slug",
+				description: "Convert event data to markdown format optimized for LLM arbitrage analysis. Supports verbose levels (0-2) and include_markets flag. Returns JSON if Accept: application/json, otherwise plain markdown text.",
 			},
 		},
 	)
