@@ -1,4 +1,6 @@
 /**
+ * @module utils/markdown-formatters
+ * @description Markdown formatting utilities for polymarket data
  * Markdown Formatters for Polymarket Events and Markets
  *
  * These functions convert event and market data into markdown format
@@ -11,86 +13,23 @@
  * - 2: Full details (all trading metrics, spreads, price changes, order book info)
  */
 
-export interface MarkdownOptions {
-	verbose?: 0 | 1 | 2;
-	includeMarkets?: boolean;
-}
+import {
+	MarkdownOptionsSchema,
+	type EventType,
+	type EventMarketType,
+	type SeriesType,
+	type TagType,
+} from "../types/elysia-schemas";
 
-export interface MarketData {
-	id: string;
-	question: string;
-	conditionId: string;
-	slug: string;
-	description: string;
-	outcomes: string[];
-	outcomePrices: string[];
-	volume?: string;
-	active: boolean;
-	closed: boolean;
-	startDate?: string;
-	endDate?: string;
-	endDateIso?: string;
-	startDateIso?: string;
-	volumeNum?: number;
-	liquidityNum?: number;
-	volume24hr?: number;
-	volume1wk?: number;
-	volume1mo?: number;
-	volume1yr?: number;
-	spread?: number;
-	oneDayPriceChange?: number;
-	oneHourPriceChange?: number;
-	lastTradePrice?: number;
-	bestBid?: number;
-	bestAsk?: number;
-	orderPriceMinTickSize?: number;
-	orderMinSize?: number;
-	enableOrderBook?: boolean;
-	restricted?: boolean;
-}
+// Use inferred types from the centralized schemas to avoid duplication
+export type MarkdownOptions = typeof MarkdownOptionsSchema.static;
+export type MarketData = EventMarketType;
+export type SeriesData = SeriesType;
+export type TagData = TagType;
+export type EventData = EventType;
 
-export interface SeriesData {
-	id: string;
-	title: string;
-	slug: string;
-	seriesType: string;
-	recurrence: string;
-	active: boolean;
-	closed: boolean;
-	volume?: number;
-	liquidity?: number;
-	commentCount?: number;
-}
-
-export interface TagData {
-	id: string;
-	label: string;
-	slug: string;
-}
-
-export interface EventData {
-	id: string;
-	title: string;
-	slug: string;
-	description?: string;
-	startDate?: string;
-	endDate: string;
-	active: boolean;
-	closed: boolean;
-	archived: boolean;
-	restricted?: boolean;
-	volume: number;
-	openInterest?: number;
-	volume24hr?: number;
-	volume1wk?: number;
-	volume1mo?: number;
-	volume1yr?: number;
-	markets: MarketData[];
-	series?: SeriesData[];
-	tags?: TagData[];
-	enableOrderBook?: boolean;
-	commentCount?: number;
-}
+// Accept both camelCase and snake_case for consumer convenience
+export type MarkdownOptionsInput = MarkdownOptions & { includeMarkets?: boolean };
 
 /**
  * Format a single market for markdown output
@@ -98,7 +37,7 @@ export interface EventData {
  */
 export function formatMarketToMarkdown(
 	market: MarketData,
-	options: MarkdownOptions = {},
+	options: MarkdownOptionsInput = {},
 ): string {
 	const { verbose = 2 } = options;
 	const parts = [`## Market: ${market.question}`];
@@ -259,9 +198,13 @@ function formatTagsToMarkdown(tags: TagData[]): string {
  */
 export function formatEventToMarkdown(
 	event: EventData,
-	options: MarkdownOptions = {},
+	options: MarkdownOptionsInput = {},
 ): string {
-	const { verbose = 2, includeMarkets = true } = options;
+	const verbose = options.verbose ?? 2;
+	const includeMarkets =
+		(options as { includeMarkets?: boolean }).includeMarkets ??
+		options.include_markets ??
+		true;
 	const parts = [`# Event: ${event.title}`];
 
 	// Verbose 0: Only basic info
