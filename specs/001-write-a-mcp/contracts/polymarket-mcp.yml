@@ -1,0 +1,104 @@
+openapi: 3.0.0
+info:
+  title: Polymarket MCP Server
+  version: 0.1.0
+paths:
+  /search_markets:
+    post:
+      summary: Search for markets
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                query: 
+                  type: string
+                  description: Natural language query for markets
+                date_range:
+                  type: object
+                  properties:
+                    start: 
+                      type: string
+                      format: date
+                    end:
+                      type: string
+                      format: date
+                tags:
+                  type: array
+                  items:
+                    type: string
+                category:
+                  type: string
+                status:
+                  type: string
+                  enum: [active, finished]
+      responses:
+        '200':
+          description: A list of markets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Market'
+  /analyze_markets:
+    post:
+      summary: Analyze markets
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                analysis_type:
+                  type: string
+                  enum: [top_by_volume, top_by_liquidity]
+                limit:
+                  type: integer
+                  default: 5
+      responses:
+        '200':
+          description: The result of the analysis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisResult'
+
+components:
+  schemas:
+    Market:
+      type: object
+      properties:
+        id:
+          type: string
+        question:
+          type: string
+        slug:
+          type: string
+        category:
+          type: string
+        active:
+          type: boolean
+        volume:
+          type: number
+        start_date:
+          type: string
+          format: date-time
+        end_date:
+          type: string
+          format: date-time
+        tags:
+          type: array
+          items:
+            type: string
+
+    AnalysisResult:
+      type: object
+      properties:
+        type:
+          type: string
+        data:
+          type: object
