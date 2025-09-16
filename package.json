@@ -5,9 +5,12 @@
   "type": "module",
   "private": true,
   "bin": {
-    "weather": "./build/weather.js"
+    "weather": "./build/weather.js",
+    "polymarket": "./build/polymarket.js"
   },
-  "files": ["build"],
+  "files": [
+    "build"
+  ],
   "exports": {
     ".": "./src/mod.ts",
     "./proxy": "./src/client.ts",
@@ -23,7 +26,7 @@
     "typecheck": "biome check",
     "test": "bun test",
     "test:watch": "bun test --watch",
-	"build": "bun build src/weather.ts --outdir build --target node"
+    "build": "bun run build.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.2.0",

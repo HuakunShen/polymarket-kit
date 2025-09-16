@@ -1,41 +1,243 @@
-This is a polyglot monorepo containing a TypeScript/Python SDK and a proxy server for interacting with the Polymarket APIs (CLOB and Gamma). The project is structured as a pnpm workspace for TypeScript and a uv workspace for Python.
+# Gemini CLI: Polymarket MCP Server
 
-The core of the project is a TypeScript SDK that provides a unified interface for the Polymarket CLOB and Gamma APIs. A proxy server built with the Elysia framework exposes this SDK functionality as a RESTful API. The Python part of the project seems to be intended for data analysis and strategy development, utilizing `numpy` and `pandas`.
+This document provides instructions on how to use the Polymarket MCP Server with the Gemini CLI and other MCP-compatible clients.
 
-### Key Technologies
+## Overview
 
-*   **TypeScript**: The primary language for the SDK and proxy server.
-*   **Elysia**: A web framework for Bun and Node.js, used for the proxy server.
-*   **Python**: Used for data analysis and strategy development.
-*   **pnpm**: The package manager for the TypeScript monorepo.
-*   **uv**: The package manager for the Python workspace.
-*   **Turbo**: A high-performance build system for JavaScript and TypeScript codebases.
-*   **Docker**: The project includes a `docker-compose.yml` file, suggesting containerization is an option.
+The Polymarket MCP Server provides a natural language interface to Polymarket's prediction market data through the Model Context Protocol (MCP). It exposes comprehensive tools and resources for analyzing markets, events, and trends.
 
-## Building and Running
+## Available Tools
 
-### TypeScript
+The following tools are available for interacting with Polymarket data:
 
-The following commands are available for the TypeScript part of the project:
+### Market Analysis Tools
 
-*   **Install dependencies**: `pnpm install`
-*   **Run in development mode**: `pnpm run dev`
-*   **Build for production**: `pnpm run build`
-*   **Run linters**: `pnpm run lint`
-*   **Format code**: `pnpm run format`
-*   **Type-check**: `pnpm run check-types`
+- `get_markets`: Search and filter prediction markets
+- `get_market_by_id`: Get detailed market information by ID
+- `get_market_by_slug`: Get market information by slug identifier
 
-### Python
+### Event Management Tools
 
-The Python part of the project is managed with `uv`. To run the Python code, you would typically use `uv run` within the respective workspace packages (`apps/exp-py` or `apps/polymarket`).
+- `get_events`: Search and filter events with comprehensive filtering
+- `get_event_by_id`: Get detailed event information including associated markets
+- `get_event_markdown`: Convert event data to markdown format optimized for AI analysis
 
-*   **Install dependencies**: `uv pip install -r requirements.txt` (or `uv pip sync pyproject.toml`)
-*   **Run the main script**: `python main.py`
+### Search and Discovery Tools
 
-## Development Conventions
+- `search_polymarket`: Perform comprehensive search across markets, events, and profiles
+- `get_tags`: Retrieve available tags for categorization and filtering
 
-*   **Monorepo Structure**: The project is organized as a monorepo, with separate packages for different components.
-*   **TypeScript Coding Style**: The use of `prettier` and `eslint` (inferred from `turbo.json` and `package.json`) suggests a consistent coding style is enforced.
-*   **Python Coding Style**: The Python part of the project uses `numpy` and `pandas`, suggesting a data-oriented coding style.
-*   **API Documentation**: The proxy server provides OpenAPI documentation at the `/docs` endpoint when running.
-*   **Environment Variables**: The application is configured using environment variables, as documented in the `README.md` file.
+### Analytics and Aggregation Tools
+
+- `get_market_trends`: Analyze market trends and patterns over specified timeframes
+- `get_popular_markets`: Identify trending and popular markets based on volume and activity
+
+## Available Resources
+
+The server provides real-time data feeds through MCP resources:
+
+- `markets://active`: Live feed of active prediction markets
+- `events://featured`: Curated list of featured events and tournaments
+
+## Usage Examples
+
+### Basic Market Search
+
+```
+Use the get_markets tool to find active markets:
+- Get 10 active markets
+- Filter by tag_id if needed
+- Show only markets that are not closed
+```
+
+**Example Parameters:**
+```json
+{
+  "limit": 10,
+  "active": true,
+  "closed": false
+}
+```
+
+### Search for Specific Markets
+
+```
+Search for markets about a specific topic:
+- Use search_polymarket with a query term
+- Limit results per category
+- Filter by status
+```
+
+**Example Parameters:**
+```json
+{
+  "q": "election 2024",
+  "limit_per_type": 5,
+  "events_status": "active"
+}
+```
+
+### Get Detailed Event Information
+
+```
+Retrieve comprehensive event details:
+- Get event by ID with all associated markets
+- Include chat/comment data if needed
+- Format as markdown for analysis
+```
+
+**Example Parameters for get_event_by_id:**
+```json
+{
+  "id": 123,
+  "include_chat": true
+}
+```
+
+**Example Parameters for get_event_markdown:**
+```json
+{
+  "id": 123,
+  "verbose": 2,
+  "include_markets": true
+}
+```
+
+### Market Trend Analysis
+
+```
+Analyze market trends and identify popular markets:
+- Use get_market_trends for trend analysis
+- Use get_popular_markets for volume-based rankings
+- Specify timeframes and filters
+```
+
+**Example Parameters for get_market_trends:**
+```json
+{
+  "timeframe": "24h",
+  "min_volume": 1000
+}
+```
+
+**Example Parameters for get_popular_markets:**
+```json
+{
+  "period": "7d",
+  "limit": 15
+}
+```
+
+### Explore Categories and Tags
+
+```
+Discover available categories and tags:
+- Use get_tags to see all available tags
+- Filter for carousel tags or paginate results
+- Use tags to filter other queries
+```
+
+**Example Parameters:**
+```json
+{
+  "limit": 20,
+  "is_carousel": true
+}
+```
+
+## Natural Language Query Examples
+
+You can interact with the MCP server using natural language. Here are example queries:
+
+### Market Discovery
+- "Show me the most active prediction markets right now"
+- "Find markets about the 2024 US election"
+- "What are the trending markets in the last 24 hours?"
+- "Get me markets with high volume in the politics category"
+
+### Event Analysis
+- "Give me details about event ID 456 in markdown format"
+- "What are the featured events happening this week?"
+- "Show me all markets for the World Cup event"
+- "Find events related to cryptocurrency"
+
+### Market Research
+- "Analyze market trends for the past week"
+- "What are the most popular markets by trading volume?"
+- "Show me markets that have seen significant price changes"
+- "Find markets with the highest liquidity"
+
+### Data Exploration
+- "What tags are available for filtering markets?"
+- "Search for anything related to 'climate change'"
+- "Show me markets that are closing soon"
+- "Find the most recently created events"
+
+## Integration with Gemini CLI
+
+To use with Gemini CLI, configure the MCP server in your client configuration:
+
+```json
+{
+  "mcpServers": {
+    "polymarket": {
+      "command": "bun",
+      "args": ["run", "path/to/polymarket-kit/src/mcp/polymarket.ts"]
+    }
+  }
+}
+```
+
+## Error Handling
+
+The MCP server includes comprehensive error handling:
+
+- **API Errors**: Graceful handling of Polymarket API unavailability
+- **Validation Errors**: Clear feedback for invalid parameters
+- **Network Issues**: Robust error reporting with context
+- **Data Issues**: Handling of missing or malformed data
+
+## Performance Considerations
+
+- **Caching**: The server implements intelligent caching for frequently requested data
+- **Rate Limiting**: Respects Polymarket API rate limits
+- **Batch Operations**: Optimizes multiple related requests
+- **Resource Management**: Efficient memory and connection management
+
+## Development and Testing
+
+Run tests to ensure the MCP server is working correctly:
+
+```bash
+bun test src/__tests__/mcp/polymarket.test.ts
+```
+
+Start the server for development:
+
+```bash
+bun run src/mcp/polymarket.ts
+```
+
+## Support and Documentation
+
+For additional support:
+- Check the main README.md for general project information
+- Review the TypeScript types in `src/types/elysia-schemas.ts`
+- Examine the GammaSDK documentation in `src/sdk/`
+- Look at test examples in `src/__tests__/mcp/`
+
+```
+> polymarket.search_markets(query="politics")
+```
+
+**Analyze markets**
+
+```
+> polymarket.analyze_markets(analysis_type="top_by_volume", limit=10)
+```
+
+**Natural language query**
+
+```
+> polymarket.natural_language_query(query="What are the top 5 markets by volume?")
+```

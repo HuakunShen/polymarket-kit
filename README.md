@@ -4,6 +4,14 @@
 
 A fully typed SDK and proxy server built with Elysia for Polymarket APIs. This package provides both standalone SDK clients and a proxy server with type-safe endpoints for CLOB and Gamma APIs, featuring comprehensive validation and automatic OpenAPI schema generation.
 
+## Features
+
+- **Fully Typed SDK**: Complete TypeScript support with no `any` types
+- **Proxy Server**: REST API with OpenAPI documentation
+- **MCP Server**: Model Context Protocol server for AI interactions
+- **Type Safety**: End-to-end type validation and transformation
+- **Multiple Runtimes**: Supports Bun, Node.js, Deno, and Cloudflare Workers
+
 ## Motivation & Approach
 
 - Reason: The official Polymarket SDKs in TypeScript and Python aren't fully typed; some return values are `unknown`/`any`.
@@ -374,6 +382,65 @@ price_data = api.clob_price_history_token_id_get(
     interval="1h"
 )
 ```
+
+## MCP Server
+
+The Model Context Protocol (MCP) server provides a natural language interface to Polymarket data for AI models and assistants.
+
+### Starting the MCP Server
+
+```bash
+# Start the MCP server
+bun run src/mcp/polymarket.ts
+```
+
+### Available Tools
+
+- **Market Analysis**: `get_markets`, `get_market_by_id`, `get_market_by_slug`
+- **Event Management**: `get_events`, `get_event_by_id`, `get_event_markdown`
+- **Search & Discovery**: `search_polymarket`, `get_tags`
+- **Analytics**: `get_market_trends`, `get_popular_markets`
+
+### Available Resources
+
+- `markets://active`: Live feed of active markets
+- `events://featured`: Featured events and tournaments
+
+### Integration with AI Clients
+
+Configure the MCP server in your AI client:
+
+```json
+{
+  "mcpServers": {
+    "polymarket": {
+      "command": "bun",
+      "args": ["run", "path/to/polymarket-kit/src/mcp/polymarket.ts"]
+    }
+  }
+}
+```
+
+### Natural Language Examples
+
+```
+# Market Discovery
+"Show me the most active prediction markets right now"
+"Find markets about the 2024 US election"
+"What are the trending markets in the last 24 hours?"
+
+# Event Analysis
+"Give me details about event ID 456 in markdown format"
+"What are the featured events happening this week?"
+"Show me all markets for the World Cup event"
+
+# Market Research
+"Analyze market trends for the past week"
+"What are the most popular markets by trading volume?"
+"Show me markets that have seen significant price changes"
+```
+
+See [GEMINI.md](./GEMINI.md) for detailed usage examples and integration guides.
 
 ## Development Plan
 
