@@ -45,6 +45,11 @@ const sampleMarket: MarketData = {
 	orderMinSize: 5,
 	enableOrderBook: true,
 	restricted: true,
+	image: "",
+	icon: "",
+	createdAt: "2024-01-01T00:00:00Z",
+	updatedAt: "2024-01-01T00:00:00Z",
+	clobTokenIds: [],
 };
 
 // Sample event data for testing
@@ -81,6 +86,10 @@ const sampleEvent: EventData = {
 			volume: 17081.82659,
 			liquidity: 13904.47306,
 			commentCount: 352,
+			ticker: "MSLS",
+			archived: false,
+			createdAt: "2024-01-01T00:00:00Z",
+			updatedAt: "2024-01-02T00:00:00Z",
 		},
 	],
 	tags: [
@@ -95,6 +104,12 @@ const sampleEvent: EventData = {
 			slug: "science",
 		},
 	],
+	image: "",
+	icon: "",
+	createdAt: "2024-01-01T00:00:00Z",
+	updatedAt: "2024-01-01T00:00:00Z",
+	ticker: "MEASLES-CASES",
+	creationDate: "2024-01-01T00:00:00Z",
 };
 
 describe("formatMarketToMarkdown", () => {
@@ -161,6 +176,13 @@ describe("formatMarketToMarkdown", () => {
 			outcomePrices: ["0.5", "0.5"],
 			active: true,
 			closed: false,
+			image: "",
+			icon: "",
+			createdAt: "2024-01-01T00:00:00Z",
+			updatedAt: "2024-01-01T00:00:00Z",
+			ticker: "",
+			creationDate: "2024-01-01T00:00:00Z",
+			clobTokenIds: [],
 		};
 
 		const result = formatMarketToMarkdown(minimalMarket);
@@ -359,8 +381,8 @@ describe("Real-world usage examples", () => {
 		) {
 			throw new Error("Expected non-empty markdown results");
 		}
-		expect(overview[0]?.length).toBeLessThan(screening[0]!.length);
-		expect(screening[0]?.length).toBeLessThan(fullAnalysis[0]!.length);
+		expect(overview[0]?.length).toBeLessThan(screening[0]?.length);
+		expect(screening[0]?.length).toBeLessThan(fullAnalysis[0]?.length);
 
 		// Verify content differences
 		expect(overview[0]).not.toContain("**Trading Metrics**:");

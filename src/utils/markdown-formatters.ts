@@ -13,12 +13,12 @@
  * - 2: Full details (all trading metrics, spreads, price changes, order book info)
  */
 
-import {
+import type {
 	MarkdownOptionsSchema,
-	type EventType,
-	type EventMarketType,
-	type SeriesType,
-	type TagType,
+	EventType,
+	EventMarketType,
+	SeriesType,
+	TagType,
 } from "../types/elysia-schemas";
 
 // Use inferred types from the centralized schemas to avoid duplication
@@ -29,7 +29,9 @@ export type TagData = TagType;
 export type EventData = EventType;
 
 // Accept both camelCase and snake_case for consumer convenience
-export type MarkdownOptionsInput = MarkdownOptions & { includeMarkets?: boolean };
+export type MarkdownOptionsInput = MarkdownOptions & {
+	includeMarkets?: boolean;
+};
 
 /**
  * Format a single market for markdown output
@@ -49,7 +51,7 @@ export function formatMarketToMarkdown(
 				`**Trading Period**: ${market.startDateIso || "N/A"} → ${market.endDateIso || "N/A"}`,
 			);
 		}
-		return parts.join("\n\n") + "\n\n---\n";
+		return `${parts.join("\n\n")}\n\n---\n`;
 	}
 
 	// Verbose 1+: Add ID and status
@@ -87,7 +89,7 @@ export function formatMarketToMarkdown(
 		if (basicMetrics.length > 0) {
 			parts.push(`**Metrics**: ${basicMetrics.join(" | ")}`);
 		}
-		return parts.join("\n\n") + "\n\n---\n";
+		return `${parts.join("\n\n")}\n\n---\n`;
 	}
 
 	// Verbose 2: Full details
@@ -150,12 +152,12 @@ export function formatMarketToMarkdown(
 	if (market.description) {
 		const shortDesc =
 			market.description.length > 200
-				? market.description.substring(0, 200) + "..."
+				? `${market.description.substring(0, 200)}...`
 				: market.description;
 		parts.push(`**Description**: ${shortDesc}`);
 	}
 
-	return parts.join("\n\n") + "\n\n---\n";
+	return `${parts.join("\n\n")}\n\n---\n`;
 }
 
 /**
@@ -180,7 +182,7 @@ function formatSeriesToMarkdown(series: SeriesData[]): string {
 		);
 	});
 
-	return parts.join("\n") + "\n\n";
+	return `${parts.join("\n")}\n\n`;
 }
 
 /**
@@ -216,7 +218,7 @@ export function formatEventToMarkdown(
 		if (event.description) {
 			const shortDesc =
 				event.description.length > 200
-					? event.description.substring(0, 200) + "..."
+					? `${event.description.substring(0, 200)}...`
 					: event.description;
 			parts.push(`**Description**: ${shortDesc}`);
 		}
@@ -253,7 +255,7 @@ export function formatEventToMarkdown(
 		if (event.description) {
 			const shortDesc =
 				event.description.length > 250
-					? event.description.substring(0, 250) + "..."
+					? `${event.description.substring(0, 250)}...`
 					: event.description;
 			parts.push(`**Description**: ${shortDesc}`);
 		}
