@@ -180,8 +180,6 @@ describe("formatMarketToMarkdown", () => {
 			icon: "",
 			createdAt: "2024-01-01T00:00:00Z",
 			updatedAt: "2024-01-01T00:00:00Z",
-			ticker: "",
-			creationDate: "2024-01-01T00:00:00Z",
 			clobTokenIds: [],
 		};
 
@@ -381,8 +379,10 @@ describe("Real-world usage examples", () => {
 		) {
 			throw new Error("Expected non-empty markdown results");
 		}
-		expect(overview[0]?.length).toBeLessThan(screening[0]?.length);
-		expect(screening[0]?.length).toBeLessThan(fullAnalysis[0]?.length);
+		expect(overview[0]?.length ?? 0).toBeLessThan(screening[0]?.length ?? 0);
+		expect(screening[0]?.length ?? 0).toBeLessThan(
+			fullAnalysis[0]?.length ?? 0,
+		);
 
 		// Verify content differences
 		expect(overview[0]).not.toContain("**Trading Metrics**:");

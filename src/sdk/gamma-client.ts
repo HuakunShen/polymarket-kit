@@ -32,6 +32,22 @@ import type {
 	SearchResponseType,
 	ProxyConfigType,
 } from "../types/elysia-schemas";
+import { Effect, pipe } from "effect";
+
+const describeCause = (cause: unknown): string => {
+	if (cause instanceof Error) return cause.message;
+	if (typeof cause === "string") return cause;
+	try {
+		return JSON.stringify(cause);
+	} catch {
+		return String(cause);
+	}
+};
+
+const gammaError =
+	(context: string) =>
+	(cause: unknown): Error =>
+		new Error(`[GammaSDK] ${context}: ${describeCause(cause)}`);
 
 /**
  * Configuration options for the GammaSDK
@@ -40,6 +56,13 @@ export interface GammaSDKConfig {
 	/** HTTP/HTTPS proxy configuration */
 	proxy?: ProxyConfigType;
 }
+
+type ApiResponse<T> = {
+	data: T | null;
+	status: number;
+	ok: boolean;
+	errorData?: unknown;
+};
 
 /**
  * Polymarket Gamma API SDK for all public data operations
@@ -120,18 +143,10 @@ export class GammaSDK {
 		return searchParams;
 	}
 
-	/**
-	 * Helper method to make API requests with error handling
-	 */
-	private async makeRequest<T>(
+	private buildRequestUrl(
 		endpoint: string,
 		query?: Record<string, any>,
-	): Promise<{
-		data: T | null;
-		status: number;
-		ok: boolean;
-		errorData?: any;
-	}> {
+	): string {
 		let url = `${this.gammaApiBase}${endpoint}`;
 
 		if (query && Object.keys(query).length > 0) {
@@ -139,17 +154,50 @@ export class GammaSDK {
 			url += `?${searchParams.toString()}`;
 		}
 
-		try {
-			const fetchOptions = this.createFetchOptions();
-			const response = await fetch(url, fetchOptions);
-			const data = await response.json();
+		return url;
+	}
+
+	/**
+	 * Helper method to make API requests with error handling
+	 */
+	private makeRequestEffect<T>(
+		endpoint: string,
+		query?: Record<string, any>,
+	): Effect.Effect<ApiResponse<T>, Error> {
+		const url = this.buildRequestUrl(endpoint, query);
+		const self = this;
+
+		return Effect.gen(function* (_) {
+			const fetchOptions = yield* _(
+				Effect.try({
+					try: () => self.createFetchOptions(),
+					catch: gammaError("create fetch options"),
+				}),
+			);
+
+			const response = yield* _(
+				Effect.tryPromise({
+					try: () => fetch(url, fetchOptions),
+					catch: gammaError(`request ${endpoint}`),
+				}),
+			);
+
+			const data = yield* _(
+				Effect.tryPromise({
+					try: async () => {
+						if (response.status === 204) return null;
+						return (await response.json()) as unknown;
+					},
+					catch: gammaError(`parse response from ${endpoint}`),
+				}),
+			);
 
 			if (!response.ok) {
 				return {
 					data: null,
 					status: response.status,
 					ok: false,
-					errorData: data,
+					errorData: data ?? undefined,
 				};
 			}
 
@@ -158,11 +206,14 @@ export class GammaSDK {
 				status: response.status,
 				ok: true,
 			};
-		} catch (error) {
-			throw new Error(
-				`Failed to fetch from ${endpoint}: ${error instanceof Error ? error.message : "Unknown error"}`,
-			);
-		}
+		});
+	}
+
+	private makeRequest<T>(
+		endpoint: string,
+		query?: Record<string, any>,
+	): Promise<ApiResponse<T>> {
+		return Effect.runPromise(this.makeRequestEffect<T>(endpoint, query));
 	}
 
 	/**
@@ -170,20 +221,17 @@ export class GammaSDK {
 	 * Throws an error if data is null when response is ok
 	 */
 	private extractResponseData<T>(
-		response: {
-			data: T | null;
-			status: number;
-			ok: boolean;
-			errorData?: any;
-		},
+		response: ApiResponse<T>,
 		operation: string,
 	): T {
 		if (!response.ok) {
-			throw new Error(`${operation} failed: ${response.status}`);
+			throw new Error(
+				`[GammaSDK] ${operation} failed: status ${response.status}`,
+			);
 		}
 		if (response.data === null) {
 			throw new Error(
-				`${operation} returned null data despite successful response`,
+				`[GammaSDK] ${operation} returned null data despite successful response`,
 			);
 		}
 		return response.data;
@@ -224,15 +272,21 @@ export class GammaSDK {
 	 */
 	private parseJsonArray(value: string | string[]): string[] {
 		if (Array.isArray(value)) return value;
-		if (typeof value === "string") {
-			try {
-				const parsed = JSON.parse(value);
-				return Array.isArray(parsed) ? parsed : [];
-			} catch {
-				return [];
-			}
-		}
-		return [];
+		if (typeof value !== "string") return [];
+
+		return Effect.runSync(
+			pipe(
+				Effect.try({
+					try: () => JSON.parse(value) as unknown,
+					catch: (cause) =>
+						cause instanceof Error ? cause : new Error(String(cause)),
+				}),
+				Effect.map((parsed) =>
+					Array.isArray(parsed) ? parsed.map((entry) => String(entry)) : [],
+				),
+				Effect.catchAll(() => Effect.succeed<string[]>([])),
+			),
+		);
 	}
 
 	// Sports API

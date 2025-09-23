@@ -19,11 +19,27 @@ import {
 	Side,
 } from "@polymarket/clob-client";
 import { LRUCache } from "lru-cache";
+import { Effect, pipe } from "effect";
 import type {
 	ClobClientConfigType as ClobClientConfig,
 	PriceHistoryQueryType as PriceHistoryQuery,
 	PriceHistoryResponseType as PriceHistoryResponse,
 } from "../types/elysia-schemas";
+
+const describeCause = (cause: unknown): string => {
+	if (cause instanceof Error) return cause.message;
+	if (typeof cause === "string") return cause;
+	try {
+		return JSON.stringify(cause);
+	} catch {
+		return String(cause);
+	}
+};
+
+const clobError =
+	(context: string) =>
+	(cause: unknown): Error =>
+		new Error(`[PolymarketSDK] ${context}: ${describeCause(cause)}`);
 
 // Global cache for initialized CLOB clients
 // Key: privateKey, Value: ClobClient instance
@@ -93,44 +109,168 @@ export class PolymarketSDK {
 	/**
 	 * Initialize the CLOB client with credentials using cache
 	 */
-	private async initializeClobClient(): Promise<ClobClient> {
-		// Check cache first
-		// console.log("this.cacheKey", this.cacheKey)
+	private initializeClobClientEffect(): Effect.Effect<ClobClient, Error> {
 		const cachedClient = clobClientCache.get(this.cacheKey);
 		if (cachedClient) {
-			return cachedClient;
+			return Effect.succeed(cachedClient);
 		}
 
-		try {
-			const signer = new Wallet(this.config.privateKey);
+		const self = this;
 
-			const creds = await new ClobClient(
-				this.config.host,
-				this.config.chainId,
-				signer,
-			).createOrDeriveApiKey();
-
-			const client = new ClobClient(
-				this.config.host,
-				this.config.chainId,
-				signer,
-				creds,
-				this.config.signatureType,
-				this.config.funderAddress,
+		return Effect.gen(function* (_) {
+			const signer = yield* _(
+				Effect.try({
+					try: () => new Wallet(self.config.privateKey),
+					catch: clobError("initialize signer"),
+				}),
 			);
 
-			// Store in cache
-			clobClientCache.set(this.cacheKey, client);
+			const creds = yield* _(
+				Effect.tryPromise({
+					try: () =>
+						new ClobClient(
+							self.config.host,
+							self.config.chainId,
+							signer,
+						).createOrDeriveApiKey(),
+					catch: clobError("derive API key"),
+				}),
+			);
+
+			const client = yield* _(
+				Effect.try({
+					try: () =>
+						new ClobClient(
+							self.config.host,
+							self.config.chainId,
+							signer,
+							creds,
+							self.config.signatureType,
+							self.config.funderAddress,
+						),
+					catch: clobError("create CLOB client"),
+				}),
+			);
+
+			clobClientCache.set(self.cacheKey, client);
 
 			return client;
-		} catch (error) {
-			console.error("CLOB Client initialization failed:", error);
-			throw new Error(
-				`Failed to initialize CLOB client: ${
-					error instanceof Error ? error.message : "Unknown error"
-				}`,
-			);
-		}
+		});
+	}
+
+	private withClient<A>(
+		task: (client: ClobClient) => Effect.Effect<A, Error>,
+	): Effect.Effect<A, Error> {
+		return pipe(this.initializeClobClientEffect(), Effect.flatMap(task));
+	}
+
+	private callClient<A>(
+		operation: string,
+		task: (client: ClobClient) => Promise<A>,
+	): Promise<A> {
+		return Effect.runPromise(
+			this.withClient((client) =>
+				Effect.tryPromise({
+					try: () => task(client),
+					catch: clobError(operation),
+				}),
+			),
+		);
+	}
+
+	private buildPriceHistoryParamsEffect(
+		query: PriceHistoryQuery,
+	): Effect.Effect<PriceHistoryFilterParams, Error> {
+		return Effect.try({
+			try: () => {
+				const params: PriceHistoryFilterParams = {
+					market: query.market,
+					interval: query.interval as PriceHistoryInterval,
+				};
+
+				const parseDate = (
+					label: string,
+					value?: string,
+				): number | undefined => {
+					if (!value) return undefined;
+					const parsed = Date.parse(value);
+					if (Number.isNaN(parsed)) {
+						throw new Error(`Invalid ${label}: ${value}`);
+					}
+					return Math.floor(parsed / 1000);
+				};
+
+				const startTs =
+					query.startTs ?? parseDate("startDate", query.startDate);
+				const endTs = query.endTs ?? parseDate("endDate", query.endDate);
+
+				if (startTs !== undefined) {
+					params.startTs = startTs;
+				}
+
+				if (endTs !== undefined) {
+					params.endTs = endTs;
+				}
+
+				if (query.fidelity) {
+					params.fidelity = query.fidelity;
+				}
+
+				return params;
+			},
+			catch: clobError("build price history params"),
+		});
+	}
+
+	private transformPriceHistoryResult(
+		result: unknown,
+	): Effect.Effect<PriceHistoryResponse, Error> {
+		return Effect.try({
+			try: () => {
+				const errorMessage = (result as { error?: unknown })?.error;
+				if (errorMessage) {
+					throw clobError("fetch price history")(errorMessage);
+				}
+
+				const historyData = Array.isArray(
+					(result as { history?: unknown })?.history,
+				)
+					? ((result as { history?: unknown }).history as any[])
+					: [];
+
+				if (historyData.length === 0) {
+					return {
+						history: [],
+						timeRange: null,
+					};
+				}
+
+				const normalizedHistory = historyData.map((point: any) => ({
+					t: Number(point?.t),
+					p: Number(point?.p),
+				}));
+
+				const firstPoint = normalizedHistory[0];
+				const lastPoint = normalizedHistory[normalizedHistory.length - 1];
+
+				const timeRange =
+					firstPoint && lastPoint
+						? {
+								start: new Date(firstPoint.t * 1000).toISOString(),
+								end: new Date(lastPoint.t * 1000).toISOString(),
+							}
+						: null;
+
+				return {
+					history: normalizedHistory,
+					timeRange,
+				};
+			},
+			catch: (cause) =>
+				cause instanceof Error
+					? cause
+					: clobError("transform price history")(cause),
+		});
 	}
 
 	/**
@@ -153,109 +293,63 @@ export class PolymarketSDK {
 	async getPriceHistory(
 		query: PriceHistoryQuery,
 	): Promise<PriceHistoryResponse> {
-		const client = await this.initializeClobClient();
-
-		try {
-			const requestParams: PriceHistoryFilterParams = {
-				market: query.market,
-				interval: query.interval as PriceHistoryInterval,
-			};
-
-			// Handle date conversion and time range vs interval
-			let startTs = query.startTs;
-			let endTs = query.endTs;
-
-			if (!startTs && query.startDate) {
-				startTs = Math.floor(new Date(query.startDate).getTime() / 1000);
-			}
-
-			if (!endTs && query.endDate) {
-				endTs = Math.floor(new Date(query.endDate).getTime() / 1000);
-			}
-
-			if (startTs && endTs) {
-				requestParams.startTs = startTs;
-				requestParams.endTs = endTs;
-			}
-
-			if (query.fidelity) {
-				requestParams.fidelity = query.fidelity;
-			}
-			console.log({ requestParams });
-			const priceHistory = await client.getPricesHistory(requestParams);
-			if ((priceHistory as any).error) {
-				throw new Error((priceHistory as any).error);
-			}
-			const historyData = (priceHistory as any)?.history || [];
-
-			if (historyData.length === 0) {
-				return {
-					history: [],
-					timeRange: null,
-				};
-			}
-
-			// Calculate time range
-			const firstPoint = historyData[0];
-			const lastPoint = historyData[historyData.length - 1];
-			const timeRange =
-				firstPoint && lastPoint
-					? {
-							start: new Date(firstPoint.t * 1000).toISOString(),
-							end: new Date(lastPoint.t * 1000).toISOString(),
-						}
-					: null;
-
-			return {
-				history: historyData.map((point: any) => ({
-					t: point.t,
-					p: point.p,
-				})),
-				timeRange,
-			};
-		} catch (error) {
-			throw new Error(
-				`Failed to fetch price history: ${
-					error instanceof Error ? error.message : "Unknown error"
-				}`,
-			);
-		}
+		const self = this;
+		return Effect.runPromise(
+			Effect.gen(function* (_) {
+				const requestParams = yield* _(
+					self.buildPriceHistoryParamsEffect(query),
+				);
+				const client = yield* _(self.initializeClobClientEffect());
+				const rawHistory = yield* _(
+					Effect.tryPromise({
+						try: () => client.getPricesHistory(requestParams),
+						catch: clobError("fetch price history"),
+					}),
+				);
+				return yield* _(self.transformPriceHistoryResult(rawHistory));
+			}),
+		);
 	}
 
 	async getBook(tokenId: string): Promise<OrderBookSummary> {
-		const client = await this.initializeClobClient();
-		return client.getOrderBook(tokenId);
+		return this.callClient("get order book", (client) =>
+			client.getOrderBook(tokenId),
+		);
 	}
 
 	async getOrderBooks(params: BookParams[]): Promise<OrderBookSummary[]> {
-		const client = await this.initializeClobClient();
-		return client.getOrderBooks(params);
+		return this.callClient("get order books", (client) =>
+			client.getOrderBooks(params),
+		);
 	}
 
 	async getPrice(tokenId: string, side: "buy" | "sell"): Promise<number> {
-		const client = await this.initializeClobClient();
 		const sideEnum = side === "buy" ? Side.BUY : Side.SELL;
-		return client.getPrice(tokenId, sideEnum);
+		return this.callClient("get price", (client) =>
+			client.getPrice(tokenId, sideEnum),
+		);
 	}
 
 	async getPrices(params: BookParams[]): Promise<number[]> {
-		const client = await this.initializeClobClient();
-		return client.getPrices(params);
+		return this.callClient("get prices", (client) => client.getPrices(params));
 	}
 
 	async getMidpoint(tokenId: string): Promise<number> {
-		const client = await this.initializeClobClient();
-		return client.getMidpoint(tokenId);
+		return this.callClient("get midpoint", (client) =>
+			client.getMidpoint(tokenId),
+		);
 	}
 
 	async getMidpoints(params: BookParams[]): Promise<number[]> {
-		const client = await this.initializeClobClient();
-		return client.getMidpoints(params);
+		return this.callClient("get midpoints", (client) =>
+			client.getMidpoints(params),
+		);
 	}
 
 	async getSpreads(params: BookParams[]): Promise<number[]> {
-		const client = await this.initializeClobClient();
-		return client.getSpreads(params);
+		return this.callClient("get spreads", (client) =>
+			client.getSpreads(params),
+		);
 	}
 
 	async getTrades(
@@ -263,35 +357,41 @@ export class PolymarketSDK {
 		onlyFirstPage?: boolean,
 		nextCursor?: string,
 	): Promise<Trade[]> {
-		const client = await this.initializeClobClient();
-		return client.getTrades(params, onlyFirstPage, nextCursor);
+		return this.callClient("get trades", (client) =>
+			client.getTrades(params, onlyFirstPage, nextCursor),
+		);
 	}
 
 	async getMarket(conditionId: string): Promise<any> {
-		const client = await this.initializeClobClient();
-		return client.getMarket(conditionId);
+		return this.callClient("get market", (client) =>
+			client.getMarket(conditionId),
+		);
 	}
 
 	async getMarkets(nextCursor?: string): Promise<PaginationPayload> {
-		const client = await this.initializeClobClient();
-		return client.getMarkets(nextCursor);
+		return this.callClient("get markets", (client) =>
+			client.getMarkets(nextCursor),
+		);
 	}
 
 	async getSamplingMarkets(nextCursor?: string): Promise<PaginationPayload> {
-		const client = await this.initializeClobClient();
-		return client.getSamplingMarkets(nextCursor);
+		return this.callClient("get sampling markets", (client) =>
+			client.getSamplingMarkets(nextCursor),
+		);
 	}
 
 	async getSimplifiedMarkets(nextCursor?: string): Promise<PaginationPayload> {
-		const client = await this.initializeClobClient();
-		return client.getSimplifiedMarkets(nextCursor);
+		return this.callClient("get simplified markets", (client) =>
+			client.getSimplifiedMarkets(nextCursor),
+		);
 	}
 
 	async getSamplingSimplifiedMarkets(
 		nextCursor?: string,
 	): Promise<PaginationPayload> {
-		const client = await this.initializeClobClient();
-		return client.getSamplingSimplifiedMarkets(nextCursor);
+		return this.callClient("get sampling simplified markets", (client) =>
+			client.getSamplingSimplifiedMarkets(nextCursor),
+		);
 	}
 
 	/**
@@ -313,24 +413,31 @@ export class PolymarketSDK {
 		error?: string;
 		cached?: boolean;
 	}> {
-		try {
-			const wasCached = clobClientCache.has(this.cacheKey);
-			await this.initializeClobClient();
-			return {
-				status: "healthy",
-				timestamp: new Date().toISOString(),
-				clob: "connected",
-				cached: wasCached,
-			};
-		} catch (error) {
-			return {
-				status: "unhealthy",
-				timestamp: new Date().toISOString(),
-				clob: "disconnected",
-				error: error instanceof Error ? error.message : "Unknown error",
-				cached: false,
-			};
-		}
+		return Effect.runPromise(
+			pipe(
+				Effect.succeed(clobClientCache.has(this.cacheKey)),
+				Effect.flatMap((wasCached) =>
+					pipe(
+						this.initializeClobClientEffect(),
+						Effect.as({
+							status: "healthy" as const,
+							timestamp: new Date().toISOString(),
+							clob: "connected",
+							cached: wasCached,
+						}),
+					),
+				),
+				Effect.catchAll((error) =>
+					Effect.succeed({
+						status: "unhealthy" as const,
+						timestamp: new Date().toISOString(),
+						clob: "disconnected",
+						error: error.message,
+						cached: false,
+					}),
+				),
+			),
+		);
 	}
 
 	/**

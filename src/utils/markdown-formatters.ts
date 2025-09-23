@@ -13,6 +13,7 @@
  * - 2: Full details (all trading metrics, spreads, price changes, order book info)
  */
 
+import { Effect, pipe } from "effect";
 import type { z } from "zod";
 import type {
 	MarkdownOptionsSchema,
@@ -32,6 +33,69 @@ export type EventData = EventType;
 // Accept both camelCase and snake_case for consumer convenience
 export type MarkdownOptionsInput = MarkdownOptions & {
 	includeMarkets?: boolean;
+};
+
+const toError = (cause: unknown): Error =>
+	cause instanceof Error ? cause : new Error(String(cause));
+
+const safeExecute = <A>(compute: () => A, fallback: () => A): A =>
+	Effect.runSync(
+		pipe(
+			Effect.try({
+				try: compute,
+				catch: toError,
+			}),
+			Effect.catchAll(() => Effect.succeed(fallback())),
+		),
+	);
+
+const formatMetric = (
+	label: string,
+	value: number | undefined,
+	format: (val: number) => string,
+): string | undefined => {
+	if (value === undefined) return undefined;
+	return safeExecute(
+		() => `${label}: ${format(value)}`,
+		() => `${label}: ${value}`,
+	);
+};
+
+const formatCurrencyMetric = (
+	label: string,
+	value?: number,
+): string | undefined =>
+	formatMetric(label, value, (val) => `$${val.toLocaleString()}`);
+
+const formatPercentMetric = (
+	label: string,
+	value?: number,
+): string | undefined =>
+	formatMetric(label, value, (val) => `${(val * 100).toFixed(2)}%`);
+
+const formatLiteralMetric = (
+	label: string,
+	value: string | number | undefined,
+): string | undefined => {
+	if (value === undefined) return undefined;
+	return safeExecute(
+		() => `${label}: ${value}`,
+		() => `${label}: ${value}`,
+	);
+};
+
+const collectMetrics = (metrics: Array<string | undefined>): string[] =>
+	metrics.filter((value): value is string => Boolean(value));
+
+const safeTruncate = (
+	value: string | undefined | null,
+	limit: number,
+): string | undefined => {
+	if (!value) return undefined;
+	return safeExecute(
+		() => (value.length > limit ? `${value.slice(0, limit)}...` : value),
+		() => value,
+	);
 };
 
 /**
@@ -82,11 +146,13 @@ export function formatMarketToMarkdown(
 
 	// Basic volume info for verbose 1
 	if (verbose === 1) {
-		const basicMetrics = [];
-		if (market.volumeNum !== undefined)
-			basicMetrics.push(`Volume: $${market.volumeNum.toLocaleString()}`);
-		else if (market.volume !== undefined)
-			basicMetrics.push(`Volume: $${market.volume}`);
+		const basicMetrics = collectMetrics([
+			...(market.volumeNum !== undefined
+				? [formatCurrencyMetric("Volume", market.volumeNum)]
+				: market.volume !== undefined
+					? [formatLiteralMetric("Volume", `$${market.volume}`)]
+					: []),
+		]);
 		if (basicMetrics.length > 0) {
 			parts.push(`**Metrics**: ${basicMetrics.join(" | ")}`);
 		}
@@ -95,43 +161,38 @@ export function formatMarketToMarkdown(
 
 	// Verbose 2: Full details
 	// Key trading metrics for arbitrage analysis
-	const tradingMetrics = [];
-	if (market.lastTradePrice !== undefined)
-		tradingMetrics.push(`Last Trade: $${market.lastTradePrice}`);
-	if (market.bestBid !== undefined)
-		tradingMetrics.push(`Best Bid: $${market.bestBid}`);
-	if (market.bestAsk !== undefined)
-		tradingMetrics.push(`Best Ask: $${market.bestAsk}`);
-	if (market.spread !== undefined)
-		tradingMetrics.push(`Spread: ${(market.spread * 100).toFixed(2)}%`);
+	const tradingMetrics = collectMetrics([
+		formatCurrencyMetric("Last Trade", market.lastTradePrice),
+		formatCurrencyMetric("Best Bid", market.bestBid),
+		formatCurrencyMetric("Best Ask", market.bestAsk),
+		formatPercentMetric("Spread", market.spread),
+	]);
 
 	if (tradingMetrics.length > 0) {
 		parts.push(`**Trading Metrics**: ${tradingMetrics.join(" | ")}`);
 	}
 
 	// Price changes (momentum indicators)
-	const priceChanges = [];
-	if (market.oneHourPriceChange !== undefined)
-		priceChanges.push(`1hr: ${(market.oneHourPriceChange * 100).toFixed(2)}%`);
-	if (market.oneDayPriceChange !== undefined)
-		priceChanges.push(`24hr: ${(market.oneDayPriceChange * 100).toFixed(2)}%`);
+	const priceChanges = collectMetrics([
+		formatPercentMetric("1hr", market.oneHourPriceChange),
+		formatPercentMetric("24hr", market.oneDayPriceChange),
+	]);
 
 	if (priceChanges.length > 0) {
 		parts.push(`**Price Changes**: ${priceChanges.join(" | ")}`);
 	}
 
 	// Volume metrics (liquidity indicators)
-	const volumeMetrics = [];
-	if (market.volumeNum !== undefined)
-		volumeMetrics.push(`Total: $${market.volumeNum.toLocaleString()}`);
-	else if (market.volume !== undefined)
-		volumeMetrics.push(`Total: $${market.volume}`);
-	if (market.volume24hr !== undefined)
-		volumeMetrics.push(`24hr: $${market.volume24hr.toLocaleString()}`);
-	if (market.volume1wk !== undefined)
-		volumeMetrics.push(`1wk: $${market.volume1wk.toLocaleString()}`);
-	if (market.liquidityNum !== undefined)
-		volumeMetrics.push(`Liquidity: $${market.liquidityNum.toLocaleString()}`);
+	const volumeMetrics = collectMetrics([
+		...(market.volumeNum !== undefined
+			? [formatCurrencyMetric("Total", market.volumeNum)]
+			: market.volume !== undefined
+				? [formatLiteralMetric("Total", `$${market.volume}`)]
+				: []),
+		formatCurrencyMetric("24hr", market.volume24hr),
+		formatCurrencyMetric("1wk", market.volume1wk),
+		formatCurrencyMetric("Liquidity", market.liquidityNum),
+	]);
 
 	if (volumeMetrics.length > 0) {
 		parts.push(`**Volume**: ${volumeMetrics.join(" | ")}`);
@@ -139,23 +200,23 @@ export function formatMarketToMarkdown(
 
 	// Order book constraints
 	if (market.enableOrderBook) {
-		const constraints = [];
-		if (market.orderMinSize !== undefined)
-			constraints.push(`Min Size: $${market.orderMinSize}`);
-		if (market.orderPriceMinTickSize !== undefined)
-			constraints.push(`Min Tick: $${market.orderPriceMinTickSize}`);
+		const constraints = collectMetrics([
+			...(market.orderMinSize !== undefined
+				? [formatLiteralMetric("Min Size", `$${market.orderMinSize}`)]
+				: []),
+			...(market.orderPriceMinTickSize !== undefined
+				? [formatLiteralMetric("Min Tick", `$${market.orderPriceMinTickSize}`)]
+				: []),
+		]);
 		if (constraints.length > 0) {
 			parts.push(`**Order Book**: Enabled | ${constraints.join(" | ")}`);
 		}
 	}
 
 	// Market description (for context)
-	if (market.description) {
-		const shortDesc =
-			market.description.length > 200
-				? `${market.description.substring(0, 200)}...`
-				: market.description;
-		parts.push(`**Description**: ${shortDesc}`);
+	const marketDescription = safeTruncate(market.description, 200);
+	if (marketDescription) {
+		parts.push(`**Description**: ${marketDescription}`);
 	}
 
 	return `${parts.join("\n\n")}\n\n---\n`;
@@ -170,13 +231,11 @@ function formatSeriesToMarkdown(series: SeriesData[]): string {
 	const parts = ["## Series Context"];
 
 	series.forEach((s) => {
-		const metrics = [];
-		if (s.volume !== undefined)
-			metrics.push(`Volume: $${s.volume.toLocaleString()}`);
-		if (s.liquidity !== undefined)
-			metrics.push(`Liquidity: $${s.liquidity.toLocaleString()}`);
-		if (s.commentCount !== undefined)
-			metrics.push(`Comments: ${s.commentCount}`);
+		const metrics = collectMetrics([
+			formatCurrencyMetric("Volume", s.volume),
+			formatCurrencyMetric("Liquidity", s.liquidity),
+			formatLiteralMetric("Comments", s.commentCount),
+		]);
 
 		parts.push(
 			`**${s.title}** (${s.seriesType}, ${s.recurrence}) - ${s.active ? "Active" : "Inactive"} | ${metrics.join(" | ")}`,
@@ -216,12 +275,9 @@ export function formatEventToMarkdown(
 		parts.push(`**Timeline**: ${event.startDate || "N/A"} → ${event.endDate}`);
 
 		// Event description
-		if (event.description) {
-			const shortDesc =
-				event.description.length > 200
-					? `${event.description.substring(0, 200)}...`
-					: event.description;
-			parts.push(`**Description**: ${shortDesc}`);
+		const eventDescription = safeTruncate(event.description, 200);
+		if (eventDescription) {
+			parts.push(`**Description**: ${eventDescription}`);
 		}
 
 		// Only market questions if includeMarkets is true
@@ -246,19 +302,18 @@ export function formatEventToMarkdown(
 
 	// Basic event metrics for verbose 1
 	if (verbose === 1) {
-		const basicMetrics = [];
-		basicMetrics.push(`Volume: $${event.volume.toLocaleString()}`);
-		if (event.commentCount !== undefined)
-			basicMetrics.push(`Comments: ${event.commentCount}`);
-		parts.push(`**Metrics**: ${basicMetrics.join(" | ")}`);
+		const basicMetrics = collectMetrics([
+			formatCurrencyMetric("Volume", event.volume),
+			formatLiteralMetric("Comments", event.commentCount),
+		]);
+		if (basicMetrics.length > 0) {
+			parts.push(`**Metrics**: ${basicMetrics.join(" | ")}`);
+		}
 
 		// Event description
-		if (event.description) {
-			const shortDesc =
-				event.description.length > 250
-					? `${event.description.substring(0, 250)}...`
-					: event.description;
-			parts.push(`**Description**: ${shortDesc}`);
+		const description = safeTruncate(event.description, 250);
+		if (description) {
+			parts.push(`**Description**: ${description}`);
 		}
 
 		// Markets with basic info
@@ -274,18 +329,17 @@ export function formatEventToMarkdown(
 
 	// Verbose 2: Full details
 	// Event-level metrics
-	const eventMetrics = [];
-	eventMetrics.push(`Volume: $${event.volume.toLocaleString()}`);
-	if (event.openInterest !== undefined)
-		eventMetrics.push(`Open Interest: $${event.openInterest.toLocaleString()}`);
-	if (event.volume24hr !== undefined)
-		eventMetrics.push(`24hr Vol: $${event.volume24hr.toLocaleString()}`);
-	if (event.volume1wk !== undefined)
-		eventMetrics.push(`1wk Vol: $${event.volume1wk.toLocaleString()}`);
-	if (event.commentCount !== undefined)
-		eventMetrics.push(`Comments: ${event.commentCount}`);
+	const eventMetrics = collectMetrics([
+		formatCurrencyMetric("Volume", event.volume),
+		formatCurrencyMetric("Open Interest", event.openInterest),
+		formatCurrencyMetric("24hr Vol", event.volume24hr),
+		formatCurrencyMetric("1wk Vol", event.volume1wk),
+		formatLiteralMetric("Comments", event.commentCount),
+	]);
 
-	parts.push(`**Event Metrics**: ${eventMetrics.join(" | ")}`);
+	if (eventMetrics.length > 0) {
+		parts.push(`**Event Metrics**: ${eventMetrics.join(" | ")}`);
+	}
 
 	// Order book availability
 	if (event.enableOrderBook !== undefined) {
@@ -295,12 +349,9 @@ export function formatEventToMarkdown(
 	}
 
 	// Event description
-	if (event.description) {
-		const shortDesc =
-			event.description.length > 300
-				? `${event.description.substring(0, 300)}...`
-				: event.description;
-		parts.push(`**Description**: ${shortDesc}`);
+	const eventDescription = safeTruncate(event.description, 300);
+	if (eventDescription) {
+		parts.push(`**Description**: ${eventDescription}`);
 	}
 
 	// Tags for categorization
@@ -339,11 +390,21 @@ export function formatEventToMarkdown(
 
 		const activeMarkets = event.markets.filter((m) => m.active && !m.closed);
 		if (activeMarkets.length > 0) {
-			const avgSpread =
-				activeMarkets
-					.filter((m) => m.spread !== undefined)
-					.reduce((sum, m) => sum + (m.spread || 0), 0) / activeMarkets.length;
-			if (avgSpread > 0) {
+			const avgSpread = Effect.runSync(
+				pipe(
+					Effect.try({
+						try: () => {
+							const spreadSum = activeMarkets
+								.filter((m) => m.spread !== undefined)
+								.reduce((sum, m) => sum + (m.spread ?? 0), 0);
+							return spreadSum / activeMarkets.length;
+						},
+						catch: toError,
+					}),
+					Effect.catchAll(() => Effect.succeed<number | undefined>(undefined)),
+				),
+			);
+			if (avgSpread !== undefined && avgSpread > 0) {
 				analysisPoints.push(
 					`- **Average Spread**: ${(avgSpread * 100).toFixed(2)}% across active markets`,
 				);
