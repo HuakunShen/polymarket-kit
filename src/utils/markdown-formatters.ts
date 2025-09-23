@@ -13,6 +13,7 @@
  * - 2: Full details (all trading metrics, spreads, price changes, order book info)
  */
 
+import type { z } from "zod";
 import type {
 	MarkdownOptionsSchema,
 	EventType,
@@ -22,7 +23,7 @@ import type {
 } from "../types/elysia-schemas";
 
 // Use inferred types from the centralized schemas to avoid duplication
-export type MarkdownOptions = typeof MarkdownOptionsSchema.static;
+export type MarkdownOptions = z.infer<typeof MarkdownOptionsSchema>;
 export type MarketData = EventMarketType;
 export type SeriesData = SeriesType;
 export type TagData = TagType;
@@ -297,7 +298,7 @@ export function formatEventToMarkdown(
 	if (event.description) {
 		const shortDesc =
 			event.description.length > 300
-				? event.description.substring(0, 300) + "..."
+				? `${event.description.substring(0, 300)}...`
 				: event.description;
 		parts.push(`**Description**: ${shortDesc}`);
 	}

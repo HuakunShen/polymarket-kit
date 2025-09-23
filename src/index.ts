@@ -23,7 +23,7 @@ import { getBaseUrl, getPort } from "./utils/env";
 
 export const PORT = getPort();
 const baseUrl = getBaseUrl();
-const isLocalhost = baseUrl.includes("localhost");
+const _isLocalhost = baseUrl.includes("localhost");
 
 export const app = new Elysia()
 	// Add CORS support
