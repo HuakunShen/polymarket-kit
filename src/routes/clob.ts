@@ -13,6 +13,20 @@ import { Elysia, t } from "elysia";
 import { LRUCache } from "lru-cache";
 import { PolymarketSDK } from "../sdk/";
 import { Side } from "@polymarket/clob-client";
+
+// Custom error classes for better error handling
+class ClobValidationError extends Error {
+	constructor(message: string, public details?: string) {
+		super(message);
+	}
+}
+
+class ClobApiError extends Error {
+	constructor(message: string, public statusCode: number = 500) {
+		super(message);
+	}
+}
+
 import {
 	PriceHistoryQuerySchema,
 	PriceHistoryResponseSchema,
@@ -65,6 +79,33 @@ function getPolymarketSDK(
  * Create CLOB API routes with proper typing and validation
  */
 export const clobRoutes = new Elysia({ prefix: "/clob" })
+	.error({
+		ClobValidationError,
+		ClobApiError,
+	})
+	.onError(({ code, error, set }) => {
+		switch (code) {
+			case 'ClobValidationError':
+				set.status = 400;
+				return {
+					error: "Bad Request",
+					message: error.message,
+					details: error.details,
+				};
+			case 'ClobApiError':
+				set.status = error.statusCode;
+				return {
+					error: error.statusCode === 400 ? "Bad Request" : "Internal Server Error",
+					message: error.message,
+				};
+			default:
+				set.status = 500;
+				return {
+					error: "Internal Server Error",
+					message: "An unexpected error occurred",
+				};
+		}
+	})
 	.resolve(async ({ headers }) => {
 		let privateKey: string;
 		let funderAddress: string;
@@ -111,7 +152,7 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 	})
 	.get(
 		"/prices-history",
-		async ({ query, set, polymarketSDK }) => {
+		async ({ query, polymarketSDK }) => {
 			try {
 				return await polymarketSDK.getPriceHistory({
 					market: query.market,
@@ -123,10 +164,24 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 					fidelity: query.fidelity,
 				});
 			} catch (err) {
-				set.status = 500;
-				throw new Error(
-					err instanceof Error ? err.message : "Unknown error occurred",
-				);
+				console.log("error fetching price history", err);
+
+				if (err instanceof Error) {
+					const errorMessage = err.message;
+
+					// If it's a validation error (mentions fidelity, filters, etc.), throw ClobValidationError
+					if (errorMessage.includes("invalid filters") ||
+						errorMessage.includes("minimum 'fidelity'") ||
+						errorMessage.includes("fidelity")) {
+						throw new ClobValidationError(errorMessage);
+					}
+
+					// For other errors, throw ClobApiError
+					throw new ClobApiError(errorMessage);
+				}
+
+				// Fallback for non-Error objects
+				throw new ClobApiError("Unknown error occurred");
 			}
 		},
 		{
@@ -728,15 +783,7 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 	)
 	.get(
 		"/market/:conditionId",
-		async ({
-			params,
-			set,
-			polymarketSDK,
-		}: {
-			params: { conditionId: string };
-			set: { status: number };
-			polymarketSDK: PolymarketSDK;
-		}) => {
+		async ({ params, set, polymarketSDK }) => {
 			try {
 				return await polymarketSDK.getMarket(params.conditionId);
 			} catch (err) {
