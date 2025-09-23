@@ -13,6 +13,16 @@ const OptionalString = z.string().optional();
 const OptionalNumber = z.number().optional();
 const OptionalBoolean = z.boolean().optional();
 
+// Query-focused coercion helpers to convert string inputs to native types
+const QueryNumber = z.coerce.number();
+const OptionalQueryNumber = QueryNumber.optional();
+
+const QueryNumberArray = z.array(QueryNumber);
+const OptionalQueryNumberArray = QueryNumberArray.optional();
+
+const QueryBoolean = z.stringbool();
+const OptionalQueryBoolean = QueryBoolean.optional();
+
 /**
  * HTTP Proxy Configuration Schema
  *
@@ -370,8 +380,8 @@ export const PriceHistoryQuerySchema = z.object({
 	market: z.string(), // The CLOB token ID for which to fetch price history
 
 	// Time range options (mutually exclusive with interval)
-	startTs: z.number().optional(), // Unix timestamp in seconds
-	endTs: z.number().optional(), // Unix timestamp in seconds
+	startTs: OptionalQueryNumber, // Unix timestamp in seconds
+	endTs: OptionalQueryNumber, // Unix timestamp in seconds
 
 	// Human-readable date alternatives (converted to startTs/endTs)
 	startDate: z.string().optional(), // Date string like "2025-08-13" or "2025-08-13T00:00:00.000Z"
@@ -381,7 +391,7 @@ export const PriceHistoryQuerySchema = z.object({
 	interval: PriceHistoryIntervalEnum.optional(),
 
 	// Data resolution
-	fidelity: z.number().optional(), // Resolution in minutes
+	fidelity: OptionalQueryNumber, // Resolution in minutes
 });
 
 /**
@@ -571,10 +581,10 @@ export const TeamSchema = z.object({
  * Schema for team query parameters
  */
 export const TeamQuerySchema = z.object({
-	limit: z.number().optional(),
-	offset: z.number().optional(),
+	limit: OptionalQueryNumber,
+	offset: OptionalQueryNumber,
 	order: OptionalString,
-	ascending: OptionalBoolean,
+	ascending: OptionalQueryBoolean,
 	league: z.array(z.string()).optional(),
 	name: z.array(z.string()).optional(),
 	abbreviation: z.array(z.string()).optional(),
@@ -603,12 +613,12 @@ export const UpdatedTagSchema = z.object({
  * Schema for tag query parameters
  */
 export const TagQuerySchema = z.object({
-	limit: z.number().optional(),
-	offset: z.number().optional(),
+	limit: OptionalQueryNumber,
+	offset: OptionalQueryNumber,
 	order: OptionalString,
-	ascending: OptionalBoolean,
-	include_template: OptionalBoolean,
-	is_carousel: OptionalBoolean,
+	ascending: OptionalQueryBoolean,
+	include_template: OptionalQueryBoolean,
+	is_carousel: OptionalQueryBoolean,
 });
 
 // Tag by ID Query Schema
@@ -616,7 +626,7 @@ export const TagQuerySchema = z.object({
  * Schema for tag by ID query parameters
  */
 export const TagByIdQuerySchema = z.object({
-	include_template: OptionalBoolean,
+	include_template: OptionalQueryBoolean,
 });
 
 // Related Tags Relationship Schema
@@ -635,7 +645,7 @@ export const RelatedTagRelationshipSchema = z.object({
  * Schema for related tags query parameters
  */
 export const RelatedTagsQuerySchema = z.object({
-	omit_empty: OptionalBoolean,
+	omit_empty: OptionalQueryBoolean,
 	status: z.enum(["active", "closed", "all"]).optional(),
 });
 
@@ -645,27 +655,27 @@ export const RelatedTagsQuerySchema = z.object({
  */
 export const UpdatedEventQuerySchema = z.object({
 	// Pagination
-	limit: z.number().optional(),
-	offset: z.number().optional(),
+	limit: OptionalQueryNumber,
+	offset: OptionalQueryNumber,
 
 	// Sorting
 	order: OptionalString,
-	ascending: OptionalBoolean,
+	ascending: OptionalQueryBoolean,
 
 	// Filters
-	id: z.array(z.number()).optional(),
+	id: OptionalQueryNumberArray,
 	slug: z.array(z.string()).optional(),
-	tag_id: OptionalNumber,
-	exclude_tag_id: z.array(z.number()).optional(),
-	featured: OptionalBoolean,
-	cyom: OptionalBoolean,
-	archived: OptionalBoolean,
-	active: OptionalBoolean,
-	closed: OptionalBoolean,
+	tag_id: OptionalQueryNumber,
+	exclude_tag_id: OptionalQueryNumberArray,
+	featured: OptionalQueryBoolean,
+	cyom: OptionalQueryBoolean,
+	archived: OptionalQueryBoolean,
+	active: OptionalQueryBoolean,
+	closed: OptionalQueryBoolean,
 
 	// Additional filters
-	include_chat: OptionalBoolean,
-	include_template: OptionalBoolean,
+	include_chat: OptionalQueryBoolean,
+	include_template: OptionalQueryBoolean,
 	recurrence: OptionalString,
 
 	// Date filters
@@ -680,12 +690,12 @@ export const UpdatedEventQuerySchema = z.object({
  * Schema for paginated event query parameters
  */
 export const PaginatedEventQuerySchema = z.object({
-	limit: z.number(),
-	offset: z.number(),
+	limit: QueryNumber,
+	offset: QueryNumber,
 	order: OptionalString,
-	ascending: OptionalBoolean,
-	include_chat: OptionalBoolean,
-	include_template: OptionalBoolean,
+	ascending: OptionalQueryBoolean,
+	include_chat: OptionalQueryBoolean,
+	include_template: OptionalQueryBoolean,
 	recurrence: OptionalString,
 });
 
@@ -707,8 +717,8 @@ export const PaginatedResponseSchema = <T extends z.ZodTypeAny>(schema: T) =>
  * Schema for event by ID query parameters
  */
 export const EventByIdQuerySchema = z.object({
-	include_chat: OptionalBoolean,
-	include_template: OptionalBoolean,
+	include_chat: OptionalQueryBoolean,
+	include_template: OptionalQueryBoolean,
 });
 
 /**
@@ -733,20 +743,20 @@ export const MarkdownOptionsSchema = z.object({
  */
 export const UpdatedMarketQuerySchema = z.object({
 	// Pagination
-	limit: z.number().optional(),
-	offset: z.number().optional(),
+	limit: OptionalQueryNumber,
+	offset: OptionalQueryNumber,
 
 	// Sorting
 	order: OptionalString,
-	ascending: OptionalBoolean,
+	ascending: OptionalQueryBoolean,
 
 	// Filters
-	id: z.array(z.number()).optional(),
+	id: OptionalQueryNumberArray,
 	slug: z.array(z.string()).optional(),
-	tag_id: OptionalNumber,
-	closed: OptionalBoolean,
-	active: OptionalBoolean,
-	archived: OptionalBoolean,
+	tag_id: OptionalQueryNumber,
+	closed: OptionalQueryBoolean,
+	active: OptionalQueryBoolean,
+	archived: OptionalQueryBoolean,
 	sports_market_types: z.array(z.string()).optional(),
 
 	// Date filters
@@ -761,7 +771,7 @@ export const UpdatedMarketQuerySchema = z.object({
  * Schema for market by ID query parameters
  */
 export const MarketByIdQuerySchema = z.object({
-	include_tag: OptionalBoolean,
+	include_tag: OptionalQueryBoolean,
 });
 
 // Series Query Schema
@@ -769,15 +779,15 @@ export const MarketByIdQuerySchema = z.object({
  * Schema for series query parameters
  */
 export const SeriesQuerySchema = z.object({
-	limit: z.number(),
-	offset: z.number(),
+	limit: QueryNumber,
+	offset: QueryNumber,
 	order: OptionalString,
-	ascending: OptionalBoolean,
+	ascending: OptionalQueryBoolean,
 	slug: z.array(z.string()).optional(),
-	categories_ids: z.array(z.number()).optional(),
+	categories_ids: OptionalQueryNumberArray,
 	categories_labels: z.array(z.string()).optional(),
-	closed: OptionalBoolean,
-	include_chat: OptionalBoolean,
+	closed: OptionalQueryBoolean,
+	include_chat: OptionalQueryBoolean,
 	recurrence: OptionalString,
 });
 
@@ -786,7 +796,7 @@ export const SeriesQuerySchema = z.object({
  * Schema for series by ID query parameters
  */
 export const SeriesByIdQuerySchema = z.object({
-	include_chat: OptionalBoolean,
+	include_chat: OptionalQueryBoolean,
 });
 
 // Comment Schema
@@ -811,14 +821,14 @@ export const CommentSchema = z.object({
  * Schema for comment query parameters
  */
 export const CommentQuerySchema = z.object({
-	limit: z.number().optional(),
-	offset: z.number().optional(),
+	limit: OptionalQueryNumber,
+	offset: OptionalQueryNumber,
 	order: OptionalString,
-	ascending: OptionalBoolean,
+	ascending: OptionalQueryBoolean,
 	parent_entity_type: z.enum(["Event", "Series", "market"]).optional(),
-	parent_entity_id: OptionalNumber,
-	get_positions: OptionalBoolean,
-	holders_only: OptionalBoolean,
+	parent_entity_id: OptionalQueryNumber,
+	get_positions: OptionalQueryBoolean,
+	holders_only: OptionalQueryBoolean,
 });
 
 // Comment by ID Query Schema
@@ -826,7 +836,7 @@ export const CommentQuerySchema = z.object({
  * Schema for comment by ID query parameters
  */
 export const CommentByIdQuerySchema = z.object({
-	get_positions: OptionalBoolean,
+	get_positions: OptionalQueryBoolean,
 });
 
 // Comments by User Address Query Schema
@@ -834,10 +844,10 @@ export const CommentByIdQuerySchema = z.object({
  * Schema for comments by user address query parameters
  */
 export const CommentsByUserQuerySchema = z.object({
-	limit: z.number().optional(),
-	offset: z.number().optional(),
+	limit: OptionalQueryNumber,
+	offset: OptionalQueryNumber,
 	order: OptionalString,
-	ascending: OptionalBoolean,
+	ascending: OptionalQueryBoolean,
 });
 
 // Search Query Schema
@@ -846,13 +856,13 @@ export const CommentsByUserQuerySchema = z.object({
  */
 export const SearchQuerySchema = z.object({
 	q: z.string(), // Required search query
-	cache: OptionalBoolean,
+	cache: OptionalQueryBoolean,
 	events_status: OptionalString,
-	limit_per_type: OptionalNumber,
-	page: OptionalNumber,
+	limit_per_type: OptionalQueryNumber,
+	page: OptionalQueryNumber,
 	events_tag: z.array(z.string()).optional(),
 	sort: OptionalString,
-	ascending: OptionalBoolean,
+	ascending: OptionalQueryBoolean,
 });
 
 // Search Response Schema
