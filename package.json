@@ -29,7 +29,7 @@
 		"build": "bun run build.ts"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "2.2.0",
+		"@biomejs/biome": "2.2.4",
 		"@types/bun": "latest",
 		"wrangler": "^4.30.0"
 	},

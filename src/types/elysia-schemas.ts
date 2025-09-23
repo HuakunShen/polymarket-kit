@@ -2,39 +2,29 @@
  * Elysia Type Schemas for Polymarket Proxy Server
  *
  * This file contains all the type schemas used by the Elysia server for request/response validation.
- * Uses Elysia's built-in type validation system with `t` from 'elysia'.
+ * Uses Zod for schema validation and type inference.
  */
 
-import { t, type TSchema } from "elysia";
+import { z } from "zod";
 
 // Base types used across different schemas
-const StringArray = t.Array(t.String());
-const OptionalString = t.Optional(t.String());
-const OptionalNumber = t.Optional(t.Number());
-const OptionalBoolean = t.Optional(t.Boolean());
+const StringArray = z.array(z.string());
+const OptionalString = z.string().optional();
+const OptionalNumber = z.number().optional();
+const OptionalBoolean = z.boolean().optional();
 
 /**
  * HTTP Proxy Configuration Schema
  *
  * Configuration for HTTP/HTTPS proxy settings
  */
-export const ProxyConfigSchema = t.Optional(
-	t.Object({
-		host: t.String({ description: "Proxy server hostname or IP address" }),
-		port: t.Number({ description: "Proxy server port number" }),
-		username: t.Optional(
-			t.String({ description: "Proxy authentication username" }),
-		),
-		password: t.Optional(
-			t.String({ description: "Proxy authentication password" }),
-		),
-		protocol: t.Optional(
-			t.Union([t.Literal("http"), t.Literal("https")], {
-				description: "Proxy protocol (defaults to http)",
-			}),
-		),
-	}),
-);
+export const ProxyConfigSchema = z.object({
+	host: z.string().describe("Proxy server hostname or IP address"),
+	port: z.number().describe("Proxy server port number"),
+	username: z.string().describe("Proxy authentication username").optional(),
+	password: z.string().describe("Proxy authentication password").optional(),
+	protocol: z.enum(["http", "https"]).describe("Proxy protocol (defaults to http)").optional(),
+});
 
 /**
  * Schema for market objects returned by the Gamma API
@@ -42,24 +32,24 @@ export const ProxyConfigSchema = t.Optional(
  * Defines the structure for Polymarket prediction market data including
  * pricing, volume, liquidity, and associated metadata.
  */
-export const MarketSchema = t.Object({
-	id: t.String(),
-	question: t.String(),
-	conditionId: t.String(),
-	slug: t.String(),
+export const MarketSchema = z.object({
+	id: z.string(),
+	question: z.string(),
+	conditionId: z.string(),
+	slug: z.string(),
 	liquidity: OptionalString,
 	startDate: OptionalString,
-	image: t.String(),
-	icon: t.String(),
-	description: t.String(),
-	active: t.Boolean(),
-	volume: t.String(),
+	image: z.string(),
+	icon: z.string(),
+	description: z.string(),
+	active: z.boolean(),
+	volume: z.string(),
 	outcomes: StringArray,
 	outcomePrices: StringArray,
-	closed: t.Boolean(),
+	closed: z.boolean(),
 	new: OptionalBoolean,
 	questionID: OptionalString,
-	volumeNum: t.Number(),
+	volumeNum: z.number(),
 	liquidityNum: OptionalNumber,
 	startDateIso: OptionalString,
 	hasReviewedDates: OptionalBoolean,
@@ -68,20 +58,18 @@ export const MarketSchema = t.Object({
 	volume1mo: OptionalNumber,
 	volume1yr: OptionalNumber,
 	clobTokenIds: StringArray,
-	events: t.Optional(
-		t.Array(
-			t.Object({
-				id: t.String(),
-				ticker: t.String(),
-				slug: t.String(),
-				title: t.String(),
-				description: t.String(),
-				active: t.Boolean(),
-				closed: t.Boolean(),
-				archived: t.Boolean(),
-			}),
-		),
-	),
+	events: z.array(
+		z.object({
+			id: z.string(),
+			ticker: z.string(),
+			slug: z.string(),
+			title: z.string(),
+			description: z.string(),
+			active: z.boolean(),
+			closed: z.boolean(),
+			archived: z.boolean(),
+		}),
+	).optional(),
 });
 
 /**
@@ -90,26 +78,26 @@ export const MarketSchema = t.Object({
  * Represents markets that are part of an event, containing similar
  * market data but in the context of event groupings.
  */
-export const EventMarketSchema = t.Object({
-	id: t.String(),
-	question: t.String(),
-	conditionId: t.String(),
-	slug: t.String(),
+export const EventMarketSchema = z.object({
+	id: z.string(),
+	question: z.string(),
+	conditionId: z.string(),
+	slug: z.string(),
 	resolutionSource: OptionalString,
 	endDate: OptionalString,
 	liquidity: OptionalString,
 	startDate: OptionalString,
-	image: t.String(),
-	icon: t.String(),
-	description: t.String(),
+	image: z.string(),
+	icon: z.string(),
+	description: z.string(),
 	outcomes: StringArray,
 	outcomePrices: StringArray,
 	volume: OptionalString,
-	active: t.Boolean(),
-	closed: t.Boolean(),
+	active: z.boolean(),
+	closed: z.boolean(),
 	marketMakerAddress: OptionalString,
-	createdAt: t.String(),
-	updatedAt: t.String(),
+	createdAt: z.string(),
+	updatedAt: z.string(),
 	new: OptionalBoolean,
 	featured: OptionalBoolean,
 	archived: OptionalBoolean,
@@ -146,29 +134,29 @@ export const EventMarketSchema = t.Object({
  * Defines the structure for market series data, which groups
  * related markets together under a common theme or topic.
  */
-export const SeriesSchema = t.Object({
-	id: t.String(),
-	ticker: t.String(),
-	slug: t.String(),
-	title: t.String(),
+export const SeriesSchema = z.object({
+	id: z.string(),
+	ticker: z.string(),
+	slug: z.string(),
+	title: z.string(),
 	subtitle: OptionalString,
-	seriesType: t.String(),
-	recurrence: t.String(),
+	seriesType: z.string(),
+	recurrence: z.string(),
 	image: OptionalString,
 	icon: OptionalString,
-	active: t.Boolean(),
-	closed: t.Boolean(),
-	archived: t.Boolean(),
+	active: z.boolean(),
+	closed: z.boolean(),
+	archived: z.boolean(),
 	volume: OptionalNumber,
 	liquidity: OptionalNumber,
 	startDate: OptionalString,
-	createdAt: t.String(),
-	updatedAt: t.String(),
+	createdAt: z.string(),
+	updatedAt: z.string(),
 	competitive: OptionalString,
 	volume24hr: OptionalNumber,
 	pythTokenID: OptionalString,
 	cgAssetName: OptionalString,
-	commentCount: t.Optional(t.Number()),
+	commentCount: z.number().optional(),
 });
 
 // Tag Schema
@@ -178,10 +166,10 @@ export const SeriesSchema = t.Object({
  * Tags provide categorization and filtering capabilities for
  * markets and events in the Polymarket ecosystem.
  */
-export const TagSchema = t.Object({
-	id: t.String(),
-	label: t.String(),
-	slug: t.String(),
+export const TagSchema = z.object({
+	id: z.string(),
+	label: z.string(),
+	slug: z.string(),
 	forceShow: OptionalBoolean,
 	createdAt: OptionalString,
 	isCarousel: OptionalBoolean,
@@ -194,29 +182,29 @@ export const TagSchema = t.Object({
  * Events are collections of related markets that share a common
  * theme, topic, or timeframe (e.g., "2024 US Presidential Election").
  */
-export const EventSchema = t.Object({
-	id: t.String(),
-	ticker: t.String(),
-	slug: t.String(),
-	title: t.String(),
+export const EventSchema = z.object({
+	id: z.string(),
+	ticker: z.string(),
+	slug: z.string(),
+	title: z.string(),
 	description: OptionalString,
 	resolutionSource: OptionalString,
 	startDate: OptionalString,
-	creationDate: t.String(),
-	endDate: t.String(),
-	image: t.String(),
-	icon: t.String(),
-	active: t.Boolean(),
-	closed: t.Boolean(),
-	archived: t.Boolean(),
+	creationDate: z.string(),
+	endDate: z.string(),
+	image: z.string(),
+	icon: z.string(),
+	active: z.boolean(),
+	closed: z.boolean(),
+	archived: z.boolean(),
 	new: OptionalBoolean,
 	featured: OptionalBoolean,
 	restricted: OptionalBoolean,
 	liquidity: OptionalNumber,
-	volume: t.Number(),
+	volume: z.number(),
 	openInterest: OptionalNumber,
-	createdAt: t.String(),
-	updatedAt: t.String(),
+	createdAt: z.string(),
+	updatedAt: z.string(),
 	competitive: OptionalNumber,
 	volume24hr: OptionalNumber,
 	volume1wk: OptionalNumber,
@@ -225,10 +213,10 @@ export const EventSchema = t.Object({
 	enableOrderBook: OptionalBoolean,
 	liquidityClob: OptionalNumber,
 	negRisk: OptionalBoolean,
-	commentCount: t.Optional(t.Number()),
-	markets: t.Array(EventMarketSchema),
-	series: t.Optional(t.Array(SeriesSchema)),
-	tags: t.Optional(t.Array(TagSchema)),
+	commentCount: z.number().optional(),
+	markets: z.array(EventMarketSchema),
+	series: z.array(SeriesSchema).optional(),
+	tags: z.array(TagSchema).optional(),
 	cyom: OptionalBoolean,
 	showAllOutcomes: OptionalBoolean,
 	showMarketImages: OptionalBoolean,
@@ -247,9 +235,9 @@ export const EventSchema = t.Object({
  * Represents a single point in time with timestamp and price data
  * for market price history tracking.
  */
-export const PriceHistoryPointSchema = t.Object({
-	t: t.Number(), // timestamp
-	p: t.Number(), // price
+export const PriceHistoryPointSchema = z.object({
+	t: z.number(), // timestamp
+	p: z.number(), // price
 });
 
 /**
@@ -258,14 +246,14 @@ export const PriceHistoryPointSchema = t.Object({
  * Contains an array of price history points and optional time range
  * metadata for the requested historical data.
  */
-export const PriceHistoryResponseSchema = t.Object({
-	history: t.Array(PriceHistoryPointSchema),
-	timeRange: t.Union([
-		t.Object({
-			start: t.String(),
-			end: t.String(),
+export const PriceHistoryResponseSchema = z.object({
+	history: z.array(PriceHistoryPointSchema),
+	timeRange: z.union([
+		z.object({
+			start: z.string(),
+			end: z.string(),
 		}),
-		t.Null(),
+		z.null(),
 	]),
 });
 
@@ -275,29 +263,29 @@ export const PriceHistoryResponseSchema = t.Object({
  * Defines all possible query parameters for filtering, sorting,
  * and paginating market data from the Gamma API.
  */
-export const MarketQuerySchema = t.Object({
+export const MarketQuerySchema = z.object({
 	// Pagination
-	limit: t.Optional(t.String()),
-	offset: t.Optional(t.String()),
+	limit: z.string().optional(),
+	offset: z.string().optional(),
 
 	// Sorting
 	order: OptionalString,
-	ascending: t.Optional(t.String()), // String because query params come as strings
+	ascending: z.string().optional(), // String because query params come as strings
 
 	// Filters
-	id: t.Optional(t.String()),
+	id: z.string().optional(),
 	slug: OptionalString,
-	archived: t.Optional(t.String()),
-	active: t.Optional(t.String()),
-	closed: t.Optional(t.String()),
+	archived: z.string().optional(),
+	active: z.string().optional(),
+	closed: z.string().optional(),
 	clob_token_ids: OptionalString,
 	condition_ids: OptionalString,
 
 	// Numeric filters
-	liquidity_num_min: t.Optional(t.String()),
-	liquidity_num_max: t.Optional(t.String()),
-	volume_num_min: t.Optional(t.String()),
-	volume_num_max: t.Optional(t.String()),
+	liquidity_num_min: z.string().optional(),
+	liquidity_num_max: z.string().optional(),
+	volume_num_min: z.string().optional(),
+	volume_num_max: z.string().optional(),
 
 	// Date filters
 	start_date_min: OptionalString,
@@ -306,8 +294,8 @@ export const MarketQuerySchema = t.Object({
 	end_date_max: OptionalString,
 
 	// Tag filters
-	tag_id: t.Optional(t.String()),
-	related_tags: t.Optional(t.String()),
+	tag_id: z.string().optional(),
+	related_tags: z.string().optional(),
 });
 
 /**
@@ -316,27 +304,27 @@ export const MarketQuerySchema = t.Object({
  * Defines all possible query parameters for filtering, sorting,
  * and paginating event data from the Gamma API.
  */
-export const EventQuerySchema = t.Object({
+export const EventQuerySchema = z.object({
 	// Pagination
-	limit: t.Optional(t.String()),
-	offset: t.Optional(t.String()),
+	limit: z.string().optional(),
+	offset: z.string().optional(),
 
 	// Sorting
 	order: OptionalString,
-	ascending: t.Optional(t.String()), // String because query params come as strings
+	ascending: z.string().optional(), // String because query params come as strings
 
 	// Filters
-	id: t.Optional(t.String()),
+	id: z.string().optional(),
 	slug: OptionalString,
-	archived: t.Optional(t.String()),
-	active: t.Optional(t.String()),
-	closed: t.Optional(t.String()),
+	archived: z.string().optional(),
+	active: z.string().optional(),
+	closed: z.string().optional(),
 
 	// Numeric filters
-	liquidity_min: t.Optional(t.String()),
-	liquidity_max: t.Optional(t.String()),
-	volume_min: t.Optional(t.String()),
-	volume_max: t.Optional(t.String()),
+	liquidity_min: z.string().optional(),
+	liquidity_max: z.string().optional(),
+	volume_min: z.string().optional(),
+	volume_max: z.string().optional(),
 
 	// Date filters
 	start_date_min: OptionalString,
@@ -346,8 +334,8 @@ export const EventQuerySchema = t.Object({
 
 	// Tag filters
 	tag: OptionalString,
-	tag_id: t.Optional(t.String()),
-	related_tags: t.Optional(t.String()),
+	tag_id: z.string().optional(),
+	related_tags: z.string().optional(),
 	tag_slug: OptionalString,
 });
 
@@ -357,7 +345,7 @@ export const EventQuerySchema = t.Object({
  * Defines the available time intervals for fetching historical
  * price data from the CLOB API.
  */
-export const PriceHistoryIntervalEnum = t.UnionEnum([
+export const PriceHistoryIntervalEnum = z.enum([
 	"1m",
 	"1h",
 	"6h",
@@ -372,23 +360,23 @@ export const PriceHistoryIntervalEnum = t.UnionEnum([
  * Defines parameters for fetching historical price data from the CLOB API,
  * including market identification, time ranges, and data fidelity options.
  */
-export const PriceHistoryQuerySchema = t.Object({
+export const PriceHistoryQuerySchema = z.object({
 	// Required market parameter
-	market: t.String(), // The CLOB token ID for which to fetch price history
+	market: z.string(), // The CLOB token ID for which to fetch price history
 
 	// Time range options (mutually exclusive with interval)
-	startTs: t.Optional(t.Number()), // Unix timestamp in seconds
-	endTs: t.Optional(t.Number()), // Unix timestamp in seconds
+	startTs: z.number().optional(), // Unix timestamp in seconds
+	endTs: z.number().optional(), // Unix timestamp in seconds
 
 	// Human-readable date alternatives (converted to startTs/endTs)
-	startDate: t.Optional(t.String()), // Date string like "2025-08-13" or "2025-08-13T00:00:00.000Z"
-	endDate: t.Optional(t.String()), // Date string like "2025-08-13" or "2025-08-13T00:00:00.000Z"
+	startDate: z.string().optional(), // Date string like "2025-08-13" or "2025-08-13T00:00:00.000Z"
+	endDate: z.string().optional(), // Date string like "2025-08-13" or "2025-08-13T00:00:00.000Z"
 
 	// Interval option (mutually exclusive with startTs/endTs/startDate/endDate)
-	interval: t.Optional(PriceHistoryIntervalEnum),
+	interval: PriceHistoryIntervalEnum.optional(),
 
 	// Data resolution
-	fidelity: t.Optional(t.Number()), // Resolution in minutes
+	fidelity: z.number().optional(), // Resolution in minutes
 });
 
 /**
@@ -397,12 +385,12 @@ export const PriceHistoryQuerySchema = t.Object({
  * Defines the required and optional parameters for initializing
  * a Polymarket CLOB client with authentication credentials.
  */
-export const ClobClientConfigSchema = t.Object({
-	privateKey: t.String(),
-	funderAddress: t.String(),
-	host: t.Optional(t.String()),
-	chainId: t.Optional(t.Number()),
-	signatureType: t.Optional(t.Number()),
+export const ClobClientConfigSchema = z.object({
+	privateKey: z.string(),
+	funderAddress: z.string(),
+	host: z.string().optional(),
+	chainId: z.number().optional(),
+	signatureType: z.number().optional(),
 });
 
 /**
@@ -411,10 +399,10 @@ export const ClobClientConfigSchema = t.Object({
  * Standard error response format used across all API endpoints
  * when requests fail or encounter errors.
  */
-export const ErrorResponseSchema = t.Object({
-	error: t.String(),
-	message: t.String(),
-	details: t.Optional(t.String()),
+export const ErrorResponseSchema = z.object({
+	error: z.string(),
+	message: z.string(),
+	details: z.string().optional(),
 });
 
 /**
@@ -423,9 +411,9 @@ export const ErrorResponseSchema = t.Object({
  * Error response format specific to Gamma API endpoints
  * when requests fail (especially 404 errors).
  */
-export const GammaErrorResponseSchema = t.Object({
-	type: t.String(),
-	error: t.String(),
+export const GammaErrorResponseSchema = z.object({
+	type: z.string(),
+	error: z.string(),
 });
 
 /**
@@ -434,12 +422,12 @@ export const GammaErrorResponseSchema = t.Object({
  * Response format for API health check endpoints that indicate
  * service status and operational metrics.
  */
-export const HealthResponseSchema = t.Object({
-	status: t.Union([t.Literal("healthy"), t.Literal("unhealthy")]),
-	timestamp: t.String(),
-	clob: t.String(),
-	cached: t.Optional(t.Boolean()),
-	error: t.Optional(t.String()),
+export const HealthResponseSchema = z.object({
+	status: z.enum(["healthy", "unhealthy"]),
+	timestamp: z.string(),
+	clob: z.string(),
+	cached: z.boolean().optional(),
+	error: z.string().optional(),
 });
 
 /**
@@ -447,9 +435,9 @@ export const HealthResponseSchema = t.Object({
  *
  * Represents a single price level in the order book with price and size.
  */
-export const OrderSummarySchema = t.Object({
-	price: t.String(),
-	size: t.String(),
+export const OrderSummarySchema = z.object({
+	price: z.string(),
+	size: z.string(),
 });
 
 /**
@@ -457,119 +445,119 @@ export const OrderSummarySchema = t.Object({
  *
  * Complete order book data including bids, asks, and market metadata.
  */
-export const OrderBookSummarySchema = t.Object({
-	market: t.String(),
-	asset_id: t.String(),
-	timestamp: t.String(),
-	bids: t.Array(OrderSummarySchema),
-	asks: t.Array(OrderSummarySchema),
-	min_order_size: t.String(),
-	tick_size: t.String(),
-	neg_risk: t.Boolean(),
-	hash: t.String(),
+export const OrderBookSummarySchema = z.object({
+	market: z.string(),
+	asset_id: z.string(),
+	timestamp: z.string(),
+	bids: z.array(OrderSummarySchema),
+	asks: z.array(OrderSummarySchema),
+	min_order_size: z.string(),
+	tick_size: z.string(),
+	neg_risk: z.boolean(),
+	hash: z.string(),
 });
 
 /**
  * Schema for book parameters used in batch operations (requires side)
  */
-export const BookParamsSchema = t.Object({
-	token_id: t.String(),
-	side: t.UnionEnum(["BUY", "SELL"]),
+export const BookParamsSchema = z.object({
+	token_id: z.string(),
+	side: z.enum(["BUY", "SELL"]),
 });
 
 /**
  * Schema for price query parameters
  */
-export const PriceQuerySchema = t.Object({
-	tokenId: t.String(),
-	side: t.UnionEnum(["buy", "sell"]),
+export const PriceQuerySchema = z.object({
+	tokenId: z.string(),
+	side: z.enum(["buy", "sell"]),
 });
 
 /**
  * Schema for midpoint query parameters
  */
-export const MidpointQuerySchema = t.Object({
-	tokenId: t.String(),
+export const MidpointQuerySchema = z.object({
+	tokenId: z.string(),
 });
 
 /**
  * Schema for simple token parameters (just token_id)
  */
-export const TokenParamsSchema = t.Object({
-	token_id: t.String(),
+export const TokenParamsSchema = z.object({
+	token_id: z.string(),
 });
 
 /**
  * Schema for trade query parameters
  */
-export const TradeParamsSchema = t.Object({
-	id: t.Optional(t.String()),
-	maker_address: t.Optional(t.String()),
-	market: t.Optional(t.String()),
-	asset_id: t.Optional(t.String()),
-	before: t.Optional(t.String()),
-	after: t.Optional(t.String()),
+export const TradeParamsSchema = z.object({
+	id: z.string().optional(),
+	maker_address: z.string().optional(),
+	market: z.string().optional(),
+	asset_id: z.string().optional(),
+	before: z.string().optional(),
+	after: z.string().optional(),
 });
 
 /**
  * Schema for trade objects
  */
-export const TradeSchema = t.Object({
-	id: t.String(),
-	taker_order_id: t.String(),
-	market: t.String(),
-	asset_id: t.String(),
-	side: t.UnionEnum(["BUY", "SELL"]),
-	size: t.String(),
-	fee_rate_bps: t.String(),
-	price: t.String(),
-	status: t.String(),
-	match_time: t.String(),
-	last_update: t.String(),
-	outcome: t.String(),
-	bucket_index: t.Number(),
-	owner: t.String(),
-	maker_address: t.String(),
+export const TradeSchema = z.object({
+	id: z.string(),
+	taker_order_id: z.string(),
+	market: z.string(),
+	asset_id: z.string(),
+	side: z.enum(["BUY", "SELL"]),
+	size: z.string(),
+	fee_rate_bps: z.string(),
+	price: z.string(),
+	status: z.string(),
+	match_time: z.string(),
+	last_update: z.string(),
+	outcome: z.string(),
+	bucket_index: z.number(),
+	owner: z.string(),
+	maker_address: z.string(),
 });
 
 /**
  * Schema for pagination payload
  */
-export const PaginationPayloadSchema = t.Object({
-	limit: t.Number(),
-	count: t.Number(),
-	next_cursor: t.String(),
-	data: t.Array(t.Any()),
+export const PaginationPayloadSchema = z.object({
+	limit: z.number(),
+	count: z.number(),
+	next_cursor: z.string(),
+	data: z.array(z.any()),
 });
 
 /**
  * Schema for market query parameters (with pagination)
  */
-export const MarketPaginationQuerySchema = t.Object({
-	next_cursor: t.Optional(t.String()),
+export const MarketPaginationQuerySchema = z.object({
+	next_cursor: z.string().optional(),
 });
 
 // Health Check Schema
 /**
  * Schema for health check response
  */
-export const GammaHealthResponseSchema = t.Object({
-	data: t.String(),
+export const GammaHealthResponseSchema = z.object({
+	data: z.string(),
 });
 
 // Team Schema for Sports API
 /**
  * Schema for team objects returned by the Sports API
  */
-export const TeamSchema = t.Object({
-	id: t.Number(),
-	name: t.String(),
-	league: t.String(),
+export const TeamSchema = z.object({
+	id: z.number(),
+	name: z.string(),
+	league: z.string(),
 	record: OptionalString,
-	logo: t.String(),
-	abbreviation: t.String(),
-	alias: t.Optional(t.Nullable(t.String())),
-	createdAt: t.String(),
+	logo: z.string(),
+	abbreviation: z.string(),
+	alias: z.string().nullable().optional(),
+	createdAt: z.string(),
 	updatedAt: OptionalString,
 });
 
@@ -577,29 +565,29 @@ export const TeamSchema = t.Object({
 /**
  * Schema for team query parameters
  */
-export const TeamQuerySchema = t.Object({
-	limit: t.Optional(t.Number()),
-	offset: t.Optional(t.Number()),
+export const TeamQuerySchema = z.object({
+	limit: z.number().optional(),
+	offset: z.number().optional(),
 	order: OptionalString,
 	ascending: OptionalBoolean,
-	league: t.Optional(t.Array(t.String())),
-	name: t.Optional(t.Array(t.String())),
-	abbreviation: t.Optional(t.Array(t.String())),
+	league: z.array(z.string()).optional(),
+	name: z.array(z.string()).optional(),
+	abbreviation: z.array(z.string()).optional(),
 });
 
 // Updated Tag Schema with new fields
 /**
  * Updated schema for tag objects with new API fields
  */
-export const UpdatedTagSchema = t.Object({
-	id: t.String(),
-	label: t.String(),
-	slug: t.String(),
+export const UpdatedTagSchema = z.object({
+	id: z.string(),
+	label: z.string(),
+	slug: z.string(),
 	forceShow: OptionalBoolean,
 	publishedAt: OptionalString,
 	createdBy: OptionalNumber,
 	updatedBy: OptionalNumber,
-	createdAt: t.String(),
+	createdAt: z.string(),
 	updatedAt: OptionalString,
 	forceHide: OptionalBoolean,
 	isCarousel: OptionalBoolean,
@@ -609,9 +597,9 @@ export const UpdatedTagSchema = t.Object({
 /**
  * Schema for tag query parameters
  */
-export const TagQuerySchema = t.Object({
-	limit: t.Optional(t.Number()),
-	offset: t.Optional(t.Number()),
+export const TagQuerySchema = z.object({
+	limit: z.number().optional(),
+	offset: z.number().optional(),
 	order: OptionalString,
 	ascending: OptionalBoolean,
 	include_template: OptionalBoolean,
@@ -622,7 +610,7 @@ export const TagQuerySchema = t.Object({
 /**
  * Schema for tag by ID query parameters
  */
-export const TagByIdQuerySchema = t.Object({
+export const TagByIdQuerySchema = z.object({
 	include_template: OptionalBoolean,
 });
 
@@ -630,42 +618,40 @@ export const TagByIdQuerySchema = t.Object({
 /**
  * Schema for related tags relationship objects
  */
-export const RelatedTagRelationshipSchema = t.Object({
-	id: t.String(),
-	tagID: t.Number(),
-	relatedTagID: t.Number(),
-	rank: t.Number(),
+export const RelatedTagRelationshipSchema = z.object({
+	id: z.string(),
+	tagID: z.number(),
+	relatedTagID: z.number(),
+	rank: z.number(),
 });
 
 // Related Tags Query Schema
 /**
  * Schema for related tags query parameters
  */
-export const RelatedTagsQuerySchema = t.Object({
+export const RelatedTagsQuerySchema = z.object({
 	omit_empty: OptionalBoolean,
-	status: t.Optional(
-		t.Union([t.Literal("active"), t.Literal("closed"), t.Literal("all")]),
-	),
+	status: z.enum(["active", "closed", "all"]).optional(),
 });
 
 // Updated Event Query Schema with new fields
 /**
  * Updated schema for event query parameters with new API fields
  */
-export const UpdatedEventQuerySchema = t.Object({
+export const UpdatedEventQuerySchema = z.object({
 	// Pagination
-	limit: t.Optional(t.Number()),
-	offset: t.Optional(t.Number()),
+	limit: z.number().optional(),
+	offset: z.number().optional(),
 
 	// Sorting
 	order: OptionalString,
 	ascending: OptionalBoolean,
 
 	// Filters
-	id: t.Optional(t.Array(t.Number())),
-	slug: t.Optional(t.Array(t.String())),
+	id: z.array(z.number()).optional(),
+	slug: z.array(z.string()).optional(),
 	tag_id: OptionalNumber,
-	exclude_tag_id: t.Optional(t.Array(t.Number())),
+	exclude_tag_id: z.array(z.number()).optional(),
 	featured: OptionalBoolean,
 	cyom: OptionalBoolean,
 	archived: OptionalBoolean,
@@ -688,9 +674,9 @@ export const UpdatedEventQuerySchema = t.Object({
 /**
  * Schema for paginated event query parameters
  */
-export const PaginatedEventQuerySchema = t.Object({
-	limit: t.Number(),
-	offset: t.Number(),
+export const PaginatedEventQuerySchema = z.object({
+	limit: z.number(),
+	offset: z.number(),
 	order: OptionalString,
 	ascending: OptionalBoolean,
 	include_chat: OptionalBoolean,
@@ -702,12 +688,12 @@ export const PaginatedEventQuerySchema = t.Object({
 /**
  * Schema for paginated responses
  */
-export const PaginatedResponseSchema = <T extends TSchema>(schema: T) =>
-	t.Object({
-		data: t.Array(schema),
-		pagination: t.Object({
-			hasMore: t.Boolean(),
-			totalResults: t.Number(),
+export const PaginatedResponseSchema = <T extends z.ZodTypeAny>(schema: T) =>
+	z.object({
+		data: z.array(schema),
+		pagination: z.object({
+			hasMore: z.boolean(),
+			totalResults: z.number(),
 		}),
 	});
 
@@ -715,7 +701,7 @@ export const PaginatedResponseSchema = <T extends TSchema>(schema: T) =>
 /**
  * Schema for event by ID query parameters
  */
-export const EventByIdQuerySchema = t.Object({
+export const EventByIdQuerySchema = z.object({
 	include_chat: OptionalBoolean,
 	include_template: OptionalBoolean,
 });
@@ -723,42 +709,32 @@ export const EventByIdQuerySchema = t.Object({
 /**
  * Schema for markdown formatting options
  */
-export const MarkdownOptionsSchema = t.Object({
-	verbose: t.Optional(
-		t.Union([t.Literal(0), t.Literal(1), t.Literal(2)], {
-			description: "Verbosity level: 0=basic, 1=medium, 2=full details",
-			default: 2,
-		}),
-	),
-	include_markets: t.Optional(
-		t.Boolean({
-			description: "Whether to include market details in event markdown",
-			default: true,
-		}),
-	),
+export const MarkdownOptionsSchema = z.object({
+	verbose: z.union([z.literal(0), z.literal(1), z.literal(2)]).describe("Verbosity level: 0=basic, 1=medium, 2=full details").default(2).optional(),
+	include_markets: z.boolean().describe("Whether to include market details in event markdown").default(true).optional(),
 });
 
 // Updated Market Query Schema with new fields
 /**
  * Updated schema for market query parameters with new API fields
  */
-export const UpdatedMarketQuerySchema = t.Object({
+export const UpdatedMarketQuerySchema = z.object({
 	// Pagination
-	limit: t.Optional(t.Number()),
-	offset: t.Optional(t.Number()),
+	limit: z.number().optional(),
+	offset: z.number().optional(),
 
 	// Sorting
 	order: OptionalString,
 	ascending: OptionalBoolean,
 
 	// Filters
-	id: t.Optional(t.Array(t.Number())),
-	slug: t.Optional(t.Array(t.String())),
+	id: z.array(z.number()).optional(),
+	slug: z.array(z.string()).optional(),
 	tag_id: OptionalNumber,
 	closed: OptionalBoolean,
 	active: OptionalBoolean,
 	archived: OptionalBoolean,
-	sports_market_types: t.Optional(t.Array(t.String())),
+	sports_market_types: z.array(z.string()).optional(),
 
 	// Date filters
 	start_date_min: OptionalString,
@@ -771,7 +747,7 @@ export const UpdatedMarketQuerySchema = t.Object({
 /**
  * Schema for market by ID query parameters
  */
-export const MarketByIdQuerySchema = t.Object({
+export const MarketByIdQuerySchema = z.object({
 	include_tag: OptionalBoolean,
 });
 
@@ -779,14 +755,14 @@ export const MarketByIdQuerySchema = t.Object({
 /**
  * Schema for series query parameters
  */
-export const SeriesQuerySchema = t.Object({
-	limit: t.Number(),
-	offset: t.Number(),
+export const SeriesQuerySchema = z.object({
+	limit: z.number(),
+	offset: z.number(),
 	order: OptionalString,
 	ascending: OptionalBoolean,
-	slug: t.Optional(t.Array(t.String())),
-	categories_ids: t.Optional(t.Array(t.Number())),
-	categories_labels: t.Optional(t.Array(t.String())),
+	slug: z.array(z.string()).optional(),
+	categories_ids: z.array(z.number()).optional(),
+	categories_labels: z.array(z.string()).optional(),
 	closed: OptionalBoolean,
 	include_chat: OptionalBoolean,
 	recurrence: OptionalString,
@@ -796,7 +772,7 @@ export const SeriesQuerySchema = t.Object({
 /**
  * Schema for series by ID query parameters
  */
-export const SeriesByIdQuerySchema = t.Object({
+export const SeriesByIdQuerySchema = z.object({
 	include_chat: OptionalBoolean,
 });
 
@@ -804,31 +780,29 @@ export const SeriesByIdQuerySchema = t.Object({
 /**
  * Schema for comment objects
  */
-export const CommentSchema = t.Object({
-	id: t.String(),
-	body: t.String(),
-	parentEntityType: t.String(),
-	parentEntityID: t.Number(),
-	userAddress: t.String(),
-	createdAt: t.String(),
-	profile: t.Optional(t.Any()), // Profile object structure can vary
-	reactions: t.Optional(t.Array(t.Any())), // Reaction objects can vary
-	reportCount: t.Number(),
-	reactionCount: t.Number(),
+export const CommentSchema = z.object({
+	id: z.string(),
+	body: z.string(),
+	parentEntityType: z.string(),
+	parentEntityID: z.number(),
+	userAddress: z.string(),
+	createdAt: z.string(),
+	profile: z.any().optional(), // Profile object structure can vary
+	reactions: z.array(z.any()).optional(), // Reaction objects can vary
+	reportCount: z.number(),
+	reactionCount: z.number(),
 });
 
 // Comment Query Schema
 /**
  * Schema for comment query parameters
  */
-export const CommentQuerySchema = t.Object({
-	limit: t.Optional(t.Number()),
-	offset: t.Optional(t.Number()),
+export const CommentQuerySchema = z.object({
+	limit: z.number().optional(),
+	offset: z.number().optional(),
 	order: OptionalString,
 	ascending: OptionalBoolean,
-	parent_entity_type: t.Optional(
-		t.Union([t.Literal("Event"), t.Literal("Series"), t.Literal("market")]),
-	),
+	parent_entity_type: z.enum(["Event", "Series", "market"]).optional(),
 	parent_entity_id: OptionalNumber,
 	get_positions: OptionalBoolean,
 	holders_only: OptionalBoolean,
@@ -838,7 +812,7 @@ export const CommentQuerySchema = t.Object({
 /**
  * Schema for comment by ID query parameters
  */
-export const CommentByIdQuerySchema = t.Object({
+export const CommentByIdQuerySchema = z.object({
 	get_positions: OptionalBoolean,
 });
 
@@ -846,9 +820,9 @@ export const CommentByIdQuerySchema = t.Object({
 /**
  * Schema for comments by user address query parameters
  */
-export const CommentsByUserQuerySchema = t.Object({
-	limit: t.Optional(t.Number()),
-	offset: t.Optional(t.Number()),
+export const CommentsByUserQuerySchema = z.object({
+	limit: z.number().optional(),
+	offset: z.number().optional(),
 	order: OptionalString,
 	ascending: OptionalBoolean,
 });
@@ -857,13 +831,13 @@ export const CommentsByUserQuerySchema = t.Object({
 /**
  * Schema for public search query parameters
  */
-export const SearchQuerySchema = t.Object({
-	q: t.String(), // Required search query
+export const SearchQuerySchema = z.object({
+	q: z.string(), // Required search query
 	cache: OptionalBoolean,
 	events_status: OptionalString,
 	limit_per_type: OptionalNumber,
 	page: OptionalNumber,
-	events_tag: t.Optional(t.Array(t.String())),
+	events_tag: z.array(z.string()).optional(),
 	sort: OptionalString,
 	ascending: OptionalBoolean,
 });
@@ -872,151 +846,147 @@ export const SearchQuerySchema = t.Object({
 /**
  * Schema for public search response
  */
-export const SearchResponseSchema = t.Object({
-	events: t.Optional(t.Array(t.Any())), // Event objects
-	tags: t.Optional(t.Array(t.Any())), // Tag objects with counts
-	profiles: t.Optional(t.Array(t.Any())), // Profile objects
-	pagination: t.Optional(
-		t.Object({
-			hasMore: OptionalBoolean,
-		}),
-	),
+export const SearchResponseSchema = z.object({
+	events: z.array(z.any()).optional(), // Event objects
+	tags: z.array(z.any()).optional(), // Tag objects with counts
+	profiles: z.array(z.any()).optional(), // Profile objects
+	pagination: z.object({
+		hasMore: OptionalBoolean,
+	}).optional(),
 });
 
 // Type exports for use in handlers and SDK
 
 /** TypeScript type for market objects derived from MarketSchema */
-export type MarketType = typeof MarketSchema.static;
+export type MarketType = z.infer<typeof MarketSchema>;
 
 /** TypeScript type for event objects derived from EventSchema */
-export type EventType = typeof EventSchema.static;
+export type EventType = z.infer<typeof EventSchema>;
 
 /** TypeScript type for event market objects derived from EventMarketSchema */
-export type EventMarketType = typeof EventMarketSchema.static;
+export type EventMarketType = z.infer<typeof EventMarketSchema>;
 
 /** TypeScript type for series objects derived from SeriesSchema */
-export type SeriesType = typeof SeriesSchema.static;
+export type SeriesType = z.infer<typeof SeriesSchema>;
 
 /** TypeScript type for tag objects derived from TagSchema */
-export type TagType = typeof TagSchema.static;
+export type TagType = z.infer<typeof TagSchema>;
 
 /** TypeScript type for price history responses derived from PriceHistoryResponseSchema */
-export type PriceHistoryResponseType = typeof PriceHistoryResponseSchema.static;
+export type PriceHistoryResponseType = z.infer<typeof PriceHistoryResponseSchema>;
 
 /** TypeScript type for price history data points derived from PriceHistoryPointSchema */
-export type PriceHistoryPointType = typeof PriceHistoryPointSchema.static;
+export type PriceHistoryPointType = z.infer<typeof PriceHistoryPointSchema>;
 
 /** TypeScript type for market query parameters derived from MarketQuerySchema */
-export type MarketQueryType = typeof MarketQuerySchema.static;
+export type MarketQueryType = z.infer<typeof MarketQuerySchema>;
 
 /** TypeScript type for event query parameters derived from EventQuerySchema */
-export type EventQueryType = typeof EventQuerySchema.static;
+export type EventQueryType = z.infer<typeof EventQuerySchema>;
 
 /** TypeScript type for price history query parameters derived from PriceHistoryQuerySchema */
-export type PriceHistoryQueryType = typeof PriceHistoryQuerySchema.static;
+export type PriceHistoryQueryType = z.infer<typeof PriceHistoryQuerySchema>;
 
 /** TypeScript type for CLOB client configuration derived from ClobClientConfigSchema */
-export type ClobClientConfigType = typeof ClobClientConfigSchema.static;
+export type ClobClientConfigType = z.infer<typeof ClobClientConfigSchema>;
 
 /** TypeScript type for order summary derived from OrderSummarySchema */
-export type OrderSummaryType = typeof OrderSummarySchema.static;
+export type OrderSummaryType = z.infer<typeof OrderSummarySchema>;
 
 /** TypeScript type for order book summary derived from OrderBookSummarySchema */
-export type OrderBookSummaryType = typeof OrderBookSummarySchema.static;
+export type OrderBookSummaryType = z.infer<typeof OrderBookSummarySchema>;
 
 /** TypeScript type for book parameters derived from BookParamsSchema */
-export type BookParamsType = typeof BookParamsSchema.static;
+export type BookParamsType = z.infer<typeof BookParamsSchema>;
 
 /** TypeScript type for price query parameters derived from PriceQuerySchema */
-export type PriceQueryType = typeof PriceQuerySchema.static;
+export type PriceQueryType = z.infer<typeof PriceQuerySchema>;
 
 /** TypeScript type for midpoint query parameters derived from MidpointQuerySchema */
-export type MidpointQueryType = typeof MidpointQuerySchema.static;
+export type MidpointQueryType = z.infer<typeof MidpointQuerySchema>;
 
 /** TypeScript type for token parameters derived from TokenParamsSchema */
-export type TokenParamsType = typeof TokenParamsSchema.static;
+export type TokenParamsType = z.infer<typeof TokenParamsSchema>;
 
 /** TypeScript type for trade parameters derived from TradeParamsSchema */
-export type TradeParamsType = typeof TradeParamsSchema.static;
+export type TradeParamsType = z.infer<typeof TradeParamsSchema>;
 
 /** TypeScript type for trade objects derived from TradeSchema */
-export type TradeType = typeof TradeSchema.static;
+export type TradeType = z.infer<typeof TradeSchema>;
 
 /** TypeScript type for pagination payload derived from PaginationPayloadSchema */
-export type PaginationPayloadType = typeof PaginationPayloadSchema.static;
+export type PaginationPayloadType = z.infer<typeof PaginationPayloadSchema>;
 
 /** TypeScript type for market pagination query derived from MarketPaginationQuerySchema */
-export type MarketPaginationQueryType =
-	typeof MarketPaginationQuerySchema.static;
+export type MarketPaginationQueryType = z.infer<typeof MarketPaginationQuerySchema>;
 
 // New type exports for Gamma API endpoints
 
 /** TypeScript type for gamma health response derived from GammaHealthResponseSchema */
-export type GammaHealthResponseType = typeof GammaHealthResponseSchema.static;
+export type GammaHealthResponseType = z.infer<typeof GammaHealthResponseSchema>;
 
 /** TypeScript type for team objects derived from TeamSchema */
-export type TeamType = typeof TeamSchema.static;
+export type TeamType = z.infer<typeof TeamSchema>;
 
 /** TypeScript type for team query parameters derived from TeamQuerySchema */
-export type TeamQueryType = typeof TeamQuerySchema.static;
+export type TeamQueryType = z.infer<typeof TeamQuerySchema>;
 
 /** TypeScript type for updated tag objects derived from UpdatedTagSchema */
-export type UpdatedTagType = typeof UpdatedTagSchema.static;
+export type UpdatedTagType = z.infer<typeof UpdatedTagSchema>;
 
 /** TypeScript type for tag query parameters derived from TagQuerySchema */
-export type TagQueryType = typeof TagQuerySchema.static;
+export type TagQueryType = z.infer<typeof TagQuerySchema>;
 
 /** TypeScript type for tag by ID query parameters derived from TagByIdQuerySchema */
-export type TagByIdQueryType = typeof TagByIdQuerySchema.static;
+export type TagByIdQueryType = z.infer<typeof TagByIdQuerySchema>;
 
 /** TypeScript type for related tag relationship objects derived from RelatedTagRelationshipSchema */
-export type RelatedTagRelationshipType =
-	typeof RelatedTagRelationshipSchema.static;
+export type RelatedTagRelationshipType = z.infer<typeof RelatedTagRelationshipSchema>;
 
 /** TypeScript type for related tags query parameters derived from RelatedTagsQuerySchema */
-export type RelatedTagsQueryType = typeof RelatedTagsQuerySchema.static;
+export type RelatedTagsQueryType = z.infer<typeof RelatedTagsQuerySchema>;
 
 /** TypeScript type for updated event query parameters derived from UpdatedEventQuerySchema */
-export type UpdatedEventQueryType = typeof UpdatedEventQuerySchema.static;
+export type UpdatedEventQueryType = z.infer<typeof UpdatedEventQuerySchema>;
 
 /** TypeScript type for paginated event query parameters derived from PaginatedEventQuerySchema */
-export type PaginatedEventQueryType = typeof PaginatedEventQuerySchema.static;
+export type PaginatedEventQueryType = z.infer<typeof PaginatedEventQuerySchema>;
 
 /** TypeScript type for event by ID query parameters derived from EventByIdQuerySchema */
-export type EventByIdQueryType = typeof EventByIdQuerySchema.static;
+export type EventByIdQueryType = z.infer<typeof EventByIdQuerySchema>;
 
 /** TypeScript type for updated market query parameters derived from UpdatedMarketQuerySchema */
-export type UpdatedMarketQueryType = typeof UpdatedMarketQuerySchema.static;
+export type UpdatedMarketQueryType = z.infer<typeof UpdatedMarketQuerySchema>;
 
 /** TypeScript type for market by ID query parameters derived from MarketByIdQuerySchema */
-export type MarketByIdQueryType = typeof MarketByIdQuerySchema.static;
+export type MarketByIdQueryType = z.infer<typeof MarketByIdQuerySchema>;
 
 /** TypeScript type for series query parameters derived from SeriesQuerySchema */
-export type SeriesQueryType = typeof SeriesQuerySchema.static;
+export type SeriesQueryType = z.infer<typeof SeriesQuerySchema>;
 
 /** TypeScript type for series by ID query parameters derived from SeriesByIdQuerySchema */
-export type SeriesByIdQueryType = typeof SeriesByIdQuerySchema.static;
+export type SeriesByIdQueryType = z.infer<typeof SeriesByIdQuerySchema>;
 
 /** TypeScript type for comment objects derived from CommentSchema */
-export type CommentType = typeof CommentSchema.static;
+export type CommentType = z.infer<typeof CommentSchema>;
 
 /** TypeScript type for comment query parameters derived from CommentQuerySchema */
-export type CommentQueryType = typeof CommentQuerySchema.static;
+export type CommentQueryType = z.infer<typeof CommentQuerySchema>;
 
 /** TypeScript type for comment by ID query parameters derived from CommentByIdQuerySchema */
-export type CommentByIdQueryType = typeof CommentByIdQuerySchema.static;
+export type CommentByIdQueryType = z.infer<typeof CommentByIdQuerySchema>;
 
 /** TypeScript type for comments by user address query parameters derived from CommentsByUserQuerySchema */
-export type CommentsByUserQueryType = typeof CommentsByUserQuerySchema.static;
+export type CommentsByUserQueryType = z.infer<typeof CommentsByUserQuerySchema>;
 
 /** TypeScript type for search query parameters derived from SearchQuerySchema */
-export type SearchQueryType = typeof SearchQuerySchema.static;
+export type SearchQueryType = z.infer<typeof SearchQuerySchema>;
 
 /** TypeScript type for search response derived from SearchResponseSchema */
-export type SearchResponseType = typeof SearchResponseSchema.static;
+export type SearchResponseType = z.infer<typeof SearchResponseSchema>;
 
 /** TypeScript type for Gamma API error response derived from GammaErrorResponseSchema */
-export type GammaErrorResponseType = typeof GammaErrorResponseSchema.static;
+export type GammaErrorResponseType = z.infer<typeof GammaErrorResponseSchema>;
 
 /** TypeScript type for HTTP proxy configuration derived from ProxyConfigSchema */
-export type ProxyConfigType = typeof ProxyConfigSchema.static;
+export type ProxyConfigType = z.infer<typeof ProxyConfigSchema>;

@@ -494,7 +494,7 @@ export class GammaSDK {
 			throw new Error(`Failed to get event by ID: ${response.status}`);
 		}
 		// Transform the data to parse JSON string fields in nested markets
-		return this.transformEventData(response.data!);
+		return this.transformEventData(response.data);
 	}
 
 	/**
