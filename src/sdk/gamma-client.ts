@@ -7,7 +7,6 @@
  */
 
 import type {
-	GammaHealthResponseType,
 	TeamType,
 	TeamQueryType,
 	UpdatedTagType,
@@ -109,7 +108,9 @@ export class GammaSDK {
 		Object.entries(query).forEach(([key, value]) => {
 			if (value !== undefined && value !== null) {
 				if (Array.isArray(value)) {
-					value.forEach((item) => searchParams.append(key, String(item)));
+					value.forEach((item) => {
+						searchParams.append(key, String(item));
+					});
 				} else {
 					searchParams.append(key, String(value));
 				}
@@ -162,6 +163,30 @@ export class GammaSDK {
 				`Failed to fetch from ${endpoint}: ${error instanceof Error ? error.message : "Unknown error"}`,
 			);
 		}
+	}
+
+	/**
+	 * Helper method to safely extract data from API response
+	 * Throws an error if data is null when response is ok
+	 */
+	private extractResponseData<T>(
+		response: {
+			data: T | null;
+			status: number;
+			ok: boolean;
+			errorData?: any;
+		},
+		operation: string,
+	): T {
+		if (!response.ok) {
+			throw new Error(`${operation} failed: ${response.status}`);
+		}
+		if (response.data === null) {
+			throw new Error(
+				`${operation} returned null data despite successful response`,
+			);
+		}
+		return response.data;
 	}
 
 	/**
@@ -225,10 +250,7 @@ export class GammaSDK {
 	 */
 	async getTeams(query: TeamQueryType = {}): Promise<TeamType[]> {
 		const response = await this.makeRequest<TeamType[]>("/teams", query);
-		if (!response.ok) {
-			throw new Error(`Failed to get teams: ${response.status}`);
-		}
-		return response.data!;
+		return this.extractResponseData(response, "Get teams");
 	}
 
 	// Tags API
@@ -246,10 +268,7 @@ export class GammaSDK {
 	 */
 	async getTags(query: TagQueryType): Promise<UpdatedTagType[]> {
 		const response = await this.makeRequest<UpdatedTagType[]>("/tags", query);
-		if (!response.ok) {
-			throw new Error(`Failed to get tags: ${response.status}`);
-		}
-		return response.data!;
+		return this.extractResponseData(response, "Get tags");
 	}
 
 	/**
@@ -278,7 +297,7 @@ export class GammaSDK {
 		if (!response.ok) {
 			throw new Error(`Failed to get tag by ID: ${response.status}`);
 		}
-		return response.data!;
+		return this.extractResponseData(response, "Get tag by ID");
 	}
 
 	/**
@@ -307,7 +326,7 @@ export class GammaSDK {
 		if (!response.ok) {
 			throw new Error(`Failed to get tag by slug: ${response.status}`);
 		}
-		return response.data!;
+		return this.extractResponseData(response, "Get tag by slug");
 	}
 
 	/**
@@ -335,7 +354,7 @@ export class GammaSDK {
 				`Failed to get related tags relationships: ${response.status}`,
 			);
 		}
-		return response.data!;
+		return this.extractResponseData(response, "Get related tags relationships");
 	}
 
 	/**
@@ -363,7 +382,7 @@ export class GammaSDK {
 				`Failed to get related tags relationships: ${response.status}`,
 			);
 		}
-		return response.data!;
+		return this.extractResponseData(response, "Get related tags relationships");
 	}
 
 	/**
@@ -389,7 +408,7 @@ export class GammaSDK {
 		if (!response.ok) {
 			throw new Error(`Failed to get related tags: ${response.status}`);
 		}
-		return response.data!;
+		return this.extractResponseData(response, "Get related tags");
 	}
 
 	/**
@@ -415,7 +434,7 @@ export class GammaSDK {
 		if (!response.ok) {
 			throw new Error(`Failed to get related tags: ${response.status}`);
 		}
-		return response.data!;
+		return this.extractResponseData(response, "Get related tags");
 	}
 
 	// Events API
@@ -433,11 +452,9 @@ export class GammaSDK {
 	 */
 	async getEvents(query: UpdatedEventQueryType = {}): Promise<EventType[]> {
 		const response = await this.makeRequest<any[]>("/events", query);
-		if (!response.ok) {
-			throw new Error(`Failed to get events: ${response.status}`);
-		}
+		const data = this.extractResponseData(response, "Get events");
 		// Transform the data to parse JSON string fields in nested markets
-		return response.data!.map((item) => this.transformEventData(item));
+		return data.map((item) => this.transformEventData(item));
 	}
 
 	/**
@@ -460,13 +477,11 @@ export class GammaSDK {
 			data: any[];
 			pagination: { hasMore: boolean; totalResults: number };
 		}>("/events/pagination", query);
-		if (!response.ok) {
-			throw new Error(`Failed to get paginated events: ${response.status}`);
-		}
+		const data = this.extractResponseData(response, "Get paginated events");
 		// Transform the data to parse JSON string fields in nested markets
 		return {
-			data: response.data!.data.map((item) => this.transformEventData(item)),
-			pagination: response.data!.pagination,
+			data: data.data.map((item) => this.transformEventData(item)),
+			pagination: data.pagination,
 		};
 	}
 
@@ -494,7 +509,8 @@ export class GammaSDK {
 			throw new Error(`Failed to get event by ID: ${response.status}`);
 		}
 		// Transform the data to parse JSON string fields in nested markets
-		return this.transformEventData(response.data);
+		const data = this.extractResponseData(response, "Get event by ID");
+		return this.transformEventData(data);
 	}
 
 	/**
@@ -515,7 +531,7 @@ export class GammaSDK {
 		if (!response.ok) {
 			throw new Error(`Failed to get event tags: ${response.status}`);
 		}
-		return response.data!;
+		return this.extractResponseData(response, "Get event tags");
 	}
 
 	/**
@@ -542,7 +558,8 @@ export class GammaSDK {
 			throw new Error(`Failed to get event by slug: ${response.status}`);
 		}
 		// Transform the data to parse JSON string fields in nested markets
-		return this.transformEventData(response.data!);
+		const data = this.extractResponseData(response, "Get event by slug");
+		return this.transformEventData(data);
 	}
 
 	// Markets API
@@ -560,11 +577,9 @@ export class GammaSDK {
 	 */
 	async getMarkets(query: UpdatedMarketQueryType = {}): Promise<MarketType[]> {
 		const response = await this.makeRequest<any[]>("/markets", query);
-		if (!response.ok) {
-			throw new Error(`Failed to get markets: ${response.status}`);
-		}
+		const data = this.extractResponseData(response, "Get markets");
 		// Transform the data to parse JSON string fields
-		return response.data!.map((item) => this.transformMarketData(item));
+		return data.map((item) => this.transformMarketData(item));
 	}
 
 	/**
@@ -591,7 +606,8 @@ export class GammaSDK {
 			throw new Error(`Failed to get market by ID: ${response.status}`);
 		}
 		// Transform the data to parse JSON string fields
-		return this.transformMarketData(response.data!);
+		const data = this.extractResponseData(response, "Get market by ID");
+		return this.transformMarketData(data);
 	}
 
 	/**
@@ -612,7 +628,7 @@ export class GammaSDK {
 		if (!response.ok) {
 			throw new Error(`Failed to get market tags: ${response.status}`);
 		}
-		return response.data!;
+		return this.extractResponseData(response, "Get market tags");
 	}
 
 	/**
@@ -642,7 +658,8 @@ export class GammaSDK {
 			throw new Error(`Failed to get market by slug: ${response.status}`);
 		}
 		// Transform the data to parse JSON string fields
-		return this.transformMarketData(response.data!);
+		const data = this.extractResponseData(response, "Get market by slug");
+		return this.transformMarketData(data);
 	}
 
 	// Series API
@@ -660,10 +677,7 @@ export class GammaSDK {
 	 */
 	async getSeries(query: SeriesQueryType): Promise<SeriesType[]> {
 		const response = await this.makeRequest<SeriesType[]>("/series", query);
-		if (!response.ok) {
-			throw new Error(`Failed to get series: ${response.status}`);
-		}
-		return response.data!;
+		return this.extractResponseData(response, "Get series");
 	}
 
 	/**
@@ -689,7 +703,7 @@ export class GammaSDK {
 		if (!response.ok) {
 			throw new Error(`Failed to get series by ID: ${response.status}`);
 		}
-		return response.data!;
+		return this.extractResponseData(response, "Get series by ID");
 	}
 
 	// Comments API
@@ -711,10 +725,7 @@ export class GammaSDK {
 	 */
 	async getComments(query: CommentQueryType = {}): Promise<CommentType[]> {
 		const response = await this.makeRequest<CommentType[]>("/comments", query);
-		if (!response.ok) {
-			throw new Error(`Failed to get comments: ${response.status}`);
-		}
-		return response.data!;
+		return this.extractResponseData(response, "Get comments");
 	}
 
 	/**
@@ -742,7 +753,7 @@ export class GammaSDK {
 				`Failed to get comments by comment ID: ${response.status}`,
 			);
 		}
-		return response.data!;
+		return this.extractResponseData(response, "Get comments by comment ID");
 	}
 
 	/**
@@ -770,7 +781,7 @@ export class GammaSDK {
 				`Failed to get comments by user address: ${response.status}`,
 			);
 		}
-		return response.data!;
+		return this.extractResponseData(response, "Get comments by user address");
 	}
 
 	// Search API
@@ -798,7 +809,7 @@ export class GammaSDK {
 		if (!response.ok) {
 			throw new Error(`Failed to search: ${response.status}`);
 		}
-		return response.data!;
+		return this.extractResponseData(response, "Search");
 	}
 
 	// Convenience methods for common use cases

@@ -87,7 +87,10 @@ function formatMarketDisplay(markets: MarketType[]): string {
 			const outcomeInfo =
 				market.outcomes && market.outcomePrices
 					? market.outcomes
-							.map((outcome, i) => `${outcome}: $${market.outcomePrices![i]}`)
+							.map(
+								(outcome, i) =>
+									`${outcome}: $${market.outcomePrices[i] || "N/A"}`,
+							)
 							.join(", ")
 					: "";
 

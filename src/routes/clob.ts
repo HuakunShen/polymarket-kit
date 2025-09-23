@@ -17,13 +17,19 @@ import { Side } from "@polymarket/clob-client";
 
 // Custom error classes for better error handling
 class ClobValidationError extends Error {
-	constructor(message: string, public details?: string) {
+	constructor(
+		message: string,
+		public details?: string,
+	) {
 		super(message);
 	}
 }
 
 class ClobApiError extends Error {
-	constructor(message: string, public statusCode: number = 500) {
+	constructor(
+		message: string,
+		public statusCode: number = 500,
+	) {
 		super(message);
 	}
 }
@@ -86,17 +92,18 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 	})
 	.onError(({ code, error, set }) => {
 		switch (code) {
-			case 'ClobValidationError':
+			case "ClobValidationError":
 				set.status = 400;
 				return {
 					error: "Bad Request",
 					message: error.message,
 					details: error.details,
 				};
-			case 'ClobApiError':
+			case "ClobApiError":
 				set.status = error.statusCode;
 				return {
-					error: error.statusCode === 400 ? "Bad Request" : "Internal Server Error",
+					error:
+						error.statusCode === 400 ? "Bad Request" : "Internal Server Error",
 					message: error.message,
 				};
 			default:
@@ -171,9 +178,11 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 					const errorMessage = err.message;
 
 					// If it's a validation error (mentions fidelity, filters, etc.), throw ClobValidationError
-					if (errorMessage.includes("invalid filters") ||
+					if (
+						errorMessage.includes("invalid filters") ||
 						errorMessage.includes("minimum 'fidelity'") ||
-						errorMessage.includes("fidelity")) {
+						errorMessage.includes("fidelity")
+					) {
 						throw new ClobValidationError(errorMessage);
 					}
 
@@ -187,14 +196,22 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 		},
 		{
 			query: PriceHistoryQuerySchema,
-			headers: z.object({
-				"x-polymarket-key": z.string().describe(
-					"Polymarket private key for CLOB authentication (required in production, optional in development)"
-				).optional(),
-				"x-polymarket-funder": z.string().describe(
-					"Polymarket funder address for CLOB operations (required in production, optional in development)"
-				).optional(),
-			}).optional(),
+			headers: z
+				.object({
+					"x-polymarket-key": z
+						.string()
+						.describe(
+							"Polymarket private key for CLOB authentication (required in production, optional in development)",
+						)
+						.optional(),
+					"x-polymarket-funder": z
+						.string()
+						.describe(
+							"Polymarket funder address for CLOB operations (required in production, optional in development)",
+						)
+						.optional(),
+				})
+				.optional(),
 			response: {
 				200: PriceHistoryResponseSchema,
 				400: z.object({
@@ -232,12 +249,18 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 		},
 		{
 			headers: z.object({
-				"x-polymarket-key": z.string().describe(
-					"Polymarket private key for CLOB authentication (required in production, optional in development)"
-				).optional(),
-				"x-polymarket-funder": z.string().describe(
-					"Polymarket funder address for CLOB operations (required in production, optional in development)"
-				).optional(),
+				"x-polymarket-key": z
+					.string()
+					.describe(
+						"Polymarket private key for CLOB authentication (required in production, optional in development)",
+					)
+					.optional(),
+				"x-polymarket-funder": z
+					.string()
+					.describe(
+						"Polymarket funder address for CLOB operations (required in production, optional in development)",
+					)
+					.optional(),
 			}),
 			response: {
 				200: z.object({
@@ -331,12 +354,18 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 				tokenId: z.string().describe("The CLOB token ID to get order book for"),
 			}),
 			headers: z.object({
-				"x-polymarket-key": z.string().describe(
-					"Polymarket private key for CLOB authentication (required in production, optional in development)"
-				).optional(),
-				"x-polymarket-funder": z.string().describe(
-					"Polymarket funder address for CLOB operations (required in production, optional in development)"
-				).optional(),
+				"x-polymarket-key": z
+					.string()
+					.describe(
+						"Polymarket private key for CLOB authentication (required in production, optional in development)",
+					)
+					.optional(),
+				"x-polymarket-funder": z
+					.string()
+					.describe(
+						"Polymarket funder address for CLOB operations (required in production, optional in development)",
+					)
+					.optional(),
 			}),
 			response: {
 				200: OrderBookSummarySchema,
@@ -382,12 +411,18 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 		{
 			body: z.array(BookParamsSchema),
 			headers: z.object({
-				"x-polymarket-key": z.string().describe(
-					"Polymarket private key for CLOB authentication (required in production, optional in development)"
-				).optional(),
-				"x-polymarket-funder": z.string().describe(
-					"Polymarket funder address for CLOB operations (required in production, optional in development)"
-				).optional(),
+				"x-polymarket-key": z
+					.string()
+					.describe(
+						"Polymarket private key for CLOB authentication (required in production, optional in development)",
+					)
+					.optional(),
+				"x-polymarket-funder": z
+					.string()
+					.describe(
+						"Polymarket funder address for CLOB operations (required in production, optional in development)",
+					)
+					.optional(),
 			}),
 			response: {
 				200: z.array(OrderBookSummarySchema),
@@ -430,15 +465,23 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 		{
 			params: z.object({
 				tokenId: z.string().describe("The CLOB token ID to get price for"),
-				side: z.enum(["buy", "sell"]).describe("The side to get price for (buy or sell)"),
+				side: z
+					.enum(["buy", "sell"])
+					.describe("The side to get price for (buy or sell)"),
 			}),
 			headers: z.object({
-				"x-polymarket-key": z.string().describe(
-					"Polymarket private key for CLOB authentication (required in production, optional in development)"
-				).optional(),
-				"x-polymarket-funder": z.string().describe(
-					"Polymarket funder address for CLOB operations (required in production, optional in development)"
-				).optional(),
+				"x-polymarket-key": z
+					.string()
+					.describe(
+						"Polymarket private key for CLOB authentication (required in production, optional in development)",
+					)
+					.optional(),
+				"x-polymarket-funder": z
+					.string()
+					.describe(
+						"Polymarket funder address for CLOB operations (required in production, optional in development)",
+					)
+					.optional(),
 			}),
 			response: {
 				200: z.object({
@@ -482,12 +525,18 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 		{
 			body: z.array(BookParamsSchema),
 			headers: z.object({
-				"x-polymarket-key": z.string().describe(
-					"Polymarket private key for CLOB authentication (required in production, optional in development)"
-				).optional(),
-				"x-polymarket-funder": z.string().describe(
-					"Polymarket funder address for CLOB operations (required in production, optional in development)"
-				).optional(),
+				"x-polymarket-key": z
+					.string()
+					.describe(
+						"Polymarket private key for CLOB authentication (required in production, optional in development)",
+					)
+					.optional(),
+				"x-polymarket-funder": z
+					.string()
+					.describe(
+						"Polymarket funder address for CLOB operations (required in production, optional in development)",
+					)
+					.optional(),
 			}),
 			response: {
 				200: z.object({
@@ -529,12 +578,18 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 				tokenId: z.string().describe("The CLOB token ID to get midpoint for"),
 			}),
 			headers: z.object({
-				"x-polymarket-key": z.string().describe(
-					"Polymarket private key for CLOB authentication (required in production, optional in development)"
-				).optional(),
-				"x-polymarket-funder": z.string().describe(
-					"Polymarket funder address for CLOB operations (required in production, optional in development)"
-				).optional(),
+				"x-polymarket-key": z
+					.string()
+					.describe(
+						"Polymarket private key for CLOB authentication (required in production, optional in development)",
+					)
+					.optional(),
+				"x-polymarket-funder": z
+					.string()
+					.describe(
+						"Polymarket funder address for CLOB operations (required in production, optional in development)",
+					)
+					.optional(),
 			}),
 			response: {
 				200: z.object({
@@ -578,12 +633,18 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 		{
 			body: z.array(TokenParamsSchema),
 			headers: z.object({
-				"x-polymarket-key": z.string().describe(
-					"Polymarket private key for CLOB authentication (required in production, optional in development)"
-				).optional(),
-				"x-polymarket-funder": z.string().describe(
-					"Polymarket funder address for CLOB operations (required in production, optional in development)"
-				).optional(),
+				"x-polymarket-key": z
+					.string()
+					.describe(
+						"Polymarket private key for CLOB authentication (required in production, optional in development)",
+					)
+					.optional(),
+				"x-polymarket-funder": z
+					.string()
+					.describe(
+						"Polymarket funder address for CLOB operations (required in production, optional in development)",
+					)
+					.optional(),
 			}),
 			response: {
 				200: z.object({
@@ -627,12 +688,18 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 		{
 			body: z.array(TokenParamsSchema),
 			headers: z.object({
-				"x-polymarket-key": z.string().describe(
-					"Polymarket private key for CLOB authentication (required in production, optional in development)"
-				).optional(),
-				"x-polymarket-funder": z.string().describe(
-					"Polymarket funder address for CLOB operations (required in production, optional in development)"
-				).optional(),
+				"x-polymarket-key": z
+					.string()
+					.describe(
+						"Polymarket private key for CLOB authentication (required in production, optional in development)",
+					)
+					.optional(),
+				"x-polymarket-funder": z
+					.string()
+					.describe(
+						"Polymarket funder address for CLOB operations (required in production, optional in development)",
+					)
+					.optional(),
 			}),
 			response: {
 				200: z.object({
@@ -682,12 +749,18 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 				next_cursor: z.string().optional(),
 			}),
 			headers: z.object({
-				"x-polymarket-key": z.string().describe(
-					"Polymarket private key for CLOB authentication (required in production, optional in development)"
-				).optional(),
-				"x-polymarket-funder": z.string().describe(
-					"Polymarket funder address for CLOB operations (required in production, optional in development)"
-				).optional(),
+				"x-polymarket-key": z
+					.string()
+					.describe(
+						"Polymarket private key for CLOB authentication (required in production, optional in development)",
+					)
+					.optional(),
+				"x-polymarket-funder": z
+					.string()
+					.describe(
+						"Polymarket funder address for CLOB operations (required in production, optional in development)",
+					)
+					.optional(),
 			}),
 			response: {
 				200: z.object({
@@ -728,12 +801,18 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 				conditionId: z.string().describe("The condition ID to get market for"),
 			}),
 			headers: z.object({
-				"x-polymarket-key": z.string().describe(
-					"Polymarket private key for CLOB authentication (required in production, optional in development)"
-				).optional(),
-				"x-polymarket-funder": z.string().describe(
-					"Polymarket funder address for CLOB operations (required in production, optional in development)"
-				).optional(),
+				"x-polymarket-key": z
+					.string()
+					.describe(
+						"Polymarket private key for CLOB authentication (required in production, optional in development)",
+					)
+					.optional(),
+				"x-polymarket-funder": z
+					.string()
+					.describe(
+						"Polymarket funder address for CLOB operations (required in production, optional in development)",
+					)
+					.optional(),
 			}),
 			response: {
 				200: z.any(), // Market structure varies, using Any for now
@@ -771,12 +850,18 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 		{
 			query: MarketPaginationQuerySchema,
 			headers: z.object({
-				"x-polymarket-key": z.string().describe(
-					"Polymarket private key for CLOB authentication (required in production, optional in development)"
-				).optional(),
-				"x-polymarket-funder": z.string().describe(
-					"Polymarket funder address for CLOB operations (required in production, optional in development)"
-				).optional(),
+				"x-polymarket-key": z
+					.string()
+					.describe(
+						"Polymarket private key for CLOB authentication (required in production, optional in development)",
+					)
+					.optional(),
+				"x-polymarket-funder": z
+					.string()
+					.describe(
+						"Polymarket funder address for CLOB operations (required in production, optional in development)",
+					)
+					.optional(),
 			}),
 			response: {
 				200: PaginationPayloadSchema,
@@ -814,12 +899,18 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 		{
 			query: MarketPaginationQuerySchema,
 			headers: z.object({
-				"x-polymarket-key": z.string().describe(
-					"Polymarket private key for CLOB authentication (required in production, optional in development)"
-				).optional(),
-				"x-polymarket-funder": z.string().describe(
-					"Polymarket funder address for CLOB operations (required in production, optional in development)"
-				).optional(),
+				"x-polymarket-key": z
+					.string()
+					.describe(
+						"Polymarket private key for CLOB authentication (required in production, optional in development)",
+					)
+					.optional(),
+				"x-polymarket-funder": z
+					.string()
+					.describe(
+						"Polymarket funder address for CLOB operations (required in production, optional in development)",
+					)
+					.optional(),
 			}),
 			response: {
 				200: PaginationPayloadSchema,
@@ -857,12 +948,18 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 		{
 			query: MarketPaginationQuerySchema,
 			headers: z.object({
-				"x-polymarket-key": z.string().describe(
-					"Polymarket private key for CLOB authentication (required in production, optional in development)"
-				).optional(),
-				"x-polymarket-funder": z.string().describe(
-					"Polymarket funder address for CLOB operations (required in production, optional in development)"
-				).optional(),
+				"x-polymarket-key": z
+					.string()
+					.describe(
+						"Polymarket private key for CLOB authentication (required in production, optional in development)",
+					)
+					.optional(),
+				"x-polymarket-funder": z
+					.string()
+					.describe(
+						"Polymarket funder address for CLOB operations (required in production, optional in development)",
+					)
+					.optional(),
 			}),
 			response: {
 				200: PaginationPayloadSchema,
@@ -902,12 +999,18 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 		{
 			query: MarketPaginationQuerySchema,
 			headers: z.object({
-				"x-polymarket-key": z.string().describe(
-					"Polymarket private key for CLOB authentication (required in production, optional in development)"
-				).optional(),
-				"x-polymarket-funder": z.string().describe(
-					"Polymarket funder address for CLOB operations (required in production, optional in development)"
-				).optional(),
+				"x-polymarket-key": z
+					.string()
+					.describe(
+						"Polymarket private key for CLOB authentication (required in production, optional in development)",
+					)
+					.optional(),
+				"x-polymarket-funder": z
+					.string()
+					.describe(
+						"Polymarket funder address for CLOB operations (required in production, optional in development)",
+					)
+					.optional(),
 			}),
 			response: {
 				200: PaginationPayloadSchema,

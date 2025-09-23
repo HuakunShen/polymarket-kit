@@ -23,7 +23,10 @@ export const ProxyConfigSchema = z.object({
 	port: z.number().describe("Proxy server port number"),
 	username: z.string().describe("Proxy authentication username").optional(),
 	password: z.string().describe("Proxy authentication password").optional(),
-	protocol: z.enum(["http", "https"]).describe("Proxy protocol (defaults to http)").optional(),
+	protocol: z
+		.enum(["http", "https"])
+		.describe("Proxy protocol (defaults to http)")
+		.optional(),
 });
 
 /**
@@ -58,18 +61,20 @@ export const MarketSchema = z.object({
 	volume1mo: OptionalNumber,
 	volume1yr: OptionalNumber,
 	clobTokenIds: StringArray,
-	events: z.array(
-		z.object({
-			id: z.string(),
-			ticker: z.string(),
-			slug: z.string(),
-			title: z.string(),
-			description: z.string(),
-			active: z.boolean(),
-			closed: z.boolean(),
-			archived: z.boolean(),
-		}),
-	).optional(),
+	events: z
+		.array(
+			z.object({
+				id: z.string(),
+				ticker: z.string(),
+				slug: z.string(),
+				title: z.string(),
+				description: z.string(),
+				active: z.boolean(),
+				closed: z.boolean(),
+				archived: z.boolean(),
+			}),
+		)
+		.optional(),
 });
 
 /**
@@ -710,8 +715,16 @@ export const EventByIdQuerySchema = z.object({
  * Schema for markdown formatting options
  */
 export const MarkdownOptionsSchema = z.object({
-	verbose: z.union([z.literal(0), z.literal(1), z.literal(2)]).describe("Verbosity level: 0=basic, 1=medium, 2=full details").default(2).optional(),
-	include_markets: z.boolean().describe("Whether to include market details in event markdown").default(true).optional(),
+	verbose: z
+		.union([z.literal(0), z.literal(1), z.literal(2)])
+		.describe("Verbosity level: 0=basic, 1=medium, 2=full details")
+		.default(2)
+		.optional(),
+	include_markets: z
+		.boolean()
+		.describe("Whether to include market details in event markdown")
+		.default(true)
+		.optional(),
 });
 
 // Updated Market Query Schema with new fields
@@ -850,9 +863,11 @@ export const SearchResponseSchema = z.object({
 	events: z.array(z.any()).optional(), // Event objects
 	tags: z.array(z.any()).optional(), // Tag objects with counts
 	profiles: z.array(z.any()).optional(), // Profile objects
-	pagination: z.object({
-		hasMore: OptionalBoolean,
-	}).optional(),
+	pagination: z
+		.object({
+			hasMore: OptionalBoolean,
+		})
+		.optional(),
 });
 
 // Type exports for use in handlers and SDK
@@ -873,7 +888,9 @@ export type SeriesType = z.infer<typeof SeriesSchema>;
 export type TagType = z.infer<typeof TagSchema>;
 
 /** TypeScript type for price history responses derived from PriceHistoryResponseSchema */
-export type PriceHistoryResponseType = z.infer<typeof PriceHistoryResponseSchema>;
+export type PriceHistoryResponseType = z.infer<
+	typeof PriceHistoryResponseSchema
+>;
 
 /** TypeScript type for price history data points derived from PriceHistoryPointSchema */
 export type PriceHistoryPointType = z.infer<typeof PriceHistoryPointSchema>;
@@ -918,7 +935,9 @@ export type TradeType = z.infer<typeof TradeSchema>;
 export type PaginationPayloadType = z.infer<typeof PaginationPayloadSchema>;
 
 /** TypeScript type for market pagination query derived from MarketPaginationQuerySchema */
-export type MarketPaginationQueryType = z.infer<typeof MarketPaginationQuerySchema>;
+export type MarketPaginationQueryType = z.infer<
+	typeof MarketPaginationQuerySchema
+>;
 
 // New type exports for Gamma API endpoints
 
@@ -941,7 +960,9 @@ export type TagQueryType = z.infer<typeof TagQuerySchema>;
 export type TagByIdQueryType = z.infer<typeof TagByIdQuerySchema>;
 
 /** TypeScript type for related tag relationship objects derived from RelatedTagRelationshipSchema */
-export type RelatedTagRelationshipType = z.infer<typeof RelatedTagRelationshipSchema>;
+export type RelatedTagRelationshipType = z.infer<
+	typeof RelatedTagRelationshipSchema
+>;
 
 /** TypeScript type for related tags query parameters derived from RelatedTagsQuerySchema */
 export type RelatedTagsQueryType = z.infer<typeof RelatedTagsQuerySchema>;

@@ -435,7 +435,9 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 			response: {
 				200: z.union([
 					z.object({
-						markdown: z.string().describe("Event data formatted as markdown for LLM analysis"),
+						markdown: z
+							.string()
+							.describe("Event data formatted as markdown for LLM analysis"),
 					}),
 					z.string().describe("Raw markdown content"),
 				]),
@@ -484,7 +486,9 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 			response: {
 				200: z.union([
 					z.object({
-						markdown: z.string().describe("Event data formatted as markdown for LLM analysis"),
+						markdown: z
+							.string()
+							.describe("Event data formatted as markdown for LLM analysis"),
 					}),
 					z.string().describe("Raw markdown content"),
 				]),

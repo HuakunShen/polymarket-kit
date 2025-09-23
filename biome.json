@@ -6,7 +6,7 @@
 		"useIgnoreFile": false
 	},
 	"files": {
-		"ignoreUnknown": false
+		"includes": ["./src/**/*.ts"]
 	},
 	"formatter": {
 		"enabled": true,
