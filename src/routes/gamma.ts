@@ -7,6 +7,7 @@
  * Uses the dedicated GammaSDK for credential-free API access.
  */
 
+import { Effect } from "effect";
 import { Elysia } from "elysia";
 import { GammaSDK, type ProxyConfigType } from "../sdk/";
 import { formatEventToMarkdown } from "../utils/markdown-formatters";
@@ -49,33 +50,53 @@ import {
 import { z } from "zod";
 
 /**
- * Parse proxy string into ProxyConfigType
+ * Parse proxy string into ProxyConfigType using Effect for validation
  * Supports formats like:
  * - http://proxy.com:8080
  * - http://user:pass@proxy.com:8080
  * - https://proxy.com:3128
  */
-function parseProxyString(proxyString: string): ProxyConfigType {
-	try {
-		const url = new URL(proxyString);
-		const config: ProxyConfigType = {
-			protocol: url.protocol.slice(0, -1) as "http" | "https",
-			host: url.hostname,
-			port: parseInt(url.port, 10),
-		};
+const parseProxyStringEffect = (
+	proxyString: string,
+): Effect.Effect<ProxyConfigType, Error> =>
+	Effect.try({
+		try: () => {
+			const url = new URL(proxyString);
+			const config: ProxyConfigType = {
+				protocol: url.protocol.slice(0, -1) as "http" | "https",
+				host: url.hostname,
+				port: parseInt(url.port, 10),
+			};
 
-		if (url.username) {
-			config.username = decodeURIComponent(url.username);
-		}
-		if (url.password) {
-			config.password = decodeURIComponent(url.password);
-		}
+			if (url.username) {
+				config.username = decodeURIComponent(url.username);
+			}
+			if (url.password) {
+				config.password = decodeURIComponent(url.password);
+			}
 
-		return config;
-	} catch (_error) {
-		throw new Error(`Invalid proxy URL format: ${proxyString}`);
-	}
-}
+			return config;
+		},
+		catch: () =>
+			new Error(`[GammaRoutes] Invalid proxy URL format: ${proxyString}`),
+	});
+
+const createGammaSDKEffect = (
+	proxyHeader: string | undefined,
+): Effect.Effect<GammaSDK, never> =>
+	proxyHeader
+		? Effect.catchAll(
+				Effect.map(
+					parseProxyStringEffect(proxyHeader),
+					(proxyConfig) => new GammaSDK({ proxy: proxyConfig }),
+				),
+				(error) =>
+					Effect.sync(() => {
+						console.warn(`Invalid proxy header format: ${proxyHeader}`, error);
+						return new GammaSDK();
+					}),
+			)
+		: Effect.succeed(new GammaSDK());
 
 /**
  * Create Gamma API routes with proper typing and validation for all available endpoints
@@ -83,21 +104,14 @@ function parseProxyString(proxyString: string): ProxyConfigType {
 export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 	// Middleware to create GammaSDK instance based on proxy header
 	.derive(({ headers }) => {
-		const proxyHeader = headers["x-http-proxy"];
+		const proxyHeaderValue = headers["x-http-proxy"];
+		const proxyHeader = Array.isArray(proxyHeaderValue)
+			? proxyHeaderValue[0]
+			: typeof proxyHeaderValue === "string"
+				? proxyHeaderValue
+				: undefined;
 
-		let gammaSDK: GammaSDK;
-		if (proxyHeader) {
-			try {
-				const proxyConfig = parseProxyString(proxyHeader);
-				gammaSDK = new GammaSDK({ proxy: proxyConfig });
-			} catch (error) {
-				// If proxy parsing fails, create SDK without proxy and log warning
-				console.warn(`Invalid proxy header format: ${proxyHeader}`, error);
-				gammaSDK = new GammaSDK();
-			}
-		} else {
-			gammaSDK = new GammaSDK();
-		}
+		const gammaSDK = Effect.runSync(createGammaSDKEffect(proxyHeader));
 
 		return {
 			gammaSDK,

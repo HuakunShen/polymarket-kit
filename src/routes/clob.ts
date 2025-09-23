@@ -9,6 +9,7 @@
  * In development mode, falls back to environment variables.
  */
 
+import { Effect, pipe } from "effect";
 import { Elysia } from "elysia";
 import { z } from "zod";
 import { LRUCache } from "lru-cache";
@@ -75,12 +76,15 @@ function getErrorLabel(status: number): string {
 	}
 }
 
-function handleClobError(
+const toError = (cause: unknown): Error =>
+	cause instanceof Error ? cause : new Error(String(cause));
+
+const mapClobError = (
 	error: unknown,
 	options: ClobOperationOptions = {},
-): never {
+): Error => {
 	if (error instanceof ClobValidationError || error instanceof ClobApiError) {
-		throw error;
+		return error;
 	}
 
 	if (error instanceof Error) {
@@ -91,29 +95,35 @@ function handleClobError(
 			message.includes("minimum 'fidelity'") ||
 			message.includes("fidelity")
 		) {
-			throw new ClobValidationError(message);
+			return new ClobValidationError(message);
 		}
 
 		if (message.includes("No orderbook exists")) {
-			throw new ClobApiError(message, 404);
+			return new ClobApiError(message, 404);
 		}
 
-		throw new ClobApiError(message, options.defaultStatus ?? 500);
+		return new ClobApiError(message, options.defaultStatus ?? 500);
 	}
 
-	throw new ClobApiError(
+	return new ClobApiError(
 		"Unknown error occurred",
 		options.defaultStatus ?? 500,
 	);
-}
+};
 
 const runClobOperation = <T>(
 	operation: () => Promise<T>,
 	options: ClobOperationOptions = {},
 ): Promise<T> =>
-	operation().catch((error) => {
-		handleClobError(error, options);
-	});
+	Effect.runPromise(
+		pipe(
+			Effect.tryPromise({
+				try: operation,
+				catch: toError,
+			}),
+			Effect.catchAll((error) => Effect.fail(mapClobError(error, options))),
+		),
+	);
 
 import {
 	PriceHistoryQuerySchema,
