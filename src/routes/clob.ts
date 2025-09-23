@@ -34,6 +34,87 @@ class ClobApiError extends Error {
 	}
 }
 
+const PolymarketAuthHeaderSchema = z.object({
+	"x-polymarket-key": z
+		.string()
+		.describe(
+			"Polymarket private key for CLOB authentication (required in production, optional in development)",
+		)
+		.optional(),
+	"x-polymarket-funder": z
+		.string()
+		.describe(
+			"Polymarket funder address for CLOB operations (required in production, optional in development)",
+		)
+		.optional(),
+});
+
+type ClobOperationOptions = {
+	defaultStatus?: number;
+};
+
+function getErrorLabel(status: number): string {
+	if (status >= 500) {
+		return "Internal Server Error";
+	}
+	switch (status) {
+		case 400:
+			return "Bad Request";
+		case 401:
+			return "Unauthorized";
+		case 403:
+			return "Forbidden";
+		case 404:
+			return "Not Found";
+		case 429:
+			return "Too Many Requests";
+		case 503:
+			return "Service Unavailable";
+		default:
+			return status >= 400 ? "Bad Request" : "Internal Server Error";
+	}
+}
+
+function handleClobError(
+	error: unknown,
+	options: ClobOperationOptions = {},
+): never {
+	if (error instanceof ClobValidationError || error instanceof ClobApiError) {
+		throw error;
+	}
+
+	if (error instanceof Error) {
+		const message = error.message || "Unknown error occurred";
+
+		if (
+			message.includes("invalid filters") ||
+			message.includes("minimum 'fidelity'") ||
+			message.includes("fidelity")
+		) {
+			throw new ClobValidationError(message);
+		}
+
+		if (message.includes("No orderbook exists")) {
+			throw new ClobApiError(message, 404);
+		}
+
+		throw new ClobApiError(message, options.defaultStatus ?? 500);
+	}
+
+	throw new ClobApiError(
+		"Unknown error occurred",
+		options.defaultStatus ?? 500,
+	);
+}
+
+const runClobOperation = <T>(
+	operation: () => Promise<T>,
+	options: ClobOperationOptions = {},
+): Promise<T> =>
+	operation().catch((error) => {
+		handleClobError(error, options);
+	});
+
 import {
 	PriceHistoryQuerySchema,
 	PriceHistoryResponseSchema,
@@ -102,8 +183,7 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 			case "ClobApiError":
 				set.status = error.statusCode;
 				return {
-					error:
-						error.statusCode === 400 ? "Bad Request" : "Internal Server Error",
+					error: getErrorLabel(error.statusCode),
 					message: error.message,
 				};
 			default:
@@ -137,7 +217,7 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 		}
 
 		if (!privateKey) {
-			throw new Error(
+			throw new ClobValidationError(
 				isDevelopment
 					? "POLYMARKET_KEY environment variable or x-polymarket-key header is required"
 					: "x-polymarket-key header is required",
@@ -145,7 +225,7 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 		}
 
 		if (!funderAddress) {
-			throw new Error(
+			throw new ClobValidationError(
 				isDevelopment
 					? "POLYMARKET_FUNDER environment variable or x-polymarket-funder header is required"
 					: "x-polymarket-funder header is required",
@@ -160,9 +240,9 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 	})
 	.get(
 		"/prices-history",
-		async ({ query, polymarketSDK }) => {
-			try {
-				return await polymarketSDK.getPriceHistory({
+		({ query, polymarketSDK }) =>
+			runClobOperation(() =>
+				polymarketSDK.getPriceHistory({
 					market: query.market,
 					startTs: query.startTs,
 					endTs: query.endTs,
@@ -170,48 +250,11 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 					endDate: query.endDate,
 					interval: query.interval,
 					fidelity: query.fidelity,
-				});
-			} catch (err) {
-				console.log("error fetching price history", err);
-
-				if (err instanceof Error) {
-					const errorMessage = err.message;
-
-					// If it's a validation error (mentions fidelity, filters, etc.), throw ClobValidationError
-					if (
-						errorMessage.includes("invalid filters") ||
-						errorMessage.includes("minimum 'fidelity'") ||
-						errorMessage.includes("fidelity")
-					) {
-						throw new ClobValidationError(errorMessage);
-					}
-
-					// For other errors, throw ClobApiError
-					throw new ClobApiError(errorMessage);
-				}
-
-				// Fallback for non-Error objects
-				throw new ClobApiError("Unknown error occurred");
-			}
-		},
+				}),
+			),
 		{
 			query: PriceHistoryQuerySchema,
-			headers: z
-				.object({
-					"x-polymarket-key": z
-						.string()
-						.describe(
-							"Polymarket private key for CLOB authentication (required in production, optional in development)",
-						)
-						.optional(),
-					"x-polymarket-funder": z
-						.string()
-						.describe(
-							"Polymarket funder address for CLOB operations (required in production, optional in development)",
-						)
-						.optional(),
-				})
-				.optional(),
+			headers: PolymarketAuthHeaderSchema.optional(),
 			response: {
 				200: PriceHistoryResponseSchema,
 				400: z.object({
@@ -236,32 +279,16 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 	.get(
 		"/health",
 		async ({ set, polymarketSDK }) => {
-			try {
-				const health = await polymarketSDK.healthCheck();
-				if (health.status === "unhealthy") {
-					set.status = 503;
-				}
-				return health;
-			} catch (err) {
+			const health = await runClobOperation(() => polymarketSDK.healthCheck(), {
+				defaultStatus: 503,
+			});
+			if (health.status === "unhealthy") {
 				set.status = 503;
-				throw new Error(err instanceof Error ? err.message : "Unknown error");
 			}
+			return health;
 		},
 		{
-			headers: z.object({
-				"x-polymarket-key": z
-					.string()
-					.describe(
-						"Polymarket private key for CLOB authentication (required in production, optional in development)",
-					)
-					.optional(),
-				"x-polymarket-funder": z
-					.string()
-					.describe(
-						"Polymarket funder address for CLOB operations (required in production, optional in development)",
-					)
-					.optional(),
-			}),
+			headers: PolymarketAuthHeaderSchema,
 			response: {
 				200: z.object({
 					status: z.enum(["healthy", "unhealthy"]),
@@ -323,50 +350,22 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 
 	.get(
 		"/book/:tokenId",
-		async ({ params, set, polymarketSDK }) => {
-			try {
-				const result = await polymarketSDK.getBook(params.tokenId);
+		async ({ params, polymarketSDK }) => {
+			const result = await runClobOperation(() =>
+				polymarketSDK.getBook(params.tokenId),
+			);
 
-				// Check if the result contains an error (which means no orderbook exists)
-				if (result && typeof result === "object" && "error" in result) {
-					set.status = 404;
-					throw new Error(result.error as string);
-				}
-
-				return result;
-			} catch (err) {
-				// Set status to 404 if it's a "no orderbook" error, otherwise 500
-				if (
-					err instanceof Error &&
-					err.message.includes("No orderbook exists")
-				) {
-					set.status = 404;
-				} else {
-					set.status = 500;
-				}
-				throw new Error(
-					err instanceof Error ? err.message : "Unknown error occurred",
-				);
+			if (result && typeof result === "object" && "error" in result) {
+				throw new ClobApiError(result.error as string, 404);
 			}
+
+			return result;
 		},
 		{
 			params: z.object({
 				tokenId: z.string().describe("The CLOB token ID to get order book for"),
 			}),
-			headers: z.object({
-				"x-polymarket-key": z
-					.string()
-					.describe(
-						"Polymarket private key for CLOB authentication (required in production, optional in development)",
-					)
-					.optional(),
-				"x-polymarket-funder": z
-					.string()
-					.describe(
-						"Polymarket funder address for CLOB operations (required in production, optional in development)",
-					)
-					.optional(),
-			}),
+			headers: PolymarketAuthHeaderSchema,
 			response: {
 				200: OrderBookSummarySchema,
 				400: z.object({
@@ -394,36 +393,18 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 
 	.post(
 		"/orderbooks",
-		async ({ body, set, polymarketSDK }) => {
-			try {
-				const transformedBody = body.map((item: any) => ({
-					token_id: item.token_id,
-					side: item.side === "BUY" ? Side.BUY : Side.SELL,
-				}));
-				return await polymarketSDK.getOrderBooks(transformedBody);
-			} catch (err) {
-				set.status = 500;
-				throw new Error(
-					err instanceof Error ? err.message : "Unknown error occurred",
-				);
-			}
+		({ body, polymarketSDK }) => {
+			const transformedBody = body.map((item: any) => ({
+				token_id: item.token_id,
+				side: item.side === "BUY" ? Side.BUY : Side.SELL,
+			}));
+			return runClobOperation(() =>
+				polymarketSDK.getOrderBooks(transformedBody),
+			);
 		},
 		{
 			body: z.array(BookParamsSchema),
-			headers: z.object({
-				"x-polymarket-key": z
-					.string()
-					.describe(
-						"Polymarket private key for CLOB authentication (required in production, optional in development)",
-					)
-					.optional(),
-				"x-polymarket-funder": z
-					.string()
-					.describe(
-						"Polymarket funder address for CLOB operations (required in production, optional in development)",
-					)
-					.optional(),
-			}),
+			headers: PolymarketAuthHeaderSchema,
 			response: {
 				200: z.array(OrderBookSummarySchema),
 				400: z.object({
@@ -447,21 +428,13 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 
 	.get(
 		"/price/:tokenId/:side",
-		async ({ params, set, polymarketSDK }) => {
-			try {
-				return {
-					price: await polymarketSDK.getPrice(
-						params.tokenId,
-						params.side as "buy" | "sell",
-					),
-				};
-			} catch (err) {
-				set.status = 500;
-				throw new Error(
-					err instanceof Error ? err.message : "Unknown error occurred",
-				);
-			}
-		},
+		({ params, polymarketSDK }) =>
+			runClobOperation(async () => ({
+				price: await polymarketSDK.getPrice(
+					params.tokenId,
+					params.side as "buy" | "sell",
+				),
+			})),
 		{
 			params: z.object({
 				tokenId: z.string().describe("The CLOB token ID to get price for"),
@@ -469,20 +442,7 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 					.enum(["buy", "sell"])
 					.describe("The side to get price for (buy or sell)"),
 			}),
-			headers: z.object({
-				"x-polymarket-key": z
-					.string()
-					.describe(
-						"Polymarket private key for CLOB authentication (required in production, optional in development)",
-					)
-					.optional(),
-				"x-polymarket-funder": z
-					.string()
-					.describe(
-						"Polymarket funder address for CLOB operations (required in production, optional in development)",
-					)
-					.optional(),
-			}),
+			headers: PolymarketAuthHeaderSchema,
 			response: {
 				200: z.object({
 					price: z.number(),
@@ -508,36 +468,18 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 
 	.post(
 		"/prices",
-		async ({ body, set, polymarketSDK }) => {
-			try {
-				const transformedBody = body.map((item: any) => ({
-					token_id: item.token_id,
-					side: item.side === "BUY" ? Side.BUY : Side.SELL,
-				}));
-				return { prices: await polymarketSDK.getPrices(transformedBody) };
-			} catch (err) {
-				set.status = 500;
-				throw new Error(
-					err instanceof Error ? err.message : "Unknown error occurred",
-				);
-			}
+		({ body, polymarketSDK }) => {
+			const transformedBody = body.map((item: any) => ({
+				token_id: item.token_id,
+				side: item.side === "BUY" ? Side.BUY : Side.SELL,
+			}));
+			return runClobOperation(async () => ({
+				prices: await polymarketSDK.getPrices(transformedBody),
+			}));
 		},
 		{
 			body: z.array(BookParamsSchema),
-			headers: z.object({
-				"x-polymarket-key": z
-					.string()
-					.describe(
-						"Polymarket private key for CLOB authentication (required in production, optional in development)",
-					)
-					.optional(),
-				"x-polymarket-funder": z
-					.string()
-					.describe(
-						"Polymarket funder address for CLOB operations (required in production, optional in development)",
-					)
-					.optional(),
-			}),
+			headers: PolymarketAuthHeaderSchema,
 			response: {
 				200: z.object({
 					prices: z.array(z.number()),
@@ -563,34 +505,15 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 
 	.get(
 		"/midpoint/:tokenId",
-		async ({ params, set, polymarketSDK }) => {
-			try {
-				return { midpoint: await polymarketSDK.getMidpoint(params.tokenId) };
-			} catch (err) {
-				set.status = 500;
-				throw new Error(
-					err instanceof Error ? err.message : "Unknown error occurred",
-				);
-			}
-		},
+		({ params, polymarketSDK }) =>
+			runClobOperation(async () => ({
+				midpoint: await polymarketSDK.getMidpoint(params.tokenId),
+			})),
 		{
 			params: z.object({
 				tokenId: z.string().describe("The CLOB token ID to get midpoint for"),
 			}),
-			headers: z.object({
-				"x-polymarket-key": z
-					.string()
-					.describe(
-						"Polymarket private key for CLOB authentication (required in production, optional in development)",
-					)
-					.optional(),
-				"x-polymarket-funder": z
-					.string()
-					.describe(
-						"Polymarket funder address for CLOB operations (required in production, optional in development)",
-					)
-					.optional(),
-			}),
+			headers: PolymarketAuthHeaderSchema,
 			response: {
 				200: z.object({
 					midpoint: z.number(),
@@ -616,36 +539,18 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 
 	.post(
 		"/midpoints",
-		async ({ body, set, polymarketSDK }) => {
-			try {
-				const transformedBody = body.map((item: any) => ({
-					token_id: item.token_id,
-					side: Side.BUY, // Midpoint doesn't actually use side, but BookParams requires it
-				}));
-				return { midpoints: await polymarketSDK.getMidpoints(transformedBody) };
-			} catch (err) {
-				set.status = 500;
-				throw new Error(
-					err instanceof Error ? err.message : "Unknown error occurred",
-				);
-			}
+		({ body, polymarketSDK }) => {
+			const transformedBody = body.map((item: any) => ({
+				token_id: item.token_id,
+				side: Side.BUY, // Midpoint doesn't actually use side, but BookParams requires it
+			}));
+			return runClobOperation(async () => ({
+				midpoints: await polymarketSDK.getMidpoints(transformedBody),
+			}));
 		},
 		{
 			body: z.array(TokenParamsSchema),
-			headers: z.object({
-				"x-polymarket-key": z
-					.string()
-					.describe(
-						"Polymarket private key for CLOB authentication (required in production, optional in development)",
-					)
-					.optional(),
-				"x-polymarket-funder": z
-					.string()
-					.describe(
-						"Polymarket funder address for CLOB operations (required in production, optional in development)",
-					)
-					.optional(),
-			}),
+			headers: PolymarketAuthHeaderSchema,
 			response: {
 				200: z.object({
 					midpoints: z.array(z.number()),
@@ -671,36 +576,18 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 
 	.post(
 		"/spreads",
-		async ({ body, set, polymarketSDK }) => {
-			try {
-				const transformedBody = body.map((item: any) => ({
-					token_id: item.token_id,
-					side: Side.BUY, // Spreads don't actually use side, but BookParams requires it
-				}));
-				return { spreads: await polymarketSDK.getSpreads(transformedBody) };
-			} catch (err) {
-				set.status = 500;
-				throw new Error(
-					err instanceof Error ? err.message : "Unknown error occurred",
-				);
-			}
+		({ body, polymarketSDK }) => {
+			const transformedBody = body.map((item: any) => ({
+				token_id: item.token_id,
+				side: Side.BUY, // Spreads don't actually use side, but BookParams requires it
+			}));
+			return runClobOperation(async () => ({
+				spreads: await polymarketSDK.getSpreads(transformedBody),
+			}));
 		},
 		{
 			body: z.array(TokenParamsSchema),
-			headers: z.object({
-				"x-polymarket-key": z
-					.string()
-					.describe(
-						"Polymarket private key for CLOB authentication (required in production, optional in development)",
-					)
-					.optional(),
-				"x-polymarket-funder": z
-					.string()
-					.describe(
-						"Polymarket funder address for CLOB operations (required in production, optional in development)",
-					)
-					.optional(),
-			}),
+			headers: PolymarketAuthHeaderSchema,
 			response: {
 				200: z.object({
 					spreads: z.array(z.number()),
@@ -726,42 +613,22 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 
 	.post(
 		"/trades",
-		async ({ body, set, polymarketSDK }) => {
-			try {
-				const { only_first_page, next_cursor, ...tradeParams } = body;
-				return {
-					trades: await polymarketSDK.getTrades(
-						Object.keys(tradeParams).length > 0 ? tradeParams : undefined,
-						only_first_page,
-						next_cursor,
-					),
-				};
-			} catch (err) {
-				set.status = 500;
-				throw new Error(
-					err instanceof Error ? err.message : "Unknown error occurred",
-				);
-			}
+		({ body, polymarketSDK }) => {
+			const { only_first_page, next_cursor, ...tradeParams } = body;
+			return runClobOperation(async () => ({
+				trades: await polymarketSDK.getTrades(
+					Object.keys(tradeParams).length > 0 ? tradeParams : undefined,
+					only_first_page,
+					next_cursor,
+				),
+			}));
 		},
 		{
 			body: TradeParamsSchema.extend({
 				only_first_page: z.boolean().optional(),
 				next_cursor: z.string().optional(),
 			}),
-			headers: z.object({
-				"x-polymarket-key": z
-					.string()
-					.describe(
-						"Polymarket private key for CLOB authentication (required in production, optional in development)",
-					)
-					.optional(),
-				"x-polymarket-funder": z
-					.string()
-					.describe(
-						"Polymarket funder address for CLOB operations (required in production, optional in development)",
-					)
-					.optional(),
-			}),
+			headers: PolymarketAuthHeaderSchema,
 			response: {
 				200: z.object({
 					trades: z.array(TradeSchema),
@@ -786,34 +653,13 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 	)
 	.get(
 		"/market/:conditionId",
-		async ({ params, set, polymarketSDK }) => {
-			try {
-				return await polymarketSDK.getMarket(params.conditionId);
-			} catch (err) {
-				set.status = 500;
-				throw new Error(
-					err instanceof Error ? err.message : "Unknown error occurred",
-				);
-			}
-		},
+		({ params, polymarketSDK }) =>
+			runClobOperation(() => polymarketSDK.getMarket(params.conditionId)),
 		{
 			params: z.object({
 				conditionId: z.string().describe("The condition ID to get market for"),
 			}),
-			headers: z.object({
-				"x-polymarket-key": z
-					.string()
-					.describe(
-						"Polymarket private key for CLOB authentication (required in production, optional in development)",
-					)
-					.optional(),
-				"x-polymarket-funder": z
-					.string()
-					.describe(
-						"Polymarket funder address for CLOB operations (required in production, optional in development)",
-					)
-					.optional(),
-			}),
+			headers: PolymarketAuthHeaderSchema,
 			response: {
 				200: z.any(), // Market structure varies, using Any for now
 				400: z.object({
@@ -837,32 +683,11 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 
 	.get(
 		"/markets",
-		async ({ query, set, polymarketSDK }) => {
-			try {
-				return await polymarketSDK.getMarkets(query.next_cursor);
-			} catch (err) {
-				set.status = 500;
-				throw new Error(
-					err instanceof Error ? err.message : "Unknown error occurred",
-				);
-			}
-		},
+		({ query, polymarketSDK }) =>
+			runClobOperation(() => polymarketSDK.getMarkets(query.next_cursor)),
 		{
 			query: MarketPaginationQuerySchema,
-			headers: z.object({
-				"x-polymarket-key": z
-					.string()
-					.describe(
-						"Polymarket private key for CLOB authentication (required in production, optional in development)",
-					)
-					.optional(),
-				"x-polymarket-funder": z
-					.string()
-					.describe(
-						"Polymarket funder address for CLOB operations (required in production, optional in development)",
-					)
-					.optional(),
-			}),
+			headers: PolymarketAuthHeaderSchema,
 			response: {
 				200: PaginationPayloadSchema,
 				400: z.object({
@@ -886,32 +711,13 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 
 	.get(
 		"/sampling-markets",
-		async ({ query, set, polymarketSDK }) => {
-			try {
-				return await polymarketSDK.getSamplingMarkets(query.next_cursor);
-			} catch (err) {
-				set.status = 500;
-				throw new Error(
-					err instanceof Error ? err.message : "Unknown error occurred",
-				);
-			}
-		},
+		({ query, polymarketSDK }) =>
+			runClobOperation(() =>
+				polymarketSDK.getSamplingMarkets(query.next_cursor),
+			),
 		{
 			query: MarketPaginationQuerySchema,
-			headers: z.object({
-				"x-polymarket-key": z
-					.string()
-					.describe(
-						"Polymarket private key for CLOB authentication (required in production, optional in development)",
-					)
-					.optional(),
-				"x-polymarket-funder": z
-					.string()
-					.describe(
-						"Polymarket funder address for CLOB operations (required in production, optional in development)",
-					)
-					.optional(),
-			}),
+			headers: PolymarketAuthHeaderSchema,
 			response: {
 				200: PaginationPayloadSchema,
 				400: z.object({
@@ -935,32 +741,13 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 
 	.get(
 		"/simplified-markets",
-		async ({ query, set, polymarketSDK }) => {
-			try {
-				return await polymarketSDK.getSimplifiedMarkets(query.next_cursor);
-			} catch (err) {
-				set.status = 500;
-				throw new Error(
-					err instanceof Error ? err.message : "Unknown error occurred",
-				);
-			}
-		},
+		({ query, polymarketSDK }) =>
+			runClobOperation(() =>
+				polymarketSDK.getSimplifiedMarkets(query.next_cursor),
+			),
 		{
 			query: MarketPaginationQuerySchema,
-			headers: z.object({
-				"x-polymarket-key": z
-					.string()
-					.describe(
-						"Polymarket private key for CLOB authentication (required in production, optional in development)",
-					)
-					.optional(),
-				"x-polymarket-funder": z
-					.string()
-					.describe(
-						"Polymarket funder address for CLOB operations (required in production, optional in development)",
-					)
-					.optional(),
-			}),
+			headers: PolymarketAuthHeaderSchema,
 			response: {
 				200: PaginationPayloadSchema,
 				400: z.object({
@@ -984,34 +771,13 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 
 	.get(
 		"/sampling-simplified-markets",
-		async ({ query, set, polymarketSDK }) => {
-			try {
-				return await polymarketSDK.getSamplingSimplifiedMarkets(
-					query.next_cursor,
-				);
-			} catch (err) {
-				set.status = 500;
-				throw new Error(
-					err instanceof Error ? err.message : "Unknown error occurred",
-				);
-			}
-		},
+		({ query, polymarketSDK }) =>
+			runClobOperation(() =>
+				polymarketSDK.getSamplingSimplifiedMarkets(query.next_cursor),
+			),
 		{
 			query: MarketPaginationQuerySchema,
-			headers: z.object({
-				"x-polymarket-key": z
-					.string()
-					.describe(
-						"Polymarket private key for CLOB authentication (required in production, optional in development)",
-					)
-					.optional(),
-				"x-polymarket-funder": z
-					.string()
-					.describe(
-						"Polymarket funder address for CLOB operations (required in production, optional in development)",
-					)
-					.optional(),
-			}),
+			headers: PolymarketAuthHeaderSchema,
 			response: {
 				200: PaginationPayloadSchema,
 				400: z.object({
