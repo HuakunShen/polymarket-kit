@@ -47,10 +47,10 @@
 		"@polymarket/clob-client": "^4.21.0",
 		"effect": "^3.17.13",
 		"elysia": "^1.4.5",
-		"hono": "4.9.7",
+		"hono": "4.9.8",
 		"lru-cache": "^11.1.0",
 		"tslib": "^2.6.2",
 		"undici": "^7.15.0",
-		"zod": "3"
+		"zod": "^4.1.11"
 	}
 }
