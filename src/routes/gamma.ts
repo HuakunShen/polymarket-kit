@@ -8,7 +8,7 @@
  */
 
 import { Effect } from "effect";
-import { Elysia } from "elysia";
+import { Elysia, t } from "elysia";
 import { GammaSDK, type ProxyConfigType } from "../sdk/";
 import { formatEventToMarkdown } from "../utils/markdown-formatters";
 import {
@@ -47,7 +47,6 @@ import {
 	ErrorResponseSchema,
 	GammaErrorResponseSchema,
 } from "../types/elysia-schemas";
-import { z } from "zod";
 
 /**
  * Parse proxy string into ProxyConfigType using Effect for validation
@@ -127,7 +126,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 		{
 			query: TeamQuerySchema,
 			response: {
-				200: z.array(TeamSchema),
+				200: t.Array(TeamSchema),
 				500: ErrorResponseSchema,
 			},
 			detail: {
@@ -148,7 +147,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 		{
 			query: TagQuerySchema,
 			response: {
-				200: z.array(UpdatedTagSchema),
+				200: t.Array(UpdatedTagSchema),
 				500: ErrorResponseSchema,
 			},
 			detail: {
@@ -170,7 +169,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 			return result;
 		},
 		{
-			params: z.object({ id: z.string() }),
+			params: t.Object({ id: t.String() }),
 			query: TagByIdQuerySchema,
 			response: {
 				200: UpdatedTagSchema,
@@ -196,7 +195,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 			return result;
 		},
 		{
-			params: z.object({ slug: z.string() }),
+			params: t.Object({ slug: t.String() }),
 			query: TagByIdQuerySchema,
 			response: {
 				200: UpdatedTagSchema,
@@ -220,10 +219,10 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 			);
 		},
 		{
-			params: z.object({ id: z.string() }),
+			params: t.Object({ id: t.String() }),
 			query: RelatedTagsQuerySchema,
 			response: {
-				200: z.array(RelatedTagRelationshipSchema),
+				200: t.Array(RelatedTagRelationshipSchema),
 				500: ErrorResponseSchema,
 			},
 			detail: {
@@ -243,10 +242,10 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 			);
 		},
 		{
-			params: z.object({ slug: z.string() }),
+			params: t.Object({ slug: t.String() }),
 			query: RelatedTagsQuerySchema,
 			response: {
-				200: z.array(RelatedTagRelationshipSchema),
+				200: t.Array(RelatedTagRelationshipSchema),
 				500: ErrorResponseSchema,
 			},
 			detail: {
@@ -264,10 +263,10 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 			return await gammaSDK.getTagsRelatedToTagId(Number(params.id), query);
 		},
 		{
-			params: z.object({ id: z.string() }),
+			params: t.Object({ id: t.String() }),
 			query: RelatedTagsQuerySchema,
 			response: {
-				200: z.array(UpdatedTagSchema),
+				200: t.Array(UpdatedTagSchema),
 				500: ErrorResponseSchema,
 			},
 			detail: {
@@ -284,10 +283,10 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 			return await gammaSDK.getTagsRelatedToTagSlug(params.slug, query);
 		},
 		{
-			params: z.object({ slug: z.string() }),
+			params: t.Object({ slug: t.String() }),
 			query: RelatedTagsQuerySchema,
 			response: {
-				200: z.array(UpdatedTagSchema),
+				200: t.Array(UpdatedTagSchema),
 				500: ErrorResponseSchema,
 			},
 			detail: {
@@ -308,7 +307,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 		{
 			query: UpdatedEventQuerySchema,
 			response: {
-				200: z.array(EventSchema),
+				200: t.Array(EventSchema),
 				500: ErrorResponseSchema,
 			},
 			detail: {
@@ -327,11 +326,11 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 		{
 			query: PaginatedEventQuerySchema,
 			response: {
-				200: z.object({
-					data: z.array(EventSchema),
-					pagination: z.object({
-						hasMore: z.boolean(),
-						totalResults: z.number(),
+				200: t.Object({
+					data: t.Array(EventSchema),
+					pagination: t.Object({
+						hasMore: t.Boolean(),
+						totalResults: t.Number(),
 					}),
 				}),
 				500: ErrorResponseSchema,
@@ -355,7 +354,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 			return result;
 		},
 		{
-			params: z.object({ id: z.string() }),
+			params: t.Object({ id: t.String() }),
 			query: EventByIdQuerySchema,
 			response: {
 				200: EventSchema,
@@ -376,9 +375,9 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 			return await gammaSDK.getEventTags(Number(params.id));
 		},
 		{
-			params: z.object({ id: z.string() }),
+			params: t.Object({ id: t.String() }),
 			response: {
-				200: z.array(UpdatedTagSchema),
+				200: t.Array(UpdatedTagSchema),
 				404: ErrorResponseSchema,
 				500: ErrorResponseSchema,
 			},
@@ -401,7 +400,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 			return result;
 		},
 		{
-			params: z.object({ slug: z.string() }),
+			params: t.Object({ slug: t.String() }),
 			query: EventByIdQuerySchema,
 			response: {
 				200: EventSchema,
@@ -444,16 +443,16 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 			}
 		},
 		{
-			params: z.object({ id: z.string() }),
-			query: EventByIdQuerySchema.merge(MarkdownOptionsSchema),
+			params: t.Object({ id: t.String() }),
+			query: t.Composite([EventByIdQuerySchema, MarkdownOptionsSchema]),
 			response: {
-				200: z.union([
-					z.object({
-						markdown: z
-							.string()
-							.describe("Event data formatted as markdown for LLM analysis"),
+				200: t.Union([
+					t.Object({
+						markdown: t.String({
+							description: "Event data formatted as markdown for LLM analysis",
+						}),
 					}),
-					z.string().describe("Raw markdown content"),
+					t.String({ description: "Raw markdown content" }),
 				]),
 				404: ErrorResponseSchema,
 				500: ErrorResponseSchema,
@@ -495,16 +494,16 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 			}
 		},
 		{
-			params: z.object({ slug: z.string() }),
-			query: EventByIdQuerySchema.merge(MarkdownOptionsSchema),
+			params: t.Object({ slug: t.String() }),
+			query: t.Composite([EventByIdQuerySchema, MarkdownOptionsSchema]),
 			response: {
-				200: z.union([
-					z.object({
-						markdown: z
-							.string()
-							.describe("Event data formatted as markdown for LLM analysis"),
+				200: t.Union([
+					t.Object({
+						markdown: t.String({
+							description: "Event data formatted as markdown for LLM analysis",
+						}),
 					}),
-					z.string().describe("Raw markdown content"),
+					t.String({ description: "Raw markdown content" }),
 				]),
 				404: ErrorResponseSchema,
 				500: ErrorResponseSchema,
@@ -527,7 +526,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 		{
 			query: UpdatedMarketQuerySchema,
 			response: {
-				200: z.array(MarketSchema),
+				200: t.Array(MarketSchema),
 				500: ErrorResponseSchema,
 			},
 			detail: {
@@ -549,7 +548,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 			return result;
 		},
 		{
-			params: z.object({ id: z.string() }),
+			params: t.Object({ id: t.String() }),
 			query: MarketByIdQuerySchema,
 			response: {
 				200: MarketSchema,
@@ -570,9 +569,9 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 			return await gammaSDK.getMarketTags(Number(params.id));
 		},
 		{
-			params: z.object({ id: z.string() }),
+			params: t.Object({ id: t.String() }),
 			response: {
-				200: z.array(UpdatedTagSchema),
+				200: t.Array(UpdatedTagSchema),
 				404: ErrorResponseSchema,
 				500: ErrorResponseSchema,
 			},
@@ -595,7 +594,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 			return result;
 		},
 		{
-			params: z.object({ slug: z.string() }),
+			params: t.Object({ slug: t.String() }),
 			query: MarketByIdQuerySchema,
 			response: {
 				200: MarketSchema,
@@ -619,7 +618,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 		{
 			query: SeriesQuerySchema,
 			response: {
-				200: z.array(SeriesSchema),
+				200: t.Array(SeriesSchema),
 				500: ErrorResponseSchema,
 			},
 			detail: {
@@ -641,7 +640,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 			return result;
 		},
 		{
-			params: z.object({ id: z.string() }),
+			params: t.Object({ id: t.String() }),
 			query: SeriesByIdQuerySchema,
 			response: {
 				200: SeriesSchema,
@@ -665,7 +664,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 		{
 			query: CommentQuerySchema,
 			response: {
-				200: z.array(CommentSchema),
+				200: t.Array(CommentSchema),
 				500: ErrorResponseSchema,
 			},
 			detail: {
@@ -683,10 +682,10 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 			return await gammaSDK.getCommentsByCommentId(Number(params.id), query);
 		},
 		{
-			params: z.object({ id: z.string() }),
+			params: t.Object({ id: t.String() }),
 			query: CommentByIdQuerySchema,
 			response: {
-				200: z.array(CommentSchema),
+				200: t.Array(CommentSchema),
 				500: ErrorResponseSchema,
 			},
 			detail: {
@@ -703,10 +702,10 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 			return await gammaSDK.getCommentsByUserAddress(params.userAddress, query);
 		},
 		{
-			params: z.object({ userAddress: z.string() }),
+			params: t.Object({ userAddress: t.String() }),
 			query: CommentsByUserQuerySchema,
 			response: {
-				200: z.array(CommentSchema),
+				200: t.Array(CommentSchema),
 				500: ErrorResponseSchema,
 			},
 			detail: {

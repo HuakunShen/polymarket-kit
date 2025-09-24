@@ -10,8 +10,7 @@
  */
 
 import { Effect, pipe } from "effect";
-import { Elysia } from "elysia";
-import { z } from "zod";
+import { Elysia, t } from "elysia";
 import { LRUCache } from "lru-cache";
 import { PolymarketSDK } from "../sdk/";
 import { Side } from "@polymarket/clob-client";
@@ -35,19 +34,30 @@ class ClobApiError extends Error {
 	}
 }
 
-const PolymarketAuthHeaderSchema = z.object({
-	"x-polymarket-key": z
-		.string()
-		.describe(
-			"Polymarket private key for CLOB authentication (required in production, optional in development)",
-		)
-		.optional(),
-	"x-polymarket-funder": z
-		.string()
-		.describe(
-			"Polymarket funder address for CLOB operations (required in production, optional in development)",
-		)
-		.optional(),
+const PolymarketAuthHeaderSchema = t.Object({
+	"x-polymarket-key": t.Optional(
+		t.String({
+			description:
+				"Polymarket private key for CLOB authentication (required in production, optional in development)",
+		}),
+	),
+	"x-polymarket-funder": t.Optional(
+		t.String({
+			description:
+				"Polymarket funder address for CLOB operations (required in production, optional in development)",
+		}),
+	),
+});
+
+const TradeQueryWithCursorSchema = t.Object({
+	id: t.Optional(t.String()),
+	maker_address: t.Optional(t.String()),
+	market: t.Optional(t.String()),
+	asset_id: t.Optional(t.String()),
+	before: t.Optional(t.String()),
+	after: t.Optional(t.String()),
+	only_first_page: t.Optional(t.Boolean()),
+	next_cursor: t.Optional(t.String()),
 });
 
 type ClobOperationOptions = {
@@ -131,10 +141,10 @@ import {
 	OrderBookSummarySchema,
 	BookParamsSchema,
 	TokenParamsSchema,
-	TradeParamsSchema,
 	TradeSchema,
 	PaginationPayloadSchema,
 	MarketPaginationQuerySchema,
+	ErrorResponseSchema,
 } from "../types/elysia-schemas";
 
 // Cache for SDK instances to avoid creating them on every request
@@ -264,18 +274,11 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 			),
 		{
 			query: PriceHistoryQuerySchema,
-			headers: PolymarketAuthHeaderSchema.optional(),
+			headers: t.Optional(PolymarketAuthHeaderSchema),
 			response: {
 				200: PriceHistoryResponseSchema,
-				400: z.object({
-					error: z.string(),
-					message: z.string(),
-					details: z.string().optional(),
-				}),
-				500: z.object({
-					error: z.string(),
-					message: z.string(),
-				}),
+				400: ErrorResponseSchema,
+				500: ErrorResponseSchema,
 			},
 			detail: {
 				tags: ["CLOB API"],
@@ -300,18 +303,18 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 		{
 			headers: PolymarketAuthHeaderSchema,
 			response: {
-				200: z.object({
-					status: z.enum(["healthy", "unhealthy"]),
-					timestamp: z.string(),
-					clob: z.string(),
-					cached: z.boolean().optional(),
-					error: z.string().optional(),
+				200: t.Object({
+					status: t.Union([t.Literal("healthy"), t.Literal("unhealthy")]),
+					timestamp: t.String(),
+					clob: t.String(),
+					cached: t.Optional(t.Boolean()),
+					error: t.Optional(t.String()),
 				}),
-				503: z.object({
-					status: z.literal("unhealthy"),
-					timestamp: z.string(),
-					clob: z.string(),
-					error: z.string(),
+				503: t.Object({
+					status: t.Literal("unhealthy"),
+					timestamp: t.String(),
+					clob: t.String(),
+					error: t.String(),
 				}),
 			},
 			detail: {
@@ -337,16 +340,16 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 		},
 		{
 			response: {
-				200: z.object({
-					sdkCache: z.object({
-						size: z.number(),
-						maxSize: z.number(),
+				200: t.Object({
+					sdkCache: t.Object({
+						size: t.Number(),
+						maxSize: t.Number(),
 					}),
-					clobClientCache: z.object({
-						size: z.number(),
-						maxSize: z.number(),
+					clobClientCache: t.Object({
+						size: t.Number(),
+						maxSize: t.Number(),
 					}),
-					timestamp: z.string(),
+					timestamp: t.String(),
 				}),
 			},
 			detail: {
@@ -372,25 +375,17 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 			return result;
 		},
 		{
-			params: z.object({
-				tokenId: z.string().describe("The CLOB token ID to get order book for"),
+			params: t.Object({
+				tokenId: t.String({
+					description: "The CLOB token ID to get order book for",
+				}),
 			}),
 			headers: PolymarketAuthHeaderSchema,
 			response: {
 				200: OrderBookSummarySchema,
-				400: z.object({
-					error: z.string(),
-					message: z.string(),
-					details: z.string().optional(),
-				}),
-				404: z.object({
-					error: z.string(),
-					message: z.string(),
-				}),
-				500: z.object({
-					error: z.string(),
-					message: z.string(),
-				}),
+				400: ErrorResponseSchema,
+				404: ErrorResponseSchema,
+				500: ErrorResponseSchema,
 			},
 			detail: {
 				tags: ["CLOB API"],
@@ -413,19 +408,12 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 			);
 		},
 		{
-			body: z.array(BookParamsSchema),
+			body: t.Array(BookParamsSchema),
 			headers: PolymarketAuthHeaderSchema,
 			response: {
-				200: z.array(OrderBookSummarySchema),
-				400: z.object({
-					error: z.string(),
-					message: z.string(),
-					details: z.string().optional(),
-				}),
-				500: z.object({
-					error: z.string(),
-					message: z.string(),
-				}),
+				200: t.Array(OrderBookSummarySchema),
+				400: ErrorResponseSchema,
+				500: ErrorResponseSchema,
 			},
 			detail: {
 				tags: ["CLOB API"],
@@ -446,26 +434,21 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 				),
 			})),
 		{
-			params: z.object({
-				tokenId: z.string().describe("The CLOB token ID to get price for"),
-				side: z
-					.enum(["buy", "sell"])
-					.describe("The side to get price for (buy or sell)"),
+			params: t.Object({
+				tokenId: t.String({
+					description: "The CLOB token ID to get price for",
+				}),
+				side: t.Union([t.Literal("buy"), t.Literal("sell")], {
+					description: "The side to get price for (buy or sell)",
+				}),
 			}),
 			headers: PolymarketAuthHeaderSchema,
 			response: {
-				200: z.object({
-					price: z.number(),
+				200: t.Object({
+					price: t.Number(),
 				}),
-				400: z.object({
-					error: z.string(),
-					message: z.string(),
-					details: z.string().optional(),
-				}),
-				500: z.object({
-					error: z.string(),
-					message: z.string(),
-				}),
+				400: ErrorResponseSchema,
+				500: ErrorResponseSchema,
 			},
 			detail: {
 				tags: ["CLOB API"],
@@ -488,21 +471,14 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 			}));
 		},
 		{
-			body: z.array(BookParamsSchema),
+			body: t.Array(BookParamsSchema),
 			headers: PolymarketAuthHeaderSchema,
 			response: {
-				200: z.object({
-					prices: z.array(z.number()),
+				200: t.Object({
+					prices: t.Array(t.Number()),
 				}),
-				400: z.object({
-					error: z.string(),
-					message: z.string(),
-					details: z.string().optional(),
-				}),
-				500: z.object({
-					error: z.string(),
-					message: z.string(),
-				}),
+				400: ErrorResponseSchema,
+				500: ErrorResponseSchema,
 			},
 			detail: {
 				tags: ["CLOB API"],
@@ -520,23 +496,18 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 				midpoint: await polymarketSDK.getMidpoint(params.tokenId),
 			})),
 		{
-			params: z.object({
-				tokenId: z.string().describe("The CLOB token ID to get midpoint for"),
+			params: t.Object({
+				tokenId: t.String({
+					description: "The CLOB token ID to get midpoint for",
+				}),
 			}),
 			headers: PolymarketAuthHeaderSchema,
 			response: {
-				200: z.object({
-					midpoint: z.number(),
+				200: t.Object({
+					midpoint: t.Number(),
 				}),
-				400: z.object({
-					error: z.string(),
-					message: z.string(),
-					details: z.string().optional(),
-				}),
-				500: z.object({
-					error: z.string(),
-					message: z.string(),
-				}),
+				400: ErrorResponseSchema,
+				500: ErrorResponseSchema,
 			},
 			detail: {
 				tags: ["CLOB API"],
@@ -559,21 +530,14 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 			}));
 		},
 		{
-			body: z.array(TokenParamsSchema),
+			body: t.Array(TokenParamsSchema),
 			headers: PolymarketAuthHeaderSchema,
 			response: {
-				200: z.object({
-					midpoints: z.array(z.number()),
+				200: t.Object({
+					midpoints: t.Array(t.Number()),
 				}),
-				400: z.object({
-					error: z.string(),
-					message: z.string(),
-					details: z.string().optional(),
-				}),
-				500: z.object({
-					error: z.string(),
-					message: z.string(),
-				}),
+				400: ErrorResponseSchema,
+				500: ErrorResponseSchema,
 			},
 			detail: {
 				tags: ["CLOB API"],
@@ -596,21 +560,14 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 			}));
 		},
 		{
-			body: z.array(TokenParamsSchema),
+			body: t.Array(TokenParamsSchema),
 			headers: PolymarketAuthHeaderSchema,
 			response: {
-				200: z.object({
-					spreads: z.array(z.number()),
+				200: t.Object({
+					spreads: t.Array(t.Number()),
 				}),
-				400: z.object({
-					error: z.string(),
-					message: z.string(),
-					details: z.string().optional(),
-				}),
-				500: z.object({
-					error: z.string(),
-					message: z.string(),
-				}),
+				400: ErrorResponseSchema,
+				500: ErrorResponseSchema,
 			},
 			detail: {
 				tags: ["CLOB API"],
@@ -634,24 +591,14 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 			}));
 		},
 		{
-			body: TradeParamsSchema.extend({
-				only_first_page: z.boolean().optional(),
-				next_cursor: z.string().optional(),
-			}),
+			body: TradeQueryWithCursorSchema,
 			headers: PolymarketAuthHeaderSchema,
 			response: {
-				200: z.object({
-					trades: z.array(TradeSchema),
+				200: t.Object({
+					trades: t.Array(TradeSchema),
 				}),
-				400: z.object({
-					error: z.string(),
-					message: z.string(),
-					details: z.string().optional(),
-				}),
-				500: z.object({
-					error: z.string(),
-					message: z.string(),
-				}),
+				400: ErrorResponseSchema,
+				500: ErrorResponseSchema,
 			},
 			detail: {
 				tags: ["CLOB API"],
@@ -666,21 +613,16 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 		({ params, polymarketSDK }) =>
 			runClobOperation(() => polymarketSDK.getMarket(params.conditionId)),
 		{
-			params: z.object({
-				conditionId: z.string().describe("The condition ID to get market for"),
+			params: t.Object({
+				conditionId: t.String({
+					description: "The condition ID to get market for",
+				}),
 			}),
 			headers: PolymarketAuthHeaderSchema,
 			response: {
-				200: z.any(), // Market structure varies, using Any for now
-				400: z.object({
-					error: z.string(),
-					message: z.string(),
-					details: z.string().optional(),
-				}),
-				500: z.object({
-					error: z.string(),
-					message: z.string(),
-				}),
+				200: t.Any(), // Market structure varies, using Any for now
+				400: ErrorResponseSchema,
+				500: ErrorResponseSchema,
 			},
 			detail: {
 				tags: ["CLOB API"],
@@ -700,15 +642,8 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 			headers: PolymarketAuthHeaderSchema,
 			response: {
 				200: PaginationPayloadSchema,
-				400: z.object({
-					error: z.string(),
-					message: z.string(),
-					details: z.string().optional(),
-				}),
-				500: z.object({
-					error: z.string(),
-					message: z.string(),
-				}),
+				400: ErrorResponseSchema,
+				500: ErrorResponseSchema,
 			},
 			detail: {
 				tags: ["CLOB API"],
@@ -730,15 +665,8 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 			headers: PolymarketAuthHeaderSchema,
 			response: {
 				200: PaginationPayloadSchema,
-				400: z.object({
-					error: z.string(),
-					message: z.string(),
-					details: z.string().optional(),
-				}),
-				500: z.object({
-					error: z.string(),
-					message: z.string(),
-				}),
+				400: ErrorResponseSchema,
+				500: ErrorResponseSchema,
 			},
 			detail: {
 				tags: ["CLOB API"],
@@ -760,15 +688,8 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 			headers: PolymarketAuthHeaderSchema,
 			response: {
 				200: PaginationPayloadSchema,
-				400: z.object({
-					error: z.string(),
-					message: z.string(),
-					details: z.string().optional(),
-				}),
-				500: z.object({
-					error: z.string(),
-					message: z.string(),
-				}),
+				400: ErrorResponseSchema,
+				500: ErrorResponseSchema,
 			},
 			detail: {
 				tags: ["CLOB API"],
@@ -790,15 +711,8 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 			headers: PolymarketAuthHeaderSchema,
 			response: {
 				200: PaginationPayloadSchema,
-				400: z.object({
-					error: z.string(),
-					message: z.string(),
-					details: z.string().optional(),
-				}),
-				500: z.object({
-					error: z.string(),
-					message: z.string(),
-				}),
+				400: ErrorResponseSchema,
+				500: ErrorResponseSchema,
 			},
 			detail: {
 				tags: ["CLOB API"],
@@ -821,9 +735,9 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 		},
 		{
 			response: {
-				200: z.object({
-					message: z.string(),
-					timestamp: z.string(),
+				200: t.Object({
+					message: t.String(),
+					timestamp: t.String(),
 				}),
 			},
 			detail: {

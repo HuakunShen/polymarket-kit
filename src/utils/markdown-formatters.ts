@@ -14,7 +14,6 @@
  */
 
 import { Effect, pipe } from "effect";
-import type { z } from "zod";
 import type {
 	MarkdownOptionsSchema,
 	EventType,
@@ -24,7 +23,7 @@ import type {
 } from "../types/elysia-schemas";
 
 // Use inferred types from the centralized schemas to avoid duplication
-export type MarkdownOptions = z.infer<typeof MarkdownOptionsSchema>;
+export type MarkdownOptions = typeof MarkdownOptionsSchema.static;
 export type MarketData = EventMarketType;
 export type SeriesData = SeriesType;
 export type TagData = TagType;
