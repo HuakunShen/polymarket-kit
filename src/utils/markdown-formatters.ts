@@ -376,7 +376,7 @@ export function formatEventToMarkdown(
 		parts.push("## Arbitrage Analysis Summary");
 		const analysisPoints = [
 			`- **Market Count**: ${event.markets.length} markets in this event`,
-			`- **Liquidity**: Total volume $${event.volume.toLocaleString()}`,
+			`- **Liquidity**: Total volume $${event.volume ? event.volume.toLocaleString():"N/A"}`,
 			`- **Status**: ${event.active && !event.closed ? "Currently tradeable" : "Not tradeable"}`,
 			`- **Time Constraint**: Event ends ${event.endDate}`,
 		];
