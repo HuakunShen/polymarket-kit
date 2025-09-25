@@ -102,8 +102,8 @@ export const EventMarketSchema = t.Object({
 	image: t.String(),
 	icon: t.String(),
 	description: t.String(),
-	outcomes: StringArray,
-	outcomePrices: StringArray,
+	outcomes: t.Union([StringArray, t.String()]), // Can be either array or JSON string
+	outcomePrices: t.Union([StringArray, t.String()]), // Can be either array or JSON string
 	volume: OptionalString,
 	active: t.Boolean(),
 	closed: t.Boolean(),
@@ -129,7 +129,7 @@ export const EventMarketSchema = t.Object({
 	volume1wk: OptionalNumber,
 	volume1mo: OptionalNumber,
 	volume1yr: OptionalNumber,
-	clobTokenIds: StringArray,
+	clobTokenIds: t.Union([StringArray, t.String()]), // Can be either array or JSON string
 	spread: OptionalNumber,
 	oneDayPriceChange: OptionalNumber,
 	oneHourPriceChange: OptionalNumber,
@@ -164,11 +164,14 @@ export const SeriesSchema = t.Object({
 	startDate: OptionalString,
 	createdAt: t.String(),
 	updatedAt: t.String(),
-	competitive: OptionalString,
+	competitive: t.Optional(t.Union([t.String(), t.Number()])), // Can be string or number, but optional
 	volume24hr: OptionalNumber,
 	pythTokenID: OptionalString,
 	cgAssetName: OptionalString,
 	commentCount: t.Optional(t.Number()),
+	// Additional fields that may be present but are optional
+	featured: OptionalBoolean,
+	restricted: OptionalBoolean,
 });
 
 // Tag Schema
@@ -213,7 +216,7 @@ export const EventSchema = t.Object({
 	featured: OptionalBoolean,
 	restricted: OptionalBoolean,
 	liquidity: OptionalNumber,
-	volume: t.Number(),
+	volume: OptionalNumber, // Changed from t.Number() to OptionalNumber to handle missing values
 	openInterest: OptionalNumber,
 	createdAt: t.String(),
 	updatedAt: t.String(),
@@ -239,6 +242,11 @@ export const EventSchema = t.Object({
 	negRiskAugmented: OptionalBoolean,
 	pendingDeployment: OptionalBoolean,
 	deploying: OptionalBoolean,
+	// Additional fields found in actual API responses
+	sortBy: OptionalString,
+	closedTime: OptionalString,
+	liquidityAmm: OptionalNumber,
+	automaticallyResolved: OptionalBoolean,
 });
 
 /**
