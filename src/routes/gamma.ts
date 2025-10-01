@@ -10,7 +10,7 @@
 import { Effect } from "effect";
 import { Elysia, t } from "elysia";
 import { GammaSDK, type ProxyConfigType } from "../sdk/";
-import { formatEventToMarkdown } from "../utils/markdown-formatters";
+import { formatEventToMarkdown, formatMarketToMarkdown } from "../utils/markdown-formatters";
 import {
 	// Sports
 	TeamSchema,
@@ -344,53 +344,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 	)
 
 	.get(
-		"/events/:id",
-		async ({ params, query, set, gammaSDK }) => {
-			const result = await gammaSDK.getEventById(Number(params.id), query);
-			if (result === null) {
-				set.status = 404;
-				return { type: "not found error", error: "id not found" };
-			}
-			return result;
-		},
-		{
-			params: t.Object({ id: t.String() }),
-			query: EventByIdQuerySchema,
-			response: {
-				200: EventSchema,
-				404: GammaErrorResponseSchema,
-				500: ErrorResponseSchema,
-			},
-			detail: {
-				tags: ["Gamma API - Events"],
-				summary: "Get event by ID",
-				description: "Retrieve a specific event by its ID",
-			},
-		},
-	)
-
-	.get(
-		"/events/:id/tags",
-		async ({ params, gammaSDK }) => {
-			return await gammaSDK.getEventTags(Number(params.id));
-		},
-		{
-			params: t.Object({ id: t.String() }),
-			response: {
-				200: t.Array(UpdatedTagSchema),
-				404: ErrorResponseSchema,
-				500: ErrorResponseSchema,
-			},
-			detail: {
-				tags: ["Gamma API - Events"],
-				summary: "Get event tags",
-				description: "Retrieve tags associated with a specific event",
-			},
-		},
-	)
-
-	.get(
-		"/events/slug/:slug",
+		"/events/:slug",
 		async ({ params, query, set, gammaSDK }) => {
 			const result = await gammaSDK.getEventBySlug(params.slug, query);
 			if (result === null) {
@@ -416,58 +370,31 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 	)
 
 	.get(
-		"/events/:id/markdown",
-		async ({ params, query, set, headers, gammaSDK }) => {
-			const { verbose, include_markets, ...eventQuery } = query;
-			const result = await gammaSDK.getEventById(Number(params.id), eventQuery);
-			if (result === null) {
-				set.status = 404;
-				return { error: "Not Found", message: "Event not found" };
+		"/events/:slug/tags",
+		async ({ params, gammaSDK }) => {
+			const event = await gammaSDK.getEventBySlug(params.slug);
+			if (event === null) {
+				return [];
 			}
-
-			const markdownOptions = {
-				verbose: verbose as 0 | 1 | 2 | undefined,
-				includeMarkets: include_markets,
-			};
-			const markdown = formatEventToMarkdown(result, markdownOptions);
-
-			// Check Accept header to determine response format
-			const acceptHeader = headers.accept || "";
-			const wantsJson = acceptHeader.includes("application/json");
-
-			if (wantsJson) {
-				return { markdown };
-			} else {
-				set.headers["content-type"] = "text/plain; charset=utf-8";
-				return markdown;
-			}
+			return await gammaSDK.getEventTags(Number(event.id));
 		},
 		{
-			params: t.Object({ id: t.String() }),
-			query: t.Composite([EventByIdQuerySchema, MarkdownOptionsSchema]),
+			params: t.Object({ slug: t.String() }),
 			response: {
-				200: t.Union([
-					t.Object({
-						markdown: t.String({
-							description: "Event data formatted as markdown for LLM analysis",
-						}),
-					}),
-					t.String({ description: "Raw markdown content" }),
-				]),
+				200: t.Array(UpdatedTagSchema),
 				404: ErrorResponseSchema,
 				500: ErrorResponseSchema,
 			},
 			detail: {
 				tags: ["Gamma API - Events"],
-				summary: "Get event as markdown by ID",
-				description:
-					"Convert event data to markdown format optimized for LLM arbitrage analysis. Supports verbose levels (0-2) and include_markets flag. Returns JSON if Accept: application/json, otherwise plain markdown text.",
+				summary: "Get event tags by slug",
+				description: "Retrieve tags associated with a specific event by its slug",
 			},
 		},
 	)
 
 	.get(
-		"/events/slug/:slug/markdown",
+		"/events/:slug/markdown",
 		async ({ params, query, set, headers, gammaSDK }) => {
 			const { verbose, include_markets, ...eventQuery } = query;
 			const result = await gammaSDK.getEventBySlug(params.slug, eventQuery);
@@ -477,7 +404,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 			}
 
 			const markdownOptions = {
-				verbose: verbose as 0 | 1 | 2 | undefined,
+				verbose: verbose !== undefined ? Number(verbose) as 0 | 1 | 2 : undefined,
 				includeMarkets: include_markets,
 			};
 			const markdown = formatEventToMarkdown(result, markdownOptions);
@@ -538,53 +465,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 	)
 
 	.get(
-		"/markets/:id",
-		async ({ params, query, set, gammaSDK }) => {
-			const result = await gammaSDK.getMarketById(Number(params.id), query);
-			if (result === null) {
-				set.status = 404;
-				return { type: "not found error", error: "id not found" };
-			}
-			return result;
-		},
-		{
-			params: t.Object({ id: t.String() }),
-			query: MarketByIdQuerySchema,
-			response: {
-				200: MarketSchema,
-				404: GammaErrorResponseSchema,
-				500: ErrorResponseSchema,
-			},
-			detail: {
-				tags: ["Gamma API - Markets"],
-				summary: "Get market by ID",
-				description: "Retrieve a specific market by its ID",
-			},
-		},
-	)
-
-	.get(
-		"/markets/:id/tags",
-		async ({ params, gammaSDK }) => {
-			return await gammaSDK.getMarketTags(Number(params.id));
-		},
-		{
-			params: t.Object({ id: t.String() }),
-			response: {
-				200: t.Array(UpdatedTagSchema),
-				404: ErrorResponseSchema,
-				500: ErrorResponseSchema,
-			},
-			detail: {
-				tags: ["Gamma API - Markets"],
-				summary: "Get market tags",
-				description: "Retrieve tags associated with a specific market",
-			},
-		},
-	)
-
-	.get(
-		"/markets/slug/:slug",
+		"/markets/:slug",
 		async ({ params, query, set, gammaSDK }) => {
 			const result = await gammaSDK.getMarketBySlug(params.slug, query);
 			if (result === null) {
@@ -605,6 +486,80 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 				tags: ["Gamma API - Markets"],
 				summary: "Get market by slug",
 				description: "Retrieve a specific market by its slug",
+			},
+		},
+	)
+
+	.get(
+		"/markets/:slug/tags",
+		async ({ params, gammaSDK }) => {
+			const market = await gammaSDK.getMarketBySlug(params.slug);
+			if (market === null) {
+				return [];
+			}
+			return await gammaSDK.getMarketTags(Number(market.id));
+		},
+		{
+			params: t.Object({ slug: t.String() }),
+			response: {
+				200: t.Array(UpdatedTagSchema),
+				404: ErrorResponseSchema,
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["Gamma API - Markets"],
+				summary: "Get market tags by slug",
+				description: "Retrieve tags associated with a specific market by its slug",
+			},
+		},
+	)
+
+	.get(
+		"/markets/:slug/markdown",
+		async ({ params, query, set, headers, gammaSDK }) => {
+			const { verbose, ...marketQuery } = query;
+			const result = await gammaSDK.getMarketBySlug(params.slug, marketQuery);
+			if (result === null) {
+				set.status = 404;
+				return { error: "Not Found", message: "Market not found" };
+			}
+
+			const markdownOptions = {
+				verbose: verbose !== undefined ? Number(verbose) as 0 | 1 | 2 : undefined,
+			};
+			const markdown = formatMarketToMarkdown(result, markdownOptions);
+
+			// Check Accept header to determine response format
+			const acceptHeader = headers.accept || "";
+			const wantsJson = acceptHeader.includes("application/json");
+
+			if (wantsJson) {
+				return { markdown };
+			} else {
+				set.headers["content-type"] = "text/plain; charset=utf-8";
+				return markdown;
+			}
+		},
+		{
+			params: t.Object({ slug: t.String() }),
+			query: t.Composite([MarketByIdQuerySchema, MarkdownOptionsSchema]),
+			response: {
+				200: t.Union([
+					t.Object({
+						markdown: t.String({
+							description: "Market data formatted as markdown for LLM analysis",
+						}),
+					}),
+					t.String({ description: "Raw markdown content" }),
+				]),
+				404: ErrorResponseSchema,
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["Gamma API - Markets"],
+				summary: "Get market as markdown by slug",
+				description:
+					"Convert market data to markdown format optimized for LLM arbitrage analysis. Supports verbose levels (0-2). Returns JSON if Accept: application/json, otherwise plain markdown text.",
 			},
 		},
 	)

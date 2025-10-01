@@ -733,7 +733,7 @@ export const EventByIdQuerySchema = t.Object({
  */
 export const MarkdownOptionsSchema = t.Object({
 	verbose: t.Optional(
-		t.Union([t.Literal(0), t.Literal(1), t.Literal(2)], {
+		t.Union([t.Literal(0), t.Literal(1), t.Literal(2), t.String()], {
 			description: "Verbosity level: 0=basic, 1=medium, 2=full details",
 			default: 2,
 		}),
