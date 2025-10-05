@@ -3,7 +3,7 @@ export function getEnv() {
 }
 
 export function getPort() {
-	return Number(process.env.PORT || Bun?.env?.PORT || 3000);
+	return Number(process.env.PORT || Bun?.env?.PORT || 5090);
 }
 
 export function getBaseUrl() {
