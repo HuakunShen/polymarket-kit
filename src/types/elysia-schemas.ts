@@ -206,7 +206,8 @@ export const EventSchema = t.Object({
 	resolutionSource: OptionalString,
 	startDate: OptionalString,
 	creationDate: t.String(),
-	endDate: t.String(),
+	// endDate: t.String(), // Changed from t.String() to OptionalString to handle missing endDate
+	endDate: OptionalString, // Changed from t.String() to OptionalString to handle missing endDate
 	image: t.String(),
 	icon: t.String(),
 	active: t.Boolean(),
