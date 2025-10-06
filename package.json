@@ -12,6 +12,7 @@
 	],
 	"exports": {
 		".": "./src/mod.ts",
+		"./*": "./src/*",
 		"./proxy": "./src/client.ts",
 		"./sdk": "./src/sdk/index.ts",
 		"./utils": "./src/utils/index.ts"
