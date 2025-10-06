@@ -483,7 +483,7 @@ export const OrderBookSummarySchema = t.Object({
  */
 export const BookParamsSchema = t.Object({
 	token_id: t.String(),
-	side: t.UnionEnum(["BUY", "SELL"]),
+	side: t.Optional(t.UnionEnum(["BUY", "SELL"])),
 });
 
 /**
