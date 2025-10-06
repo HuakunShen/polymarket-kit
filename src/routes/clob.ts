@@ -150,8 +150,10 @@ import {
 // Cache for SDK instances to avoid creating them on every request
 // Key: "privateKey_funderAddress", Value: PolymarketSDK instance
 const sdkCache = new LRUCache<string, PolymarketSDK>({
-	max: parseInt(process.env.SDK_CACHE_MAX_SIZE || "50", 10),
-	ttl: parseInt(process.env.SDK_CACHE_TTL_HOURS || "1", 10) * 60 * 60 * 1000,
+	max: 50,
+	ttl: 1 * 60 * 60 * 1000,
+	// max: parseInt(process.env.SDK_CACHE_MAX_SIZE || "50", 10),
+	// ttl: parseInt(process.env.SDK_CACHE_TTL_HOURS || "1", 10) * 60 * 60 * 1000,
 	updateAgeOnGet: true, // Reset TTL when SDK is accessed
 });
 
