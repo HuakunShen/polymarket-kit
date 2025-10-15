@@ -1,0 +1,1 @@
+rootProject.name = "polymarket-java-client"
