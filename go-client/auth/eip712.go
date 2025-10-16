@@ -13,7 +13,7 @@ import (
 
 const (
 	// MSG_TO_SIGN is the constant message to sign
-	MSG_TO_SIGN = "This is a random string to sign for CLOB authentication."
+	MSG_TO_SIGN = "This message attests that I control the given wallet"
 )
 
 // EIP712Domain represents the EIP-712 domain
@@ -41,10 +41,10 @@ type ClobAuthData struct {
 
 // TypedData represents the full EIP-712 typed data structure
 type TypedData struct {
-	Types map[string][]EIP712Type `json:"types"`
-	PrimaryType string             `json:"primaryType"`
-	Domain     EIP712Domain        `json:"domain"`
-	Message    interface{}         `json:"message"`
+	Types       map[string][]EIP712Type `json:"types"`
+	PrimaryType string                  `json:"primaryType"`
+	Domain      EIP712Domain            `json:"domain"`
+	Message     interface{}             `json:"message"`
 }
 
 // BuildClobEip712Signature builds the canonical Polymarket CLOB EIP712 signature
@@ -77,7 +77,7 @@ func BuildClobEip712Signature(privateKey *ecdsa.PrivateKey, chainID int64, times
 		Message:   MSG_TO_SIGN,
 	}
 
-	// Generate the sign hash
+	// Generate the sign hash according to EIP-712
 	domainSeparator, err := getDomainSeparator(domain)
 	if err != nil {
 		return "", fmt.Errorf("failed to get domain separator: %w", err)
@@ -93,12 +93,12 @@ func BuildClobEip712Signature(privateKey *ecdsa.PrivateKey, chainID int64, times
 		return "", fmt.Errorf("failed to encode data: %w", err)
 	}
 
-	// Construct the final hash: keccak256("||" || domainSeparator || typeHash || encodeData)
+	// Hash the struct: keccak256(typeHash || encodeData)
+	structHash := crypto.Keccak256Hash(append(typeHash.Bytes(), encodeData...))
+
+	// Construct the final hash: keccak256("\x19\x01" || domainSeparator || structHash)
 	hash := crypto.Keccak256Hash(
-		[]byte("\x19\x01"),
-		domainSeparator.Bytes(),
-		typeHash.Bytes(),
-		encodeData,
+		append(append([]byte("\x19\x01"), domainSeparator.Bytes()...), structHash.Bytes()...),
 	)
 
 	// Sign the hash
@@ -107,36 +107,43 @@ func BuildClobEip712Signature(privateKey *ecdsa.PrivateKey, chainID int64, times
 		return "", fmt.Errorf("failed to sign hash: %w", err)
 	}
 
+	// Adjust v value from 0/1 to 27/28 (Ethereum standard)
+	if signature[64] < 27 {
+		signature[64] += 27
+	}
+
 	// Convert signature to hex string
 	signatureHex := hexutil.Encode(signature)
 
 	return signatureHex, nil
 }
 
-// getDomainSeparator creates the domain separator hash
+// getDomainSeparator creates the domain separator hash according to EIP-712
 func getDomainSeparator(domain EIP712Domain) (common.Hash, error) {
-	domainData, err := json.Marshal(domain)
-	if err != nil {
-		return common.Hash{}, fmt.Errorf("failed to marshal domain: %w", err)
-	}
+	// EIP712Domain(string name,string version,uint256 chainId)
+	typeHash := crypto.Keccak256Hash([]byte("EIP712Domain(string name,string version,uint256 chainId)"))
 
-	return crypto.Keccak256Hash(domainData), nil
+	// Hash the domain fields
+	nameHash := crypto.Keccak256Hash([]byte(domain.Name))
+	versionHash := crypto.Keccak256Hash([]byte(domain.Version))
+
+	// Encode chainId as uint256 (32 bytes)
+	chainId := new(big.Int).SetInt64(domain.ChainID)
+	chainIdBytes := make([]byte, 32)
+	chainId.FillBytes(chainIdBytes)
+
+	// Concatenate: typeHash || nameHash || versionHash || chainId
+	data := append(typeHash.Bytes(), nameHash.Bytes()...)
+	data = append(data, versionHash.Bytes()...)
+	data = append(data, chainIdBytes...)
+
+	return crypto.Keccak256Hash(data), nil
 }
 
 // getTypeHash creates the type hash for ClobAuth
 func getTypeHash(types []EIP712Type) (common.Hash, error) {
-	typeString := "ClobAuth(" + "address,uint256,string,address" + ")"
-
-	// Actually, let's build the type string correctly
-	var typeStr string
-	for i, t := range types {
-		if i > 0 {
-			typeStr += ","
-		}
-		typeStr += t.Type + " " + t.Name
-	}
-	typeString = "ClobAuth(" + typeStr + ")"
-
+	// Build the type string: "ClobAuth(address address,string timestamp,uint256 nonce,string message)"
+	typeString := "ClobAuth(address address,string timestamp,uint256 nonce,string message)"
 	return crypto.Keccak256Hash([]byte(typeString)), nil
 }
 
@@ -144,27 +151,24 @@ func getTypeHash(types []EIP712Type) (common.Hash, error) {
 func encodeClobAuthData(data ClobAuthData) ([]byte, error) {
 	address := common.HexToAddress(data.Address)
 	nonce := new(big.Int).SetUint64(data.Nonce)
-	message := data.Message
 
-	// Create the encoded data
-	var encodedData []byte
+	// Encode address (padded to 32 bytes, left-padded)
+	addressBytes := make([]byte, 32)
+	copy(addressBytes[12:], address.Bytes()) // address is 20 bytes, so left-pad with 12 zeros
 
-	// Encode address (padded to 32 bytes)
-	addressHash := crypto.Keccak256Hash(address.Bytes())
-	encodedData = append(encodedData, addressHash.Bytes()...)
-
-	// Encode timestamp as string
+	// Encode timestamp as keccak256 hash of the string
 	timestampHash := crypto.Keccak256Hash([]byte(data.Timestamp))
-	encodedData = append(encodedData, timestampHash.Bytes()...)
 
-	// Encode nonce
-	nonceBytes := nonce.Bytes()
-	paddedNonce := make([]byte, 32)
-	copy(paddedNonce[32-len(nonceBytes):], nonceBytes)
-	encodedData = append(encodedData, paddedNonce...)
+	// Encode nonce as uint256 (32 bytes, big-endian)
+	nonceBytes := make([]byte, 32)
+	nonce.FillBytes(nonceBytes)
 
-	// Encode message
-	messageHash := crypto.Keccak256Hash([]byte(message))
+	// Encode message as keccak256 hash of the string
+	messageHash := crypto.Keccak256Hash([]byte(data.Message))
+
+	// Concatenate all encoded data
+	encodedData := append(addressBytes, timestampHash.Bytes()...)
+	encodedData = append(encodedData, nonceBytes...)
 	encodedData = append(encodedData, messageHash.Bytes()...)
 
 	return encodedData, nil

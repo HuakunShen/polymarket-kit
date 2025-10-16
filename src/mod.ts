@@ -31,3 +31,18 @@
  * ```
  */
 export { GammaSDK, PolymarketSDK } from "./sdk";
+
+/**
+ * WebSocket message schemas for real-time market data
+ *
+ * @example
+ * ```ts
+ * import { parseMarketChannelMessage, isBookMessage } from "@hk/polymarket";
+ *
+ * const msg = parseMarketChannelMessage(data);
+ * if (isBookMessage(msg)) {
+ *   console.log("Bids:", msg.bids.length);
+ * }
+ * ```
+ */
+export * from "./types/websocket-schemas";

@@ -11,3 +11,9 @@
 export * from "../types/elysia-schemas";
 export { PolymarketSDK } from "./client";
 export { GammaSDK, type GammaSDKConfig } from "./gamma-client";
+export { PolymarketWebSocketClient } from "./websocket-client";
+export type {
+	WebSocketClientOptions,
+	WebSocketClientCallbacks,
+	MessageHandler,
+} from "./websocket-client";

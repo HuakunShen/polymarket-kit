@@ -2,15 +2,17 @@
 
 [![JSR](https://jsr.io/badges/@hk/polymarket)](https://jsr.io/@hk/polymarket)
 
-A fully typed SDK and proxy server built with Elysia for Polymarket APIs. This package provides both standalone SDK clients and a proxy server with type-safe endpoints for CLOB and Gamma APIs, featuring comprehensive validation and automatic OpenAPI schema generation.
+A fully typed SDK and proxy server built with Elysia for Polymarket APIs. This package provides standalone SDK clients, WebSocket real-time streaming, and a proxy server with type-safe endpoints for CLOB and Gamma APIs, featuring comprehensive validation and automatic OpenAPI schema generation. Available in both TypeScript and Go.
 
 ## Features
 
 - **Fully Typed SDK**: Complete TypeScript support with no `any` types
+- **WebSocket Client**: Real-time market data streaming with auto-reconnection
 - **Proxy Server**: REST API with OpenAPI documentation
 - **MCP Server**: Model Context Protocol server for AI interactions
 - **Type Safety**: End-to-end type validation and transformation
 - **Multiple Runtimes**: Supports Bun, Node.js, Deno, and Cloudflare Workers
+- **Multi-Language Support**: TypeScript and Go clients with identical APIs
 
 ## Motivation & Approach
 
@@ -41,6 +43,8 @@ This package provides two ways to use Polymarket APIs:
 
 - **`PolymarketSDK`**: For CLOB operations (requires credentials)
 - **`GammaSDK`**: For Gamma API operations (no credentials required)
+- **`PolymarketWebSocketClient`**: For real-time market data streaming (TypeScript)
+- **`WebSocketClient`**: For real-time market data streaming (Go)
 
 ### 2. Proxy Server (Optional)
 
@@ -58,13 +62,26 @@ src/
 ├── sdk/               # Standalone SDK clients
 │   ├── index.ts       # SDK exports
 │   ├── client.ts      # PolymarketSDK (CLOB client)
-│   └── gamma-client.ts # GammaSDK (Gamma API client)
+│   ├── gamma-client.ts # GammaSDK (Gamma API client)
+│   └── websocket-client.ts # WebSocket client for real-time data
 ├── routes/            # Elysia server routes
 │   ├── gamma.ts       # Gamma API endpoints
 │   └── clob.ts        # CLOB API endpoints
 ├── types/
-│   └── elysia-schemas.ts  # Unified TypeBox schema definitions
+│   ├── elysia-schemas.ts  # Unified TypeBox schema definitions
+│   └── websocket-schemas.ts # WebSocket message schemas (Zod)
 └── utils/             # Utility functions
+
+go-client/
+├── client/
+│   ├── clob_client.go     # CLOB client implementation
+│   └── websocket_client.go # WebSocket client implementation
+├── types/
+│   ├── types.go           # Core type definitions
+│   └── websocket.go       # WebSocket message types
+└── examples/
+    ├── websocket_simple.go      # Simple WebSocket example
+    └── websocket_subscription.go # Advanced WebSocket example
 ```
 
 ### JSR Package Exports (from jsr.json)
@@ -127,18 +144,141 @@ const priceHistory = await polymarketSDK.getPriceHistory({
 const health = await polymarketSDK.healthCheck();
 ```
 
+## WebSocket Real-Time Data
+
+Stream real-time market data with automatic authentication, reconnection, and type-safe message handling.
+
+### TypeScript WebSocket Client
+
+```typescript
+import { ClobClient } from "@polymarket/clob-client";
+import { Wallet } from "@ethersproject/wallet";
+import { PolymarketWebSocketClient } from "@hk/polymarket";
+
+const signer = new Wallet(process.env.POLYMARKET_KEY!);
+const clobClient = new ClobClient("https://clob.polymarket.com", 137, signer);
+
+// Create WebSocket client with asset IDs to subscribe to
+const ws = new PolymarketWebSocketClient(clobClient, {
+  assetIds: ["60487116984468020978247225474488676749601001829886755968952521846780452448915"],
+  autoReconnect: true,
+  debug: true,
+});
+
+// Register event handlers
+ws.on({
+  onBook: (msg) => {
+    console.log(`📚 Book Update - Bids: ${msg.bids.length}, Asks: ${msg.asks.length}`);
+    // Fully typed message with validation
+  },
+  
+  onPriceChange: (msg) => {
+    console.log(`💹 Price Change - ${msg.price_changes.length} changes`);
+  },
+  
+  onLastTradePrice: (msg) => {
+    console.log(`💰 Trade: ${msg.side} @ ${msg.price}`);
+  },
+  
+  onError: (error) => console.error("Error:", error),
+  onConnect: () => console.log("Connected!"),
+});
+
+// Connect and start receiving data
+await ws.connect();
+```
+
+### Go WebSocket Client
+
+```go
+import (
+    "github.com/HuakunShen/polymarket-kit/go-client/client"
+    "github.com/HuakunShen/polymarket-kit/go-client/types"
+)
+
+config := &client.ClientConfig{
+    Host:       "https://clob.polymarket.com",
+    ChainID:    types.ChainPolygon,
+    PrivateKey: os.Getenv("POLYMARKET_KEY"),
+}
+
+clobClient, _ := client.NewClobClient(config)
+
+// Create WebSocket client
+wsClient := client.NewWebSocketClient(clobClient, &client.WebSocketClientOptions{
+    AssetIDs: []string{
+        "60487116984468020978247225474488676749601001829886755968952521846780452448915",
+    },
+    AutoReconnect: true,
+    Debug:         true,
+})
+
+// Register event handlers
+wsClient.On(&client.WebSocketCallbacks{
+    OnBook: func(msg *types.BookMessage) {
+        fmt.Printf("📚 Book Update - Bids: %d, Asks: %d\n", 
+            len(msg.Bids), len(msg.Asks))
+    },
+    
+    OnPriceChange: func(msg *types.PriceChangeMessage) {
+        fmt.Printf("💹 Price Change - %d changes\n", len(msg.PriceChanges))
+    },
+    
+    OnLastTradePrice: func(msg *types.LastTradePriceMessage) {
+        fmt.Printf("💰 Trade: %s @ %s\n", msg.Side, msg.Price)
+    },
+    
+    OnError: func(err error) {
+        fmt.Printf("Error: %v\n", err)
+    },
+})
+
+// Connect and start receiving data
+wsClient.Connect()
+```
+
+### WebSocket Features
+
+- ✅ **Automatic Authentication** - Handles API key derivation automatically
+- ✅ **Type-Safe Messages** - Full validation and typing for all message types
+- ✅ **Auto-Reconnection** - Configurable reconnection with retry logic
+- ✅ **Event Handlers** - Clean callback API for each message type
+- ✅ **Connection Management** - Easy subscribe/unsubscribe methods
+- ✅ **Debug Logging** - Optional detailed logging for troubleshooting
+
+### Message Types
+
+The WebSocket client handles four message types:
+
+1. **Book Messages** - Full orderbook snapshots and updates
+2. **Price Change Messages** - Real-time price level changes
+3. **Tick Size Change Messages** - Minimum tick size updates
+4. **Last Trade Price Messages** - Trade execution events
+
+See [WebSocket Client Documentation](./docs/WEBSOCKET_CLIENT.md) for detailed API reference and examples.
+
 ### Type Definitions
 
 All types are exported from the unified schema:
 
 ```typescript
 import type {
+  // Market & Event Types
   MarketType,
   EventType,
   MarketQueryType,
   EventQueryType,
   PriceHistoryQueryType,
   PriceHistoryResponseType,
+  
+  // WebSocket Types
+  MarketChannelMessage,
+  BookMessage,
+  PriceChangeMessage,
+  TickSizeChangeMessage,
+  LastTradePriceMessage,
+  WebSocketClientOptions,
+  WebSocketClientCallbacks,
 } from "@hk/polymarket";
 ```
 
@@ -464,16 +604,21 @@ See [GEMINI.md](./GEMINI.md) for detailed usage examples and integration guides.
 - [ ] Go SDK generation
 - [ ] Enhanced TypeScript client generation
 
-### Phase 3: Enhanced Features
+### Phase 3: Enhanced Features ✅
 
 - [ ] Rate limiting and request throttling
 - [ ] Authentication/API key management
 - [ ] Monitoring and metrics collection
-- [ ] WebSocket support for real-time data
+- [x] **WebSocket support for real-time data** ✅
+- [x] **Type-safe WebSocket message schemas** ✅
+- [x] **Auto-reconnection and error handling** ✅
 - [ ] Enhanced error recovery mechanisms
 
 ### Recent Updates ✅
 
+- **WebSocket Integration**: Full real-time market data streaming with type-safe clients in TypeScript and Go
+- **Message Validation**: Comprehensive Zod/struct validation for all WebSocket message types
+- **Auto-Reconnection**: Robust connection management with configurable retry logic
 - **Schema Consolidation**: Migrated from dual Effect + TypeBox schemas to unified TypeBox-only approach
 - **Type Safety**: Eliminated all `any` types and improved TypeScript strictness
 - **Bundle Optimization**: Removed Effect dependency, reduced package size

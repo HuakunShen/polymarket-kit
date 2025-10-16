@@ -246,9 +246,8 @@ func (c *ClobClient) CreateApiKey(nonce *uint64) (*types.ApiKeyCreds, error) {
 
 // DeriveApiKey derives an existing API key
 func (c *ClobClient) DeriveApiKey(nonce *uint64) (*types.ApiKeyCreds, error) {
-	if c.creds == nil {
-		return nil, fmt.Errorf("API credentials are required for deriving API key")
-	}
+	// Note: Unlike the Go implementation, the TypeScript version only requires L1 auth (signer)
+	// for deriving API keys, not existing credentials. This matches the TypeScript behavior.
 
 	var timestamp *int64
 	if c.useServerTime {
