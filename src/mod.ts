@@ -2,8 +2,9 @@
  * @fileoverview Main entrypoint for Polymarket SDK package
  *
  * This module provides the main entry point for the Polymarket SDK package,
- * exporting both the PolymarketSDK for CLOB operations and GammaSDK for
- * Gamma API operations. This is the primary module users should import from.
+ * exporting the PolymarketSDK for CLOB operations, GammaSDK for Gamma API
+ * operations, and DataSDK for user data and on-chain activities. This is the
+ * primary module users should import from.
  */
 
 /**
@@ -30,7 +31,21 @@
  * const markets = await gamma.getMarkets();
  * ```
  */
-export { GammaSDK, PolymarketSDK } from "./sdk";
+/**
+ * Polymarket Data API SDK for user data and on-chain activities
+ *
+ * @example
+ * ```ts
+ * import { DataSDK } from "@hk/polymarket";
+ *
+ * const data = new DataSDK();
+ * const positions = await data.getCurrentPositions({
+ *   user: "0x123...",
+ *   limit: 50
+ * });
+ * ```
+ */
+export { GammaSDK, PolymarketSDK, DataSDK } from "./sdk";
 
 /**
  * WebSocket message schemas for real-time market data

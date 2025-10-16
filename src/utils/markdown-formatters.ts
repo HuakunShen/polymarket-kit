@@ -99,12 +99,18 @@ const safeTruncate = (
 };
 
 // Helper to safely access properties that might not exist on all MarketData types
-const hasProperty = <K extends string, T = unknown>(obj: unknown, prop: K): obj is Record<K, T> => {
-	return typeof obj === 'object' && obj !== null && prop in obj;
+const hasProperty = <K extends string, T = unknown>(
+	obj: unknown,
+	prop: K,
+): obj is Record<K, T> => {
+	return typeof obj === "object" && obj !== null && prop in obj;
 };
 
 // Helper to safely get a property value with proper typing
-const getProperty = <K extends string, T>(obj: unknown, prop: K): T | undefined => {
+const getProperty = <K extends string, T>(
+	obj: unknown,
+	prop: K,
+): T | undefined => {
 	return hasProperty<K, T>(obj, prop) ? (obj as Record<K, T>)[prop] : undefined;
 };
 
@@ -121,9 +127,9 @@ export function formatMarketToMarkdown(
 
 	// Verbose 0: Only basic info
 	if (verbose === 0) {
-		if (market.startDateIso || ('endDateIso' in market && market.endDateIso)) {
+		if (market.startDateIso || ("endDateIso" in market && market.endDateIso)) {
 			parts.push(
-				`**Trading Period**: ${market.startDateIso || "N/A"} → ${('endDateIso' in market ? market.endDateIso : "N/A")}`,
+				`**Trading Period**: ${market.startDateIso || "N/A"} → ${"endDateIso" in market ? market.endDateIso : "N/A"}`,
 			);
 		}
 		return `${parts.join("\n\n")}\n\n---\n`;
@@ -132,31 +138,35 @@ export function formatMarketToMarkdown(
 	// Verbose 1+: Add ID and status
 	parts.push(`**ID**: ${market.id}`);
 	parts.push(
-		`**Status**: ${market.active ? "Active" : "Inactive"} | ${market.closed ? "Closed" : "Open"} | ${getProperty(market, 'restricted') ? "Restricted" : "Unrestricted"}`,
+		`**Status**: ${market.active ? "Active" : "Inactive"} | ${market.closed ? "Closed" : "Open"} | ${getProperty(market, "restricted") ? "Restricted" : "Unrestricted"}`,
 	);
 
 	// Trading dates
-	if (market.startDateIso || ('endDateIso' in market && market.endDateIso)) {
+	if (market.startDateIso || ("endDateIso" in market && market.endDateIso)) {
 		parts.push(
-			`**Trading Period**: ${market.startDateIso || "N/A"} → ${('endDateIso' in market ? market.endDateIso : "N/A")}`,
+			`**Trading Period**: ${market.startDateIso || "N/A"} → ${"endDateIso" in market ? market.endDateIso : "N/A"}`,
 		);
 	}
 
 	// Market outcomes and pricing (key for arbitrage)
 	// Handle both string and array formats for outcomes and outcomePrices
-	const outcomes = Array.isArray(market.outcomes) 
-		? market.outcomes 
-		: typeof market.outcomes === 'string' 
-			? JSON.parse(market.outcomes || '[]') 
-			: [];
-	
-	const outcomePrices = Array.isArray(market.outcomePrices) 
-		? market.outcomePrices 
-		: typeof market.outcomePrices === 'string' 
-			? JSON.parse(market.outcomePrices || '[]') 
+	const outcomes = Array.isArray(market.outcomes)
+		? market.outcomes
+		: typeof market.outcomes === "string"
+			? JSON.parse(market.outcomes || "[]")
 			: [];
 
-	if (outcomes.length > 0 && outcomePrices.length > 0 && outcomes.length === outcomePrices.length) {
+	const outcomePrices = Array.isArray(market.outcomePrices)
+		? market.outcomePrices
+		: typeof market.outcomePrices === "string"
+			? JSON.parse(market.outcomePrices || "[]")
+			: [];
+
+	if (
+		outcomes.length > 0 &&
+		outcomePrices.length > 0 &&
+		outcomes.length === outcomePrices.length
+	) {
 		parts.push(`**Outcomes & Prices**:`);
 		for (let i = 0; i < outcomes.length; i++) {
 			parts.push(`- ${outcomes[i]}: $${outcomePrices[i]}`);
@@ -181,10 +191,10 @@ export function formatMarketToMarkdown(
 	// Verbose 2: Full details
 	// Key trading metrics for arbitrage analysis
 	const tradingMetrics = collectMetrics([
-		formatCurrencyMetric("Last Trade", getProperty(market, 'lastTradePrice')),
-		formatCurrencyMetric("Best Bid", getProperty(market, 'bestBid')),
-		formatCurrencyMetric("Best Ask", getProperty(market, 'bestAsk')),
-		formatPercentMetric("Spread", getProperty(market, 'spread')),
+		formatCurrencyMetric("Last Trade", getProperty(market, "lastTradePrice")),
+		formatCurrencyMetric("Best Bid", getProperty(market, "bestBid")),
+		formatCurrencyMetric("Best Ask", getProperty(market, "bestAsk")),
+		formatPercentMetric("Spread", getProperty(market, "spread")),
 	]);
 
 	if (tradingMetrics.length > 0) {
@@ -193,8 +203,8 @@ export function formatMarketToMarkdown(
 
 	// Price changes (momentum indicators)
 	const priceChanges = collectMetrics([
-		formatPercentMetric("1hr", getProperty(market, 'oneHourPriceChange')),
-		formatPercentMetric("24hr", getProperty(market, 'oneDayPriceChange')),
+		formatPercentMetric("1hr", getProperty(market, "oneHourPriceChange")),
+		formatPercentMetric("24hr", getProperty(market, "oneDayPriceChange")),
 	]);
 
 	if (priceChanges.length > 0) {
@@ -218,13 +228,23 @@ export function formatMarketToMarkdown(
 	}
 
 	// Order book constraints
-	if (getProperty(market, 'enableOrderBook')) {
+	if (getProperty(market, "enableOrderBook")) {
 		const constraints = collectMetrics([
-			...(getProperty(market, 'orderMinSize') !== undefined
-				? [formatLiteralMetric("Min Size", `$${getProperty(market, 'orderMinSize')}`)]
+			...(getProperty(market, "orderMinSize") !== undefined
+				? [
+						formatLiteralMetric(
+							"Min Size",
+							`$${getProperty(market, "orderMinSize")}`,
+						),
+					]
 				: []),
-			...(getProperty(market, 'orderPriceMinTickSize') !== undefined
-				? [formatLiteralMetric("Min Tick", `$${getProperty(market, 'orderPriceMinTickSize')}`)]
+			...(getProperty(market, "orderPriceMinTickSize") !== undefined
+				? [
+						formatLiteralMetric(
+							"Min Tick",
+							`$${getProperty(market, "orderPriceMinTickSize")}`,
+						),
+					]
 				: []),
 		]);
 		if (constraints.length > 0) {
@@ -396,7 +416,7 @@ export function formatEventToMarkdown(
 		parts.push("## Arbitrage Analysis Summary");
 		const analysisPoints = [
 			`- **Market Count**: ${event.markets.length} markets in this event`,
-			`- **Liquidity**: Total volume $${event.volume ? event.volume.toLocaleString():"N/A"}`,
+			`- **Liquidity**: Total volume $${event.volume ? event.volume.toLocaleString() : "N/A"}`,
 			`- **Status**: ${event.active && !event.closed ? "Currently tradeable" : "Not tradeable"}`,
 			`- **Time Constraint**: Event ends ${event.endDate}`,
 		];

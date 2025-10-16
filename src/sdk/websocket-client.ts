@@ -107,7 +107,8 @@ export class PolymarketWebSocketClient {
 			markets: options.markets || [],
 			autoReconnect: options.autoReconnect ?? true,
 			reconnectDelay: options.reconnectDelay ?? 5000,
-			maxReconnectAttempts: options.maxReconnectAttempts ?? Number.POSITIVE_INFINITY,
+			maxReconnectAttempts:
+				options.maxReconnectAttempts ?? Number.POSITIVE_INFINITY,
 			debug: options.debug ?? false,
 		};
 	}
@@ -156,7 +157,7 @@ export class PolymarketWebSocketClient {
 	public disconnect(): void {
 		this.shouldReconnect = false;
 		this.cleanup();
-		
+
 		if (this.ws) {
 			this.ws.close();
 			this.ws = null;
@@ -168,7 +169,7 @@ export class PolymarketWebSocketClient {
 	 */
 	public subscribe(assetIds: string[]): void {
 		this.options.assetIds.push(...assetIds);
-		
+
 		if (this.ws?.readyState === WebSocket.OPEN) {
 			this.sendSubscription();
 		}
@@ -190,7 +191,11 @@ export class PolymarketWebSocketClient {
 		return this.ws?.readyState === WebSocket.OPEN;
 	}
 
-	private setupEventHandlers(apiKey: { key: string; secret: string; passphrase: string }): void {
+	private setupEventHandlers(apiKey: {
+		key: string;
+		secret: string;
+		passphrase: string;
+	}): void {
 		if (!this.ws) return;
 
 		this.ws.on("open", () => {
@@ -282,7 +287,9 @@ export class PolymarketWebSocketClient {
 
 		if (!result.success) {
 			this.log("Validation failed:", result.error.issues);
-			this.handleError(new Error(`Message validation failed: ${result.error.message}`));
+			this.handleError(
+				new Error(`Message validation failed: ${result.error.message}`),
+			);
 			return;
 		}
 
@@ -344,4 +351,3 @@ export class PolymarketWebSocketClient {
 		}
 	}
 }
-

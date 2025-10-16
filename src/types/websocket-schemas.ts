@@ -117,4 +117,3 @@ export function isLastTradePriceMessage(
 ): msg is LastTradePriceMessage {
 	return msg.event_type === "last_trade_price";
 }
-
