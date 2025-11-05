@@ -72,13 +72,13 @@ export const MarketSchema = t.Object({
 		t.Array(
 			t.Object({
 				id: t.String(),
-				ticker: t.String(),
+				ticker: OptionalString,
 				slug: t.String(),
 				title: t.String(),
 				description: t.String(),
 				active: t.Boolean(),
 				closed: t.Boolean(),
-				archived: t.Boolean(),
+				archived: OptionalBoolean,
 			}),
 		),
 	),
@@ -148,7 +148,7 @@ export const EventMarketSchema = t.Object({
  */
 export const SeriesSchema = t.Object({
 	id: t.String(),
-	ticker: t.String(),
+	ticker: OptionalString,
 	slug: t.String(),
 	title: t.String(),
 	subtitle: OptionalString,
@@ -158,12 +158,12 @@ export const SeriesSchema = t.Object({
 	icon: OptionalString,
 	active: t.Boolean(),
 	closed: t.Boolean(),
-	archived: t.Boolean(),
+	archived: OptionalBoolean,
 	volume: OptionalNumber,
 	liquidity: OptionalNumber,
 	startDate: OptionalString,
 	createdAt: t.String(),
-	updatedAt: t.String(),
+	updatedAt: OptionalString,
 	competitive: t.Optional(t.Union([t.String(), t.Number()])), // Can be string or number, but optional
 	volume24hr: OptionalNumber,
 	pythTokenID: OptionalString,
@@ -199,7 +199,7 @@ export const TagSchema = t.Object({
  */
 export const EventSchema = t.Object({
 	id: t.String(),
-	ticker: t.String(),
+	ticker: OptionalString,
 	slug: t.String(),
 	title: t.String(),
 	description: OptionalString,
@@ -212,7 +212,7 @@ export const EventSchema = t.Object({
 	icon: t.String(),
 	active: t.Boolean(),
 	closed: t.Boolean(),
-	archived: t.Boolean(),
+	archived: OptionalBoolean,
 	new: OptionalBoolean,
 	featured: OptionalBoolean,
 	restricted: OptionalBoolean,
@@ -220,7 +220,7 @@ export const EventSchema = t.Object({
 	volume: OptionalNumber, // Changed from t.Number() to OptionalNumber to handle missing values
 	openInterest: OptionalNumber,
 	createdAt: t.String(),
-	updatedAt: t.String(),
+	updatedAt: OptionalString,
 	competitive: OptionalNumber,
 	volume24hr: OptionalNumber,
 	volume1wk: OptionalNumber,
