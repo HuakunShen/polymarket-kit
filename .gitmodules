@@ -1,0 +1,6 @@
+[submodule "vendors/clob-client"]
+	path = vendors/clob-client
+	url = https://github.com/Polymarket/clob-client.git
+[submodule "vendors/builder-signing-sdk"]
+	path = vendors/builder-signing-sdk
+	url = https://github.com/Polymarket/builder-signing-sdk.git

@@ -125,7 +125,7 @@ function formatEventDisplay(events: EventType[]): string {
 			if (event.featured) statusInfo.push("Featured");
 			if (event.archived) statusInfo.push("Archived");
 
-			const volumeInfo = `$${event.volume.toLocaleString()}`;
+			const volumeInfo = `$${event.volume?.toLocaleString()}`;
 			const marketCount = event.markets ? event.markets.length : 0;
 
 			return [

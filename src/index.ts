@@ -18,6 +18,7 @@ import { swagger } from "@elysiajs/swagger";
 import { openapi } from "@elysiajs/openapi";
 import { Elysia } from "elysia";
 import { clobRoutes } from "./routes/clob";
+import { dataRoutes } from "./routes/data";
 import { gammaRoutes } from "./routes/gamma";
 import { getBaseUrl, getPort } from "./utils/env";
 
@@ -43,13 +44,18 @@ export const app = new Elysia()
 					title: "Polymarket Proxy API",
 					version: "1.0.0",
 					description:
-						"A fully typed proxy server for Polymarket CLOB and Gamma APIs. Provides type-safe endpoints with comprehensive validation and automatic OpenAPI schema generation.",
+						"A fully typed proxy server for Polymarket CLOB, Gamma, and Data APIs. Provides type-safe endpoints with comprehensive validation and automatic OpenAPI schema generation.",
 					contact: {
 						name: "API Support",
 						url: "https://github.com/your-repo/polymarket-strategy",
 					},
 				},
 				tags: [
+					{
+						name: "Data API",
+						description:
+							"User data, positions, and analytics from data-api.polymarket.com",
+					},
 					{
 						name: "Gamma API",
 						description: "Market and event data from gamma-api.polymarket.com",
@@ -123,6 +129,7 @@ export const app = new Elysia()
 			description: "A fully typed proxy server for Polymarket APIs",
 			endpoints: {
 				documentation: "/docs",
+				data_api: "/data",
 				gamma_api: "/gamma",
 				clob_api: "/clob",
 				health: "/health",
@@ -159,6 +166,7 @@ export const app = new Elysia()
 	)
 
 	// Mount route modules
+	.use(dataRoutes)
 	.use(gammaRoutes)
 	.use(clobRoutes);
 

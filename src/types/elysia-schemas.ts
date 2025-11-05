@@ -99,8 +99,8 @@ export const EventMarketSchema = t.Object({
 	endDate: OptionalString,
 	liquidity: OptionalString,
 	startDate: OptionalString,
-	image: t.String(),
-	icon: t.String(),
+	image: OptionalString, // Changed to optional as it can be missing
+	icon: OptionalString, // Changed to optional as it can be missing
 	description: t.String(),
 	outcomes: t.Union([StringArray, t.String()]), // Can be either array or JSON string
 	outcomePrices: t.Union([StringArray, t.String()]), // Can be either array or JSON string
@@ -109,7 +109,7 @@ export const EventMarketSchema = t.Object({
 	closed: t.Boolean(),
 	marketMakerAddress: OptionalString,
 	createdAt: t.String(),
-	updatedAt: OptionalString,
+	updatedAt: OptionalString, // Can be missing in API responses
 	new: OptionalBoolean,
 	featured: OptionalBoolean,
 	archived: OptionalBoolean,
@@ -1026,6 +1026,358 @@ export type SearchResponseType = typeof SearchResponseSchema.static;
 
 /** TypeScript type for Gamma API error response derived from GammaErrorResponseSchema */
 export type GammaErrorResponseType = typeof GammaErrorResponseSchema.static;
+
+// Data API Schemas
+
+/**
+ * Schema for Data API health check response
+ */
+export const DataHealthResponseSchema = t.Object({
+	data: t.String(),
+});
+
+/**
+ * Schema for position objects from Data API
+ */
+export const PositionSchema = t.Object({
+	proxyWallet: t.String(),
+	asset: t.String(),
+	conditionId: t.String(),
+	size: t.Number(),
+	avgPrice: t.Number(),
+	initialValue: t.Number(),
+	currentValue: t.Number(),
+	cashPnl: t.Number(),
+	percentPnl: t.Number(),
+	totalBought: t.Number(),
+	realizedPnl: t.Number(),
+	percentRealizedPnl: t.Number(),
+	curPrice: t.Number(),
+	redeemable: t.Boolean(),
+	mergeable: t.Boolean(),
+	title: t.String(),
+	slug: t.String(),
+	icon: t.String(),
+	eventId: t.String(),
+	eventSlug: t.String(),
+	outcome: t.String(),
+	outcomeIndex: t.Number(),
+	oppositeOutcome: t.String(),
+	oppositeAsset: t.String(),
+	endDate: t.Optional(t.String()),
+	negativeRisk: t.Optional(t.Boolean()),
+});
+
+/**
+ * Schema for closed position objects from Data API
+ */
+export const ClosedPositionSchema = t.Object({
+	proxyWallet: t.String(),
+	size: t.String(),
+	avgPrice: t.String(),
+	realizedPnl: t.Union([t.String(), t.Number()]),
+	assetId: t.String(),
+	conditionId: t.String(),
+	outcome: t.String(),
+	market: t.String(),
+	timestamp: t.String(),
+	side: t.UnionEnum(["BUY", "SELL"]),
+	cost: t.String(),
+	value: t.String(),
+	fees: t.String(),
+	price: t.String(),
+	closedAt: t.String(),
+	closedPrice: t.String(),
+	lastUpdate: t.String(),
+});
+
+/**
+ * Schema for trade objects from Data API
+ */
+export const DataTradeSchema = t.Object({
+	proxyWallet: t.String(),
+	side: t.UnionEnum(["BUY", "SELL"]),
+	conditionId: t.String(),
+	outcome: t.String(),
+	market: t.String(),
+	size: t.Number(),
+	price: t.Number(),
+	fee: t.Number(),
+	timestamp: t.Number(),
+	transactionHash: t.String(),
+	maker: t.String(),
+	taker: t.String(),
+	assetId: t.String(),
+	// Additional fields from actual API response
+	title: t.String(),
+	slug: t.String(),
+	icon: t.String(),
+	eventSlug: t.String(),
+	outcomeIndex: t.Number(),
+	name: t.String(),
+	pseudonym: t.String(),
+	bio: t.String(),
+	profileImage: t.String(),
+	profileImageOptimized: t.String(),
+});
+
+/**
+ * Schema for user activity objects from Data API
+ */
+export const ActivitySchema = t.Object({
+	proxyWallet: t.String(),
+	timestamp: t.Number(),
+	type: t.UnionEnum(["TRADE", "CANCEL", "FUND", "REDEEM"]),
+	size: t.Number(),
+	usdcSize: t.Number(),
+	price: t.Optional(t.Number()),
+	fee: t.Optional(t.Number()),
+	conditionId: t.String(),
+	outcome: t.String(),
+	market: t.String(),
+	transactionHash: t.String(),
+	from: t.String(),
+	to: t.String(),
+	assetId: t.String(),
+	value: t.Optional(t.Number()),
+	// Additional fields from actual API response
+	title: t.String(),
+	slug: t.String(),
+	icon: t.String(),
+	eventSlug: t.String(),
+	outcomeIndex: t.Number(),
+	name: t.String(),
+	pseudonym: t.String(),
+	bio: t.String(),
+	profileImage: t.String(),
+	profileImageOptimized: t.String(),
+});
+
+/**
+ * Schema for holder objects from Data API
+ */
+export const HolderSchema = t.Object({
+	wallet: t.String(),
+	balance: t.String(),
+	value: t.String(),
+});
+
+/**
+ * Schema for meta holder objects from Data API
+ */
+export const MetaHolderSchema = t.Object({
+	token: t.String(),
+	holders: t.Array(HolderSchema),
+});
+
+/**
+ * Schema for total value response from Data API
+ */
+export const TotalValueSchema = t.Object({
+	user: t.String(),
+	value: t.Union([t.String(), t.Number()]),
+});
+
+/**
+ * Schema for total markets traded response from Data API
+ */
+export const TotalMarketsTradedSchema = t.Object({
+	user: t.String(),
+	traded: t.Number(),
+});
+
+/**
+ * Schema for open interest objects from Data API
+ */
+export const OpenInterestSchema = t.Object({
+	market: t.String(),
+	value: t.Union([t.String(), t.Number()]),
+});
+
+/**
+ * Schema for live volume market objects from Data API
+ */
+export const LiveVolumeMarketSchema = t.Object({
+	market: t.String(),
+	value: t.Number(),
+});
+
+/**
+ * Schema for live volume response from Data API
+ */
+export const LiveVolumeResponseSchema = t.Object({
+	total: t.Number(),
+	markets: t.Array(LiveVolumeMarketSchema),
+});
+
+// Data API Query Schemas
+
+/**
+ * Schema for positions query parameters
+ */
+export const PositionsQuerySchema = t.Object({
+	user: t.String(), // Required
+	market: t.Optional(t.Array(t.String())),
+	eventId: t.Optional(t.Array(t.String())),
+	sizeThreshold: t.Optional(t.Union([t.String(), t.Number()])),
+	redeemable: t.Optional(t.Boolean()),
+	mergeable: t.Optional(t.Boolean()),
+	limit: t.Optional(t.Number()),
+	offset: t.Optional(t.Number()),
+	sortBy: t.Optional(t.String()),
+	sortDirection: t.Optional(t.UnionEnum(["ASC", "DESC"])),
+	title: t.Optional(t.String()),
+});
+
+/**
+ * Schema for closed positions query parameters
+ */
+export const ClosedPositionsQuerySchema = t.Object({
+	user: t.String(), // Required
+	market: t.Optional(t.Array(t.String())),
+	eventId: t.Optional(t.Array(t.String())),
+	title: t.Optional(t.String()),
+	limit: t.Optional(t.Number()),
+	offset: t.Optional(t.Number()),
+	sortBy: t.Optional(t.String()),
+	sortDirection: t.Optional(t.UnionEnum(["ASC", "DESC"])),
+});
+
+/**
+ * Schema for trades query parameters
+ */
+export const TradesQuerySchema = t.Object({
+	limit: t.Optional(t.Number()),
+	offset: t.Optional(t.Number()),
+	takerOnly: t.Optional(t.Boolean()),
+	filterType: t.Optional(t.String()),
+	filterAmount: t.Optional(t.Union([t.String(), t.Number()])),
+	market: t.Optional(t.Array(t.String())),
+	eventId: t.Optional(t.Array(t.String())),
+	user: t.Optional(t.String()),
+	side: t.Optional(t.UnionEnum(["BUY", "SELL"])),
+});
+
+/**
+ * Schema for user activity query parameters
+ */
+export const UserActivityQuerySchema = t.Object({
+	user: t.String(), // Required
+	limit: t.Optional(t.Number()),
+	offset: t.Optional(t.Number()),
+	market: t.Optional(t.Array(t.String())),
+	eventId: t.Optional(t.Array(t.String())),
+	type: t.Optional(t.UnionEnum(["BUY", "SELL", "CANCEL", "FUND", "REDEEM"])),
+	start: t.Optional(t.String()),
+	end: t.Optional(t.String()),
+	sortBy: t.Optional(t.String()),
+	sortDirection: t.Optional(t.UnionEnum(["ASC", "DESC"])),
+	side: t.Optional(t.UnionEnum(["BUY", "SELL"])),
+});
+
+/**
+ * Schema for top holders query parameters
+ */
+export const TopHoldersQuerySchema = t.Object({
+	limit: t.Optional(t.Number({ minimum: 0, maximum: 500, default: 100 })),
+	market: t.Array(t.String()), // Required, comma-separated condition IDs
+	minBalance: t.Optional(t.Number({ minimum: 0, maximum: 999999, default: 1 })),
+});
+
+/**
+ * Schema for total value query parameters
+ */
+export const TotalValueQuerySchema = t.Object({
+	user: t.String(), // Required
+	market: t.Optional(t.Array(t.String())),
+});
+
+/**
+ * Schema for total markets traded query parameters
+ */
+export const TotalMarketsTradedQuerySchema = t.Object({
+	user: t.String(), // Required
+});
+
+/**
+ * Schema for open interest query parameters
+ */
+export const OpenInterestQuerySchema = t.Object({
+	market: t.Array(t.String()), // Required, array of Hash64 strings
+});
+
+/**
+ * Schema for live volume query parameters
+ */
+export const LiveVolumeQuerySchema = t.Object({
+	id: t.Number({ minimum: 1 }), // Required, event ID
+});
+
+// Data API Type Exports
+
+/** TypeScript type for Data API health response derived from DataHealthResponseSchema */
+export type DataHealthResponseType = typeof DataHealthResponseSchema.static;
+
+/** TypeScript type for position objects derived from PositionSchema */
+export type PositionType = typeof PositionSchema.static;
+
+/** TypeScript type for closed position objects derived from ClosedPositionSchema */
+export type ClosedPositionType = typeof ClosedPositionSchema.static;
+
+/** TypeScript type for Data API trade objects derived from DataTradeSchema */
+export type DataTradeType = typeof DataTradeSchema.static;
+
+/** TypeScript type for activity objects derived from ActivitySchema */
+export type ActivityType = typeof ActivitySchema.static;
+
+/** TypeScript type for holder objects derived from HolderSchema */
+export type HolderType = typeof HolderSchema.static;
+
+/** TypeScript type for meta holder objects derived from MetaHolderSchema */
+export type MetaHolderType = typeof MetaHolderSchema.static;
+
+/** TypeScript type for total value response derived from TotalValueSchema */
+export type TotalValueType = typeof TotalValueSchema.static;
+
+/** TypeScript type for total markets traded response derived from TotalMarketsTradedSchema */
+export type TotalMarketsTradedType = typeof TotalMarketsTradedSchema.static;
+
+/** TypeScript type for open interest objects derived from OpenInterestSchema */
+export type OpenInterestType = typeof OpenInterestSchema.static;
+
+/** TypeScript type for live volume market objects derived from LiveVolumeMarketSchema */
+export type LiveVolumeMarketType = typeof LiveVolumeMarketSchema.static;
+
+/** TypeScript type for live volume response derived from LiveVolumeResponseSchema */
+export type LiveVolumeResponseType = typeof LiveVolumeResponseSchema.static;
+
+/** TypeScript type for positions query parameters derived from PositionsQuerySchema */
+export type PositionsQueryType = typeof PositionsQuerySchema.static;
+
+/** TypeScript type for closed positions query parameters derived from ClosedPositionsQuerySchema */
+export type ClosedPositionsQueryType = typeof ClosedPositionsQuerySchema.static;
+
+/** TypeScript type for trades query parameters derived from TradesQuerySchema */
+export type TradesQueryType = typeof TradesQuerySchema.static;
+
+/** TypeScript type for user activity query parameters derived from UserActivityQuerySchema */
+export type UserActivityQueryType = typeof UserActivityQuerySchema.static;
+
+/** TypeScript type for top holders query parameters derived from TopHoldersQuerySchema */
+export type TopHoldersQueryType = typeof TopHoldersQuerySchema.static;
+
+/** TypeScript type for total value query parameters derived from TotalValueQuerySchema */
+export type TotalValueQueryType = typeof TotalValueQuerySchema.static;
+
+/** TypeScript type for total markets traded query parameters derived from TotalMarketsTradedQuerySchema */
+export type TotalMarketsTradedQueryType =
+	typeof TotalMarketsTradedQuerySchema.static;
+
+/** TypeScript type for open interest query parameters derived from OpenInterestQuerySchema */
+export type OpenInterestQueryType = typeof OpenInterestQuerySchema.static;
+
+/** TypeScript type for live volume query parameters derived from LiveVolumeQuerySchema */
+export type LiveVolumeQueryType = typeof LiveVolumeQuerySchema.static;
 
 /** TypeScript type for HTTP proxy configuration derived from ProxyConfigSchema */
 export type ProxyConfigType = typeof ProxyConfigSchema.static;

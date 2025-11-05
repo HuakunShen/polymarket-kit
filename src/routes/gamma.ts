@@ -10,7 +10,10 @@
 import { Effect } from "effect";
 import { Elysia, t } from "elysia";
 import { GammaSDK, type ProxyConfigType } from "../sdk/";
-import { formatEventToMarkdown, formatMarketToMarkdown } from "../utils/markdown-formatters";
+import {
+	formatEventToMarkdown,
+	formatMarketToMarkdown,
+} from "../utils/markdown-formatters";
 import {
 	// Sports
 	TeamSchema,
@@ -388,7 +391,8 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 			detail: {
 				tags: ["Gamma API - Events"],
 				summary: "Get event tags by slug",
-				description: "Retrieve tags associated with a specific event by its slug",
+				description:
+					"Retrieve tags associated with a specific event by its slug",
 			},
 		},
 	)
@@ -404,7 +408,8 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 			}
 
 			const markdownOptions = {
-				verbose: verbose !== undefined ? Number(verbose) as 0 | 1 | 2 : undefined,
+				verbose:
+					verbose !== undefined ? (Number(verbose) as 0 | 1 | 2) : undefined,
 				includeMarkets: include_markets,
 			};
 			const markdown = formatEventToMarkdown(result, markdownOptions);
@@ -509,7 +514,8 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 			detail: {
 				tags: ["Gamma API - Markets"],
 				summary: "Get market tags by slug",
-				description: "Retrieve tags associated with a specific market by its slug",
+				description:
+					"Retrieve tags associated with a specific market by its slug",
 			},
 		},
 	)
@@ -525,7 +531,8 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 			}
 
 			const markdownOptions = {
-				verbose: verbose !== undefined ? Number(verbose) as 0 | 1 | 2 : undefined,
+				verbose:
+					verbose !== undefined ? (Number(verbose) as 0 | 1 | 2) : undefined,
 			};
 			const markdown = formatMarketToMarkdown(result, markdownOptions);
 
