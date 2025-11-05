@@ -99,8 +99,8 @@ export const EventMarketSchema = t.Object({
 	endDate: OptionalString,
 	liquidity: OptionalString,
 	startDate: OptionalString,
-	image: t.String(),
-	icon: t.String(),
+	image: OptionalString, // Changed to optional as it can be missing
+	icon: OptionalString, // Changed to optional as it can be missing
 	description: t.String(),
 	outcomes: t.Union([StringArray, t.String()]), // Can be either array or JSON string
 	outcomePrices: t.Union([StringArray, t.String()]), // Can be either array or JSON string
@@ -109,7 +109,7 @@ export const EventMarketSchema = t.Object({
 	closed: t.Boolean(),
 	marketMakerAddress: OptionalString,
 	createdAt: t.String(),
-	updatedAt: OptionalString,
+	updatedAt: OptionalString, // Can be missing in API responses
 	new: OptionalBoolean,
 	featured: OptionalBoolean,
 	archived: OptionalBoolean,
