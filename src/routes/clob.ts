@@ -157,6 +157,7 @@ import {
 	MarketPaginationQuerySchema,
 	ErrorResponseSchema,
 } from "../types/elysia-schemas";
+import { BuilderConfig } from "@polymarket/builder-signing-sdk";
 
 // No caching - create new SDK instances for each request
 
@@ -170,6 +171,13 @@ async function getPolymarketSDK(
 	builderConfig?: any,
 ): Promise<PolymarketSDK> {
 	// Create new SDK instance
+	// console.log("getPolymarketSDK", {
+	// 	privateKey,
+	// 	funderAddress,
+	// 	proxyUrl,
+	// 	builderConfig,
+	// });
+
 	const sdk = new PolymarketSDK({
 		...(privateKey && { privateKey }),
 		...(funderAddress && { funderAddress }),
@@ -219,42 +227,33 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 		console.log("headers", headers);
 
 		// Check for authentication headers
-		const privateKey =
-			(headers["x-polymarket-key"] as string) ||
-			process.env.POLYMARKET_KEY ||
-			Bun.env.POLYMARKET_KEY ||
-			"";
+		const privateKey = headers["x-polymarket-key"] as string;
 
-		const funderAddress =
-			(headers["x-polymarket-funder"] as string) ||
-			process.env.POLYMARKET_FUNDER ||
-			Bun.env.POLYMARKET_FUNDER ||
-			"";
+		const funderAddress = headers["x-polymarket-funder"] as string;
 
 		// Check for BuilderConfig headers
-		const builderUrl = headers["x-polymarket-builder-url"] as string;
-		const builderToken = headers["x-polymarket-builder-token"] as string;
+		// const builderUrl = headers["x-polymarket-builder-url"] as string;
+		// const builderToken = headers["x-polymarket-builder-token"] as string;
 
-		let builderConfig: any;
-		if (builderUrl) {
-			const { BuilderConfig } = await import("@polymarket/builder-signing-sdk");
-			builderConfig = new BuilderConfig({
-				remoteBuilderConfig: {
-					url: builderUrl,
-					...(builderToken && { token: builderToken }),
-				},
-			});
-		}
+		// let builderConfig: any;
+		// if (builderUrl) {
+		// 	builderConfig = new BuilderConfig({
+		// 		remoteBuilderConfig: {
+		// 			url: builderUrl,
+		// 			...(builderToken && { token: builderToken }),
+		// 		},
+		// 	});
+		// }
 
 		// Setup HTTP proxy if header is present
 		const proxyHeaderValue = headers["x-http-proxy"];
-		console.log("proxyHeaderValue", proxyHeaderValue);
+		// console.log("proxyHeaderValue", proxyHeaderValue);
 
 		const polymarketSDK = await getPolymarketSDK(
 			privateKey || undefined,
 			funderAddress || undefined,
 			proxyHeaderValue,
-			builderConfig,
+			// builderConfig,
 		);
 
 		return {
@@ -263,8 +262,9 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 	})
 	.get(
 		"/prices-history",
-		({ query, polymarketSDK }) =>
-			runClobOperation(() =>
+		({ query, polymarketSDK }) => {
+			// console.log("query", query);
+			return runClobOperation(() =>
 				polymarketSDK.getPriceHistory({
 					market: query.market,
 					startTs: query.startTs,
@@ -274,7 +274,8 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 					interval: query.interval,
 					fidelity: query.fidelity,
 				}),
-			),
+			);
+		},
 		{
 			query: PriceHistoryQuerySchema,
 			headers: t.Optional(PolymarketAuthHeaderSchema),
