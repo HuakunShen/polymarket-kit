@@ -206,7 +206,7 @@ export class PolymarketSDK {
 				if (startTs !== undefined) {
 					params.startTs = startTs;
 				}
-
+ 
 				if (endTs !== undefined) {
 					params.endTs = endTs;
 				}
@@ -437,6 +437,26 @@ export class PolymarketSDK {
 				),
 			),
 		);
+	}
+
+	/**
+	 * Set HTTP proxy for the CLOB client
+	 *
+	 * Allows dynamic proxy configuration on the underlying CLOB client.
+	 * Works with cached clients, enabling proxy rotation without losing
+	 * the performance benefits of caching.
+	 *
+	 * @param proxyUrl - Proxy URL string (e.g., "http://user:pass@proxy.com:8080")
+	 * @throws {Error} When proxy URL is invalid or client initialization fails
+	 *
+	 * @example
+	 * ```ts
+	 * await sdk.setProxy("http://proxy.com:8080");
+	 * ```
+	 */
+	async setProxy(proxyUrl: string): Promise<void> {
+		const client = await Effect.runPromise(this.initializeClobClientEffect());
+		client.setProxy({ proxyUrl });
 	}
 
 	/**
