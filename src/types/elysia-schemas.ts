@@ -404,14 +404,15 @@ export const PriceHistoryQuerySchema = t.Object({
  * Schema for CLOB client configuration
  *
  * Defines the required and optional parameters for initializing
- * a Polymarket CLOB client with authentication credentials.
+ * a Polymarket CLOB client with authentication credentials or public access.
  */
 export const ClobClientConfigSchema = t.Object({
-	privateKey: t.String(),
-	funderAddress: t.String(),
+	privateKey: t.Optional(t.String()),
+	funderAddress: t.Optional(t.String()),
 	host: t.Optional(t.String()),
 	chainId: t.Optional(t.Number()),
 	signatureType: t.Optional(t.Number()),
+	builderConfig: t.Optional(t.Any()), // BuilderConfig instance
 });
 
 /**

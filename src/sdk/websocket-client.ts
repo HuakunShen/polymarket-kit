@@ -8,7 +8,6 @@ import type {
 	LastTradePriceMessage,
 } from "../types/websocket-schemas";
 import {
-	parseMarketChannelMessage,
 	safeParseMarketChannelMessage,
 	isBookMessage,
 	isPriceChangeMessage,
@@ -191,7 +190,7 @@ export class PolymarketWebSocketClient {
 		return this.ws?.readyState === WebSocket.OPEN;
 	}
 
-	private setupEventHandlers(apiKey: {
+	private setupEventHandlers(_apiKey: {
 		key: string;
 		secret: string;
 		passphrase: string;

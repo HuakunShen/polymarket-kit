@@ -25,6 +25,7 @@ import type {
 	PriceHistoryQueryType as PriceHistoryQuery,
 	PriceHistoryResponseType as PriceHistoryResponse,
 } from "../types/elysia-schemas";
+import type { BuilderConfig } from "@polymarket/builder-signing-sdk";
 
 const describeCause = (cause: unknown): string => {
 	if (cause instanceof Error) return cause.message;
@@ -53,11 +54,12 @@ const clobClientCache = new LRUCache<string, ClobClient>({
  * Internal config type with all required properties after defaults are applied
  */
 interface ResolvedClobClientConfig {
-	privateKey: string;
-	funderAddress: string;
+	privateKey?: string;
+	funderAddress?: string;
 	host: string;
 	chainId: number;
-	signatureType: number;
+	signatureType?: number;
+	builderConfig?: BuilderConfig;
 }
 
 /**
@@ -90,23 +92,24 @@ export class PolymarketSDK {
 	constructor(config: ClobClientConfig) {
 		// Apply sensible defaults for optional properties
 		this.config = {
-			privateKey: config.privateKey,
-			funderAddress: config.funderAddress,
+			privateKey: config.privateKey || undefined,
+			funderAddress: config.funderAddress || undefined,
 			host: config.host ?? "https://clob.polymarket.com",
 			chainId: config.chainId ?? 137,
-			signatureType: config.signatureType ?? 1,
+			signatureType: config.signatureType,
+			builderConfig: config.builderConfig,
 		};
-		if (!config.privateKey || !config.funderAddress) {
-			throw new Error(
-				"Missing required configuration parameters: privateKey and funderAddress",
-			);
-		}
-		// Create cache key based on private key and config that affects client creation
-		this.cacheKey = `${this.config.privateKey}_${this.config.host}_${this.config.chainId}_${this.config.funderAddress}`;
+		// Create cache key based on authentication method and config that affects client creation
+		const authKey = config.builderConfig
+			? "builder"
+			: config.privateKey
+				? config.privateKey
+				: "public";
+		this.cacheKey = `${authKey}_${this.config.host}_${this.config.chainId}_${this.config.funderAddress || "no-funder"}`;
 	}
 
 	/**
-	 * Initialize the CLOB client with credentials using cache
+	 * Initialize the CLOB client with appropriate authentication
 	 */
 	private initializeClobClientEffect(): Effect.Effect<ClobClient, Error> {
 		const cachedClient = clobClientCache.get(this.cacheKey);
@@ -117,43 +120,96 @@ export class PolymarketSDK {
 		const self = this;
 
 		return Effect.gen(function* (_) {
-			const signer = yield* _(
-				Effect.try({
-					try: () => new Wallet(self.config.privateKey),
-					catch: clobError("initialize signer"),
-				}),
-			);
+			// Public client (no authentication)
+			if (!self.config.privateKey && !self.config.builderConfig) {
+				const client = yield* _(
+					Effect.try({
+						try: () =>
+							new ClobClient(
+								self.config.host,
+								self.config.chainId as any, // Chain type
+							),
+						catch: clobError("create public CLOB client"),
+					}),
+				);
 
-			const creds = yield* _(
-				Effect.tryPromise({
-					try: () =>
-						new ClobClient(
-							self.config.host,
-							self.config.chainId,
-							signer,
-						).createOrDeriveApiKey(),
-					catch: clobError("derive API key"),
-				}),
-			);
+				clobClientCache.set(self.cacheKey, client);
+				return client;
+			}
 
-			const client = yield* _(
-				Effect.try({
-					try: () =>
-						new ClobClient(
-							self.config.host,
-							self.config.chainId,
-							signer,
-							creds,
-							self.config.signatureType,
-							self.config.funderAddress,
+			// Authenticated client with BuilderConfig (new method)
+			if (self.config.builderConfig) {
+				const client = yield* _(
+					Effect.try({
+						try: () =>
+							new ClobClient(
+								self.config.host,
+								self.config.chainId as any, // Chain type
+								undefined, // wallet
+								undefined, // creds
+								undefined, // signatureType
+								undefined, // funderAddress
+								undefined, // geoBlockToken
+								undefined, // useServerTime
+								self.config.builderConfig,
+							),
+						catch: clobError(
+							"create authenticated CLOB client with BuilderConfig",
 						),
-					catch: clobError("create CLOB client"),
-				}),
+					}),
+				);
+
+				clobClientCache.set(self.cacheKey, client);
+				return client;
+			}
+
+			// Legacy authentication (deprecated)
+			if (self.config.privateKey) {
+				const privateKey = self.config.privateKey;
+				if (!privateKey) {
+					throw new Error("Private key is required for legacy authentication");
+				}
+				const signer = yield* _(
+					Effect.try({
+						try: () => new Wallet(privateKey),
+						catch: clobError("initialize signer"),
+					}),
+				);
+
+				const creds = yield* _(
+					Effect.tryPromise({
+						try: () =>
+							new ClobClient(
+								self.config.host,
+								self.config.chainId as any, // Chain type
+								signer,
+							).createOrDeriveApiKey(),
+						catch: clobError("derive API key"),
+					}),
+				);
+
+				const client = yield* _(
+					Effect.try({
+						try: () =>
+							new ClobClient(
+								self.config.host,
+								self.config.chainId as any, // Chain type
+								signer,
+								creds,
+								self.config.signatureType,
+								self.config.funderAddress,
+							),
+						catch: clobError("create legacy authenticated CLOB client"),
+					}),
+				);
+
+				clobClientCache.set(self.cacheKey, client);
+				return client;
+			}
+
+			throw new Error(
+				"Invalid configuration: either privateKey, builderConfig, or no auth required",
 			);
-
-			clobClientCache.set(self.cacheKey, client);
-
-			return client;
 		});
 	}
 
@@ -206,7 +262,7 @@ export class PolymarketSDK {
 				if (startTs !== undefined) {
 					params.startTs = startTs;
 				}
- 
+
 				if (endTs !== undefined) {
 					params.endTs = endTs;
 				}
@@ -231,11 +287,12 @@ export class PolymarketSDK {
 					throw clobError("fetch price history")(errorMessage);
 				}
 
-				const historyData = Array.isArray(
-					(result as { history?: unknown })?.history,
-				)
-					? ((result as { history?: unknown }).history as any[])
-					: [];
+				// Handle both direct array response and object with history property
+				const historyData = Array.isArray(result)
+					? (result as any[])
+					: Array.isArray((result as { history?: unknown })?.history)
+						? ((result as { history?: unknown }).history as any[])
+						: [];
 
 				if (historyData.length === 0) {
 					return {
