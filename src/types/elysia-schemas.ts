@@ -366,14 +366,14 @@ export const EventQuerySchema = t.Object({
  * Defines the available time intervals for fetching historical
  * price data from the CLOB API.
  */
-export const PriceHistoryIntervalEnum = t.UnionEnum([
-	"1m",
-	"1h",
-	"6h",
-	"1d",
-	"1w",
-	"max",
-]);
+// export const PriceHistoryIntervalEnum = t.UnionEnum([
+// 	"1m",
+// 	"1h",
+// 	"6h",
+// 	"1d",
+// 	"1w",
+// 	"max",
+// ]);
 
 /**
  * Schema for price history query parameters
@@ -394,7 +394,17 @@ export const PriceHistoryQuerySchema = t.Object({
 	endDate: t.Optional(t.String()), // Date string like "2025-08-13" or "2025-08-13T00:00:00.000Z"
 
 	// Interval option (mutually exclusive with startTs/endTs/startDate/endDate)
-	interval: t.Optional(PriceHistoryIntervalEnum),
+	// Using t.Union with explicit undefined to prevent defaulting to first enum value
+	interval: t.Optional(
+		t.Union([
+			t.Literal("1m"),
+			t.Literal("1h"),
+			t.Literal("6h"),
+			t.Literal("1d"),
+			t.Literal("1w"),
+			t.Literal("max"),
+		]),
+	),
 
 	// Data resolution
 	fidelity: t.Optional(t.Number()), // Resolution in minutes

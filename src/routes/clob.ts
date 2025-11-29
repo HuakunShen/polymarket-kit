@@ -263,7 +263,6 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 	.get(
 		"/prices-history",
 		({ query, polymarketSDK }) => {
-			// console.log("query", query);
 			return runClobOperation(() =>
 				polymarketSDK.getPriceHistory({
 					market: query.market,
