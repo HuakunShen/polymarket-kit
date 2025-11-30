@@ -224,7 +224,7 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 		}
 	})
 	.resolve(async ({ headers }) => {
-		console.log("headers", headers);
+		// console.log("headers", headers);
 
 		// Check for authentication headers
 		const privateKey = headers["x-polymarket-key"] as string;
