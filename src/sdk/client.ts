@@ -233,6 +233,10 @@ export class PolymarketSDK {
 		);
 	}
 
+	async getClient(): Promise<ClobClient> {
+		return Effect.runPromise(this.initializeClobClientEffect());
+	}
+
 	private buildPriceHistoryParamsEffect(
 		query: PriceHistoryQuery,
 	): Effect.Effect<PriceHistoryFilterParams, Error> {

@@ -14,6 +14,7 @@ import {
 	isTickSizeChangeMessage,
 	isLastTradePriceMessage,
 } from "../types/websocket-schemas";
+import z from "zod";
 
 const WS_URL = "wss://ws-subscriptions-clob.polymarket.com";
 const PING_INTERVAL = 10000; // 10 seconds
@@ -102,7 +103,7 @@ export class PolymarketWebSocketClient {
 	constructor(clobClient: ClobClient, options: WebSocketClientOptions = {}) {
 		this.clobClient = clobClient;
 		this.options = {
-			assetIds: options.assetIds || [],
+			assetIds: options.assetIds ? z.string().array().parse(options.assetIds) : [],
 			markets: options.markets || [],
 			autoReconnect: options.autoReconnect ?? true,
 			reconnectDelay: options.reconnectDelay ?? 5000,

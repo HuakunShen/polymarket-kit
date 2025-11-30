@@ -15,14 +15,14 @@ import (
 
 // ClobClient represents a Polymarket CLOB client
 type ClobClient struct {
-	host           string
-	chainID        types.Chain
-	wallet         *auth.Wallet
-	creds          *types.ApiKeyCreds
-	builderConfig  *auth.BuilderConfig
-	geoBlockToken  string
-	useServerTime  bool
-	httpClient     *http.Client
+	host          string
+	chainID       types.Chain
+	wallet        *auth.Wallet
+	creds         *types.ApiKeyCreds
+	builderConfig *auth.BuilderConfig
+	geoBlockToken string
+	useServerTime bool
+	httpClient    *http.Client
 }
 
 // ClientConfig represents configuration for the Clob client
@@ -38,6 +38,7 @@ type ClientConfig struct {
 }
 
 // NewClobClient creates a new CLOB client
+// PrivateKey is optional - if not provided, the client can only access public endpoints
 func NewClobClient(config *ClientConfig) (*ClobClient, error) {
 	// Normalize host URL
 	host := config.Host
@@ -45,10 +46,14 @@ func NewClobClient(config *ClientConfig) (*ClobClient, error) {
 		host = host[:len(host)-1]
 	}
 
-	// Create wallet from private key
-	wallet, err := auth.NewWalletFromHex(config.PrivateKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create wallet from private key: %w", err)
+	// Create wallet from private key (optional for public endpoints)
+	var wallet *auth.Wallet
+	if config.PrivateKey != "" {
+		var err error
+		wallet, err = auth.NewWalletFromHex(config.PrivateKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create wallet from private key: %w", err)
+		}
 	}
 
 	// Set default timeout
@@ -213,8 +218,34 @@ func (c *ClobClient) GetLastTradesPrices(params []types.BookParams) (interface{}
 	return result, err
 }
 
+// GetPricesHistory gets price history for a market
+func (c *ClobClient) GetPricesHistory(params types.PriceHistoryFilterParams) (interface{}, error) {
+	queryParams := url.Values{}
+	if params.Market != nil {
+		queryParams.Add("market", *params.Market)
+	}
+	if params.StartTs != nil {
+		queryParams.Add("startTs", fmt.Sprintf("%d", *params.StartTs))
+	}
+	if params.EndTs != nil {
+		queryParams.Add("endTs", fmt.Sprintf("%d", *params.EndTs))
+	}
+	if params.Fidelity != nil {
+		queryParams.Add("fidelity", fmt.Sprintf("%d", *params.Fidelity))
+	}
+	if params.Interval != nil {
+		queryParams.Add("interval", string(*params.Interval))
+	}
+
+	return c.getWithParams(GetPricesHistory, queryParams)
+}
+
 // CreateApiKey creates a new API key
 func (c *ClobClient) CreateApiKey(nonce *uint64) (*types.ApiKeyCreds, error) {
+	if c.wallet == nil {
+		return nil, fmt.Errorf("wallet is required to create API key")
+	}
+
 	var timestamp *int64
 	if c.useServerTime {
 		serverTime, err := c.GetServerTime()
@@ -246,6 +277,10 @@ func (c *ClobClient) CreateApiKey(nonce *uint64) (*types.ApiKeyCreds, error) {
 
 // DeriveApiKey derives an existing API key
 func (c *ClobClient) DeriveApiKey(nonce *uint64) (*types.ApiKeyCreds, error) {
+	if c.wallet == nil {
+		return nil, fmt.Errorf("wallet is required to derive API key")
+	}
+
 	// Note: Unlike the Go implementation, the TypeScript version only requires L1 auth (signer)
 	// for deriving API keys, not existing credentials. This matches the TypeScript behavior.
 
@@ -616,6 +651,10 @@ func (c *ClobClient) deleteWithHeaders(endpoint string, headers interface{}) (in
 }
 
 func (c *ClobClient) createL2Headers(args *types.L2HeaderArgs) (interface{}, error) {
+	if c.wallet == nil {
+		return nil, fmt.Errorf("wallet is required for authenticated requests")
+	}
+
 	var timestamp *int64
 	if c.useServerTime {
 		serverTime, err := c.GetServerTime()

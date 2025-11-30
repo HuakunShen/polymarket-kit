@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/HuakunShen/polymarket-kit/go-client/client"
+	"github.com/HuakunShen/polymarket-kit/go-client/gamma"
 	"github.com/HuakunShen/polymarket-kit/go-client/types"
 	"github.com/joho/godotenv"
 )
@@ -18,7 +19,28 @@ func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Fatal("Error loading .env file")
 	}
-
+	gammaSdk := gamma.NewGammaSDK(nil)
+	query := &gamma.UpdatedEventQuery{
+		Limit:  gamma.IntPtr(10),
+		Offset: gamma.IntPtr(0),
+		Active: gamma.BoolPtr(true),
+		Closed: gamma.BoolPtr(false),
+	}
+	events, err := gammaSdk.GetActiveEvents(query)
+	if err != nil {
+		log.Fatalf("Failed to get active events: %v", err)
+	}
+	var clobTokens []string
+	for _, evt := range events {
+		for _, market := range evt.Markets {
+			clobTokens = append(clobTokens, market.ClobTokenIDs...)
+		}
+	}
+	if len(clobTokens) == 0 {
+		log.Fatal("No clob tokens found")
+	}
+	println("len(clobTokens):", len(clobTokens))
+	// clobTokens = clobTokens[:3]
 	privateKey := os.Getenv("POLYMARKET_KEY")
 	if privateKey == "" {
 		log.Fatal("POLYMARKET_KEY environment variable is required")
@@ -42,9 +64,7 @@ func main() {
 
 	// Create WebSocket client
 	wsClient := client.NewWebSocketClient(clobClient, &client.WebSocketClientOptions{
-		AssetIDs: []string{
-			"60487116984468020978247225474488676749601001829886755968952521846780452448915",
-		},
+		AssetIDs:             clobTokens,
 		AutoReconnect:        true,
 		ReconnectDelay:       5 * time.Second,
 		MaxReconnectAttempts: 10,

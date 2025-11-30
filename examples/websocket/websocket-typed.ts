@@ -9,7 +9,7 @@ import {
 	isTickSizeChangeMessage,
 	isLastTradePriceMessage,
 	type MarketChannelMessage,
-} from "../src/types/websocket-schemas";
+} from "../../src/types/websocket-schemas";
 
 const host = "https://clob.polymarket.com";
 const signer = new Wallet(process.env.POLYMARKET_KEY!);

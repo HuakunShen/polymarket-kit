@@ -1,5 +1,5 @@
 import { ClobClient } from "@polymarket/clob-client";
-import { PolymarketSDK } from "./sdk";
+import { PolymarketSDK } from "../../src/sdk/client";
 
 // Public access (no authentication required)
 const sdk = new PolymarketSDK({
