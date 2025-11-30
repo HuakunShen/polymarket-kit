@@ -129,7 +129,8 @@ export const EventMarketSchema = t.Object({
 	volume1wk: OptionalNumber,
 	volume1mo: OptionalNumber,
 	volume1yr: OptionalNumber,
-	clobTokenIds: t.Union([StringArray, t.String()]), // Can be either array or JSON string
+	clobTokenIds: StringArray, // Can be either array or JSON string
+	// clobTokenIds: t.Union([StringArray, t.String()]), // Can be either array or JSON string
 	spread: OptionalNumber,
 	oneDayPriceChange: OptionalNumber,
 	oneHourPriceChange: OptionalNumber,
