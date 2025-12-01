@@ -140,6 +140,41 @@ export const EventMarketSchema = t.Object({
 	competitive: OptionalNumber,
 });
 
+/**
+ * Schema for event objects within a series
+ *
+ * Represents simplified event objects that are part of a series.
+ * These are different from EventMarketSchema as they don't contain
+ * market-specific fields like outcomes, conditionId, etc.
+ */
+export const SeriesEventSchema = t.Object({
+	id: t.String(),
+	slug: t.String(),
+	title: t.String(),
+	resolutionSource: OptionalString,
+	endDate: OptionalString,
+	startDate: OptionalString,
+	image: OptionalString,
+	icon: OptionalString,
+	description: t.String(),
+	volume: OptionalNumber, // Number, not string
+	liquidity: OptionalNumber, // Number, not string
+	active: t.Boolean(),
+	closed: t.Boolean(),
+	createdAt: t.String(),
+	updatedAt: OptionalString,
+	new: OptionalBoolean,
+	featured: OptionalBoolean,
+	archived: OptionalBoolean,
+	restricted: OptionalBoolean,
+	enableOrderBook: OptionalBoolean,
+	volume24hr: OptionalNumber,
+	volume1wk: OptionalNumber,
+	volume1mo: OptionalNumber,
+	volume1yr: OptionalNumber,
+	competitive: OptionalNumber,
+});
+
 // Series Schema
 /**
  * Schema for series objects in the Gamma API
@@ -160,6 +195,7 @@ export const SeriesSchema = t.Object({
 	active: t.Boolean(),
 	closed: t.Boolean(),
 	archived: OptionalBoolean,
+	events: t.Optional(t.Array(SeriesEventSchema)),
 	volume: OptionalNumber,
 	liquidity: OptionalNumber,
 	startDate: OptionalString,
@@ -911,6 +947,9 @@ export type MarketType = typeof MarketSchema.static;
 
 /** TypeScript type for event objects derived from EventSchema */
 export type EventType = typeof EventSchema.static;
+
+/** TypeScript type for event objects within a series derived from SeriesEventSchema */
+export type SeriesEventType = typeof SeriesEventSchema.static;
 
 /** TypeScript type for event market objects derived from EventMarketSchema */
 export type EventMarketType = typeof EventMarketSchema.static;
