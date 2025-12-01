@@ -102,7 +102,7 @@ export const EventMarketSchema = t.Object({
 	image: OptionalString, // Changed to optional as it can be missing
 	icon: OptionalString, // Changed to optional as it can be missing
 	description: t.String(),
-	outcomes: t.Union([StringArray, t.String()]), // Can be either array or JSON string
+	outcomes: StringArray, // Can be either array or JSON string
 	outcomePrices: t.Union([StringArray, t.String()]), // Can be either array or JSON string
 	volume: OptionalString,
 	active: t.Boolean(),
@@ -1206,11 +1206,20 @@ export const ActivitySchema = t.Object({
 
 /**
  * Schema for holder objects from Data API
+ * Matches the actual API response structure
  */
 export const HolderSchema = t.Object({
-	wallet: t.String(),
-	balance: t.String(),
-	value: t.String(),
+	proxyWallet: t.Optional(t.String()),
+	bio: t.Optional(t.String()),
+	asset: t.Optional(t.String()),
+	pseudonym: t.Optional(t.String()),
+	amount: t.Optional(t.Number()),
+	displayUsernamePublic: t.Optional(t.Boolean()),
+	outcomeIndex: t.Optional(t.Number()),
+	name: t.Optional(t.String()),
+	profileImage: t.Optional(t.String()),
+	profileImageOptimized: t.Optional(t.String()),
+	verified: t.Optional(t.Boolean()),
 });
 
 /**
