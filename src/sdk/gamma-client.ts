@@ -5,7 +5,7 @@
  * Provides type-safe methods for all available API operations including
  * health checks, sports, tags, events, markets, series, comments, and search.
  */
-
+import { ProxyAgent } from "undici";
 import type {
 	TeamType,
 	TeamQueryType,
@@ -95,8 +95,6 @@ export class GammaSDK {
 			// For Bun, we can use the dispatcher option with undici's ProxyAgent
 			// This is the most compatible approach for Bun
 			try {
-				// Import undici dynamically for proxy support
-				const { ProxyAgent } = require("undici");
 				// Add dispatcher option for proxy
 				(options as any).dispatcher = new ProxyAgent(proxyUrl);
 			} catch (error) {

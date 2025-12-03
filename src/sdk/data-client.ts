@@ -5,7 +5,7 @@
  * Provides type-safe methods for all available API operations including
  * health checks, positions, trades, user activity, holders, and more.
  */
-
+import { ProxyAgent } from "undici";
 import type {
 	PositionType,
 	PositionsQueryType,
