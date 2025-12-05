@@ -20,7 +20,7 @@ import {
 	DataTradeSchema,
 	TradesQuerySchema,
 	ActivitySchema,
-	UserActivityQuerySchema,
+	UserActivityQueryWithoutUserSchema,
 	MetaHolderSchema,
 	TopHoldersQuerySchema,
 	TotalValueSchema,
@@ -216,28 +216,6 @@ export const dataRoutes = new Elysia({ prefix: "/data" })
 				summary: "Get trades",
 				description:
 					"Retrieve trades for users or markets with filtering options",
-			},
-		},
-	)
-
-	// User Activity API
-	.get(
-		"/activity",
-		async ({ query, dataSDK }) => {
-			return await dataSDK.getUserActivity(query);
-		},
-		{
-			query: UserActivityQuerySchema,
-			response: {
-				200: t.Array(ActivitySchema),
-				400: ErrorResponseSchema,
-				500: ErrorResponseSchema,
-			},
-			detail: {
-				tags: ["Data API - Activity"],
-				summary: "Get user activity",
-				description:
-					"Retrieve user activity and transaction history with comprehensive filtering",
 			},
 		},
 	)
@@ -459,20 +437,7 @@ export const dataRoutes = new Elysia({ prefix: "/data" })
 			params: t.Object({
 				userAddress: t.String({ description: "User wallet address" }),
 			}),
-			query: t.Object({
-				limit: t.Optional(t.Number()),
-				offset: t.Optional(t.Number()),
-				market: t.Optional(t.Array(t.String())),
-				eventId: t.Optional(t.Array(t.String())),
-				type: t.Optional(
-					t.UnionEnum(["BUY", "SELL", "CANCEL", "FUND", "REDEEM"]),
-				),
-				start: t.Optional(t.String()),
-				end: t.Optional(t.String()),
-				sortBy: t.Optional(t.String()),
-				sortDirection: t.Optional(t.UnionEnum(["ASC", "DESC"])),
-				side: t.Optional(t.UnionEnum(["BUY", "SELL"])),
-			}),
+			query: UserActivityQueryWithoutUserSchema,
 			response: {
 				200: t.Array(ActivitySchema),
 				400: ErrorResponseSchema,

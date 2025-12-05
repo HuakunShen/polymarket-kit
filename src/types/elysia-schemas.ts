@@ -1174,29 +1174,34 @@ export const DataTradeSchema = t.Object({
 
 /**
  * Schema for user activity objects from Data API
+ * Matches the actual API response structure
+ * Note: Some fields may be missing depending on activity type
  */
 export const ActivitySchema = t.Object({
 	proxyWallet: t.String(),
 	timestamp: t.Number(),
-	type: t.UnionEnum(["TRADE", "CANCEL", "FUND", "REDEEM"]),
+	type: t.UnionEnum(["TRADE", "SPLIT", "MERGE", "REDEEM", "REWARD", "CONVERSION"]),
 	size: t.Number(),
-	usdcSize: t.Number(),
-	price: t.Optional(t.Number()),
-	fee: t.Optional(t.Number()),
-	conditionId: t.String(),
-	outcome: t.String(),
-	market: t.String(),
+	usdcSize: t.Optional(t.Number()),
 	transactionHash: t.String(),
-	from: t.String(),
-	to: t.String(),
-	assetId: t.String(),
+	price: t.Optional(t.Number()),
+	conditionId: t.String(),
+	asset: t.Optional(t.String()),
+	assetId: t.Optional(t.String()),
+	market: t.Optional(t.String()),
+	fee: t.Optional(t.Number()),
+	from: t.Optional(t.String()),
+	to: t.Optional(t.String()),
+	maker: t.Optional(t.String()),
+	taker: t.Optional(t.String()),
 	value: t.Optional(t.Number()),
-	// Additional fields from actual API response
+	side: t.Optional(t.UnionEnum(["BUY", "SELL"])),
+	outcomeIndex: t.Number(),
 	title: t.String(),
 	slug: t.String(),
 	icon: t.String(),
 	eventSlug: t.String(),
-	outcomeIndex: t.Number(),
+	outcome: t.String(),
 	name: t.String(),
 	pseudonym: t.String(),
 	bio: t.String(),
@@ -1209,7 +1214,7 @@ export const ActivitySchema = t.Object({
  * Matches the actual API response structure
  */
 export const HolderSchema = t.Object({
-	proxyWallet: t.Optional(t.String()),
+	proxyWallet: t.String(),
 	bio: t.Optional(t.String()),
 	asset: t.Optional(t.String()),
 	pseudonym: t.Optional(t.String()),
@@ -1327,13 +1332,22 @@ export const UserActivityQuerySchema = t.Object({
 	offset: t.Optional(t.Number()),
 	market: t.Optional(t.Array(t.String())),
 	eventId: t.Optional(t.Array(t.String())),
-	type: t.Optional(t.UnionEnum(["BUY", "SELL", "CANCEL", "FUND", "REDEEM"])),
+	type: t.Optional(t.UnionEnum(["TRADE", "SPLIT", "MERGE", "REDEEM", "REWARD", "CONVERSION"])),
 	start: t.Optional(t.String()),
 	end: t.Optional(t.String()),
 	sortBy: t.Optional(t.String()),
 	sortDirection: t.Optional(t.UnionEnum(["ASC", "DESC"])),
 	side: t.Optional(t.UnionEnum(["BUY", "SELL"])),
 });
+
+/**
+ * Schema for user activity query parameters without user field
+ * Used for routes where user is provided in the path parameter
+ */
+export const UserActivityQueryWithoutUserSchema = t.Omit(
+	UserActivityQuerySchema,
+	["user"],
+);
 
 /**
  * Schema for top holders query parameters
