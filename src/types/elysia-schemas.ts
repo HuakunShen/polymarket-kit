@@ -486,6 +486,40 @@ export const GammaErrorResponseSchema = t.Object({
 });
 
 /**
+ * Schema for Polymarket user profile data
+ *
+ * Represents user profile information from Polymarket's profile API
+ * including display name, avatar, verification status, and user metadata.
+ */
+export const PolymarketProfileSchema = t.Object({
+	id: t.String({ description: "User profile ID" }),
+	createdAt: t.String({ description: "Profile creation timestamp (ISO 8601)" }),
+	proxyWallet: t.String({ description: "User wallet address" }),
+	profileImage: t.String({ description: "URL to user's profile image" }),
+	displayUsernamePublic: t.Boolean({
+		description: "Whether username is displayed publicly",
+	}),
+	pseudonym: t.Optional(t.String({ description: "User's pseudonym/display name" })),
+	name: t.Optional(t.String({ description: "User's name" })),
+	users: t.Array(
+		t.Object({
+			id: t.String(),
+			creator: t.Boolean(),
+			mod: t.Boolean(),
+		}),
+		{ description: "Associated user accounts" },
+	),
+	verifiedBadge: t.Boolean({ description: "Whether user has verified badge" }),
+});
+
+/**
+ * Schema for Polymarket profile query parameters
+ */
+export const PolymarketProfileQuerySchema = t.Object({
+	address: t.String({ description: "User wallet address" }),
+});
+
+/**
  * Schema for health check responses
  *
  * Response format for API health check endpoints that indicate
@@ -1144,57 +1178,44 @@ export const ClosedPositionSchema = t.Object({
 
 /**
  * Schema for trade objects from Data API
+ * Matches the official API documentation structure
  */
 export const DataTradeSchema = t.Object({
 	proxyWallet: t.String(),
 	side: t.UnionEnum(["BUY", "SELL"]),
+	asset: t.String(),
 	conditionId: t.String(),
-	outcome: t.String(),
-	market: t.String(),
 	size: t.Number(),
 	price: t.Number(),
-	fee: t.Number(),
 	timestamp: t.Number(),
-	transactionHash: t.String(),
-	maker: t.String(),
-	taker: t.String(),
-	assetId: t.String(),
-	// Additional fields from actual API response
 	title: t.String(),
 	slug: t.String(),
 	icon: t.String(),
 	eventSlug: t.String(),
+	outcome: t.String(),
 	outcomeIndex: t.Number(),
 	name: t.String(),
 	pseudonym: t.String(),
 	bio: t.String(),
 	profileImage: t.String(),
 	profileImageOptimized: t.String(),
+	transactionHash: t.String(),
 });
 
 /**
  * Schema for user activity objects from Data API
- * Matches the actual API response structure
- * Note: Some fields may be missing depending on activity type
+ * Matches the official API documentation structure
  */
 export const ActivitySchema = t.Object({
 	proxyWallet: t.String(),
 	timestamp: t.Number(),
+	conditionId: t.String(),
 	type: t.UnionEnum(["TRADE", "SPLIT", "MERGE", "REDEEM", "REWARD", "CONVERSION"]),
 	size: t.Number(),
-	usdcSize: t.Optional(t.Number()),
+	usdcSize: t.Optional(t.Number()), // May be missing in some activity types
 	transactionHash: t.String(),
 	price: t.Optional(t.Number()),
-	conditionId: t.String(),
 	asset: t.Optional(t.String()),
-	assetId: t.Optional(t.String()),
-	market: t.Optional(t.String()),
-	fee: t.Optional(t.Number()),
-	from: t.Optional(t.String()),
-	to: t.Optional(t.String()),
-	maker: t.Optional(t.String()),
-	taker: t.Optional(t.String()),
-	value: t.Optional(t.Number()),
 	side: t.Optional(t.UnionEnum(["BUY", "SELL"])),
 	outcomeIndex: t.Number(),
 	title: t.String(),
@@ -1240,7 +1261,7 @@ export const MetaHolderSchema = t.Object({
  */
 export const TotalValueSchema = t.Object({
 	user: t.String(),
-	value: t.Union([t.String(), t.Number()]),
+	value: t.Number(),
 });
 
 /**
@@ -1455,3 +1476,9 @@ export type LiveVolumeQueryType = typeof LiveVolumeQuerySchema.static;
 
 /** TypeScript type for HTTP proxy configuration derived from ProxyConfigSchema */
 export type ProxyConfigType = typeof ProxyConfigSchema.static;
+
+/** TypeScript type for Polymarket profile response derived from PolymarketProfileSchema */
+export type PolymarketProfileType = typeof PolymarketProfileSchema.static;
+
+/** TypeScript type for Polymarket profile query parameters derived from PolymarketProfileQuerySchema */
+export type PolymarketProfileQueryType = typeof PolymarketProfileQuerySchema.static;

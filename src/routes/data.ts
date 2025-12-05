@@ -31,6 +31,8 @@ import {
 	OpenInterestQuerySchema,
 	LiveVolumeResponseSchema,
 	LiveVolumeQuerySchema,
+	PolymarketProfileSchema,
+	PolymarketProfileQuerySchema,
 	// Error responses
 	ErrorResponseSchema,
 } from "../types/elysia-schemas";
@@ -428,10 +430,11 @@ export const dataRoutes = new Elysia({ prefix: "/data" })
 	.get(
 		"/user/:userAddress/activity",
 		async ({ params, query, dataSDK }) => {
-			return await dataSDK.getUserActivity({
+			const response = await dataSDK.getUserActivity({
 				user: params.userAddress,
 				...query,
 			});
+			return response;
 		},
 		{
 			params: t.Object({
@@ -447,6 +450,53 @@ export const dataRoutes = new Elysia({ prefix: "/data" })
 				tags: ["Data API - User"],
 				summary: "Get user activity by address",
 				description: "Get activity history for a user by their wallet address",
+			},
+		},
+	)
+
+	// Polymarket Profile API
+	.get(
+		"/user/:userAddress/profile",
+		async ({ params, set }): Promise<
+			typeof PolymarketProfileSchema.static | typeof ErrorResponseSchema.static
+		> => {
+			const address = params.userAddress;
+			const url = `https://polymarket.com/api/profile/userData?address=${encodeURIComponent(address)}`;
+			
+			try {
+				const response = await fetch(url);
+				if (!response.ok) {
+					set.status = response.status >= 500 ? 500 : 400;
+					return {
+						error: "Bad Request",
+						message: `Polymarket API returned ${response.status}`,
+					};
+				}
+				const data = (await response.json()) as typeof PolymarketProfileSchema.static;
+				return data;
+			} catch (error) {
+				console.error("[Profile API] Error fetching user profile:", error);
+				set.status = 500;
+				return {
+					error: "Internal Server Error",
+					message: `Failed to fetch user profile: ${error instanceof Error ? error.message : "Unknown error"}`,
+				};
+			}
+		},
+		{
+			params: t.Object({
+				userAddress: t.String({ description: "User wallet address" }),
+			}),
+			response: {
+				200: PolymarketProfileSchema,
+				400: ErrorResponseSchema,
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["Data API - User"],
+				summary: "Get user profile from Polymarket",
+				description:
+					"Retrieve user profile information including name, avatar, and verification status from Polymarket's profile API",
 			},
 		},
 	);
