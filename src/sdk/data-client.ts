@@ -5,7 +5,6 @@
  * Provides type-safe methods for all available API operations including
  * health checks, positions, trades, user activity, holders, and more.
  */
-import { ProxyAgent } from "undici";
 import type {
 	PositionType,
 	PositionsQueryType,
@@ -78,29 +77,45 @@ export class DataSDK {
 	/**
 	 * Helper method to create fetch options with proxy support
 	 */
-	private createFetchOptions(): RequestInit {
+	private async createFetchOptions(): Promise<RequestInit> {
 		const options: RequestInit = {
 			headers: {
 				"Content-Type": "application/json",
 			},
 		};
 
-		// Add proxy configuration if available
+		// Add proxy configuration if available and not in browser environment
 		if (this.proxyConfig) {
+			// Skip proxy setup in browser environments (content scripts, web workers, etc.)
+			const isBrowser =
+				typeof (globalThis as any).window !== "undefined" ||
+				typeof process === "undefined" ||
+				!process.env;
+
+			if (isBrowser) {
+				// Proxy is not supported in browser environments
+				console.warn(
+					"[DataSDK] Proxy configuration is not supported in browser environments",
+				);
+				return options;
+			}
+
 			const proxyUrl = this.buildProxyUrl(this.proxyConfig);
 
-			// For Bun, we can use the dispatcher option with undici's ProxyAgent
-			// This is the most compatible approach for Bun
+			// For Bun/Node.js, we can use the dispatcher option with undici's ProxyAgent
+			// Use dynamic import to avoid bundling undici in browser environments
 			try {
-				// Import undici dynamically for proxy support
-				const { ProxyAgent } = require("undici");
+				// Dynamic import for Node.js environments
+				const { ProxyAgent } = await import("undici");
 				// Add dispatcher option for proxy
 				(options as any).dispatcher = new ProxyAgent(proxyUrl);
 			} catch (error) {
 				console.warn("Proxy configuration failed:", error);
 				// Fall back to environment proxy variables
-				process.env.HTTP_PROXY = proxyUrl;
-				process.env.HTTPS_PROXY = proxyUrl;
+				if (typeof process !== "undefined" && process.env) {
+					process.env.HTTP_PROXY = proxyUrl;
+					process.env.HTTPS_PROXY = proxyUrl;
+				}
 			}
 		}
 
@@ -166,7 +181,7 @@ export class DataSDK {
 
 		return Effect.gen(function* (_) {
 			const fetchOptions = yield* _(
-				Effect.try({
+				Effect.tryPromise({
 					try: () => self.createFetchOptions(),
 					catch: dataError("create fetch options"),
 				}),
