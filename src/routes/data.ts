@@ -32,7 +32,7 @@ import {
 	LiveVolumeResponseSchema,
 	LiveVolumeQuerySchema,
 	PolymarketProfileSchema,
-	PolymarketProfileQuerySchema,
+	// PolymarketProfileQuerySchema,
 	// Error responses
 	ErrorResponseSchema,
 } from "../types/elysia-schemas";

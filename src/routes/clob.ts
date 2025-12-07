@@ -157,7 +157,6 @@ import {
 	MarketPaginationQuerySchema,
 	ErrorResponseSchema,
 } from "../types/elysia-schemas";
-import { BuilderConfig } from "@polymarket/builder-signing-sdk";
 
 // No caching - create new SDK instances for each request
 
@@ -455,7 +454,7 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 	.post(
 		"/prices",
 		({ body, polymarketSDK }) => {
-			const transformedBody = body.map((item: any) => ({
+			const transformedBody = body.map((item) => ({
 				token_id: item.token_id,
 				side: item.side === "BUY" ? Side.BUY : Side.SELL,
 			}));
