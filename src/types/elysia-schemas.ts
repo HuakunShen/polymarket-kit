@@ -565,7 +565,7 @@ export const OrderBookSummarySchema = t.Object({
  */
 export const BookParamsSchema = t.Object({
 	token_id: t.String(),
-	side: t.Optional(t.UnionEnum(["BUY", "SELL"])),
+	side: t.Optional(t.Union([t.Literal("BUY"), t.Literal("SELL")])),
 });
 
 /**
@@ -573,7 +573,7 @@ export const BookParamsSchema = t.Object({
  */
 export const PriceQuerySchema = t.Object({
 	tokenId: t.String(),
-	side: t.UnionEnum(["buy", "sell"]),
+	side: t.Union([t.Literal("buy"), t.Literal("sell")]),
 });
 
 /**
@@ -610,7 +610,7 @@ export const TradeSchema = t.Object({
 	taker_order_id: t.String(),
 	market: t.String(),
 	asset_id: t.String(),
-	side: t.UnionEnum(["BUY", "SELL"]),
+	side: t.Union([t.Literal("BUY"), t.Literal("SELL")]),
 	size: t.String(),
 	fee_rate_bps: t.String(),
 	price: t.String(),
@@ -1166,7 +1166,7 @@ export const ClosedPositionSchema = t.Object({
 	outcome: t.String(),
 	market: t.String(),
 	timestamp: t.String(),
-	side: t.UnionEnum(["BUY", "SELL"]),
+	side: t.Union([t.Literal("BUY"), t.Literal("SELL")]),
 	cost: t.String(),
 	value: t.String(),
 	fees: t.String(),
@@ -1182,7 +1182,7 @@ export const ClosedPositionSchema = t.Object({
  */
 export const DataTradeSchema = t.Object({
 	proxyWallet: t.String(),
-	side: t.UnionEnum(["BUY", "SELL"]),
+	side: t.Union([t.Literal("BUY"), t.Literal("SELL")]),
 	asset: t.String(),
 	conditionId: t.String(),
 	size: t.Number(),
@@ -1210,13 +1210,13 @@ export const ActivitySchema = t.Object({
 	proxyWallet: t.String(),
 	timestamp: t.Number(),
 	conditionId: t.String(),
-	type: t.UnionEnum(["TRADE", "SPLIT", "MERGE", "REDEEM", "REWARD", "CONVERSION"]),
+	type: t.Union([t.Literal("TRADE"), t.Literal("SPLIT"), t.Literal("MERGE"), t.Literal("REDEEM"), t.Literal("REWARD"), t.Literal("CONVERSION")]),
 	size: t.Number(),
 	usdcSize: t.Optional(t.Number()), // May be missing in some activity types
 	transactionHash: t.String(),
 	price: t.Optional(t.Number()),
 	asset: t.Optional(t.String()),
-	side: t.Optional(t.UnionEnum(["BUY", "SELL"])),
+	side: t.Optional(t.Union([t.Literal("BUY"), t.Literal("SELL"), t.Literal("")])),
 	outcomeIndex: t.Number(),
 	title: t.String(),
 	slug: t.String(),
@@ -1311,7 +1311,7 @@ export const PositionsQuerySchema = t.Object({
 	limit: t.Optional(t.Number()),
 	offset: t.Optional(t.Number()),
 	sortBy: t.Optional(t.String()),
-	sortDirection: t.Optional(t.UnionEnum(["ASC", "DESC"])),
+	sortDirection: t.Optional(t.Union([t.Literal("ASC"), t.Literal("DESC")])),
 	title: t.Optional(t.String()),
 });
 
@@ -1326,7 +1326,7 @@ export const ClosedPositionsQuerySchema = t.Object({
 	limit: t.Optional(t.Number()),
 	offset: t.Optional(t.Number()),
 	sortBy: t.Optional(t.String()),
-	sortDirection: t.Optional(t.UnionEnum(["ASC", "DESC"])),
+	sortDirection: t.Optional(t.Union([t.Literal("ASC"), t.Literal("DESC")])),
 });
 
 /**
@@ -1341,7 +1341,7 @@ export const TradesQuerySchema = t.Object({
 	market: t.Optional(t.Array(t.String())),
 	eventId: t.Optional(t.Array(t.String())),
 	user: t.Optional(t.String()),
-	side: t.Optional(t.UnionEnum(["BUY", "SELL"])),
+	side: t.Optional(t.Union([t.Literal("BUY"), t.Literal("SELL")])),
 });
 
 /**
@@ -1353,12 +1353,12 @@ export const UserActivityQuerySchema = t.Object({
 	offset: t.Optional(t.Number()),
 	market: t.Optional(t.Array(t.String())),
 	eventId: t.Optional(t.Array(t.String())),
-	type: t.Optional(t.UnionEnum(["TRADE", "SPLIT", "MERGE", "REDEEM", "REWARD", "CONVERSION"])),
+	type: t.Optional(t.Union([t.Literal("TRADE"), t.Literal("SPLIT"), t.Literal("MERGE"), t.Literal("REDEEM"), t.Literal("REWARD"), t.Literal("CONVERSION")])),
 	start: t.Optional(t.String()),
 	end: t.Optional(t.String()),
 	sortBy: t.Optional(t.String()),
-	sortDirection: t.Optional(t.UnionEnum(["ASC", "DESC"])),
-	side: t.Optional(t.UnionEnum(["BUY", "SELL"])),
+	sortDirection: t.Optional(t.Union([t.Literal("ASC"), t.Literal("DESC")])),
+	side: t.Optional(t.Union([t.Literal("BUY"), t.Literal("SELL")])),
 });
 
 /**

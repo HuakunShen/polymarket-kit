@@ -430,10 +430,13 @@ export const dataRoutes = new Elysia({ prefix: "/data" })
 	.get(
 		"/user/:userAddress/activity",
 		async ({ params, query, dataSDK }) => {
-			const response = await dataSDK.getUserActivity({
+			const queryParams = {
 				user: params.userAddress,
 				...query,
-			});
+			}
+			const response = await dataSDK.getUserActivity(queryParams);
+			console.log("activity queryParams", queryParams);
+			// console.log("activity response", response);
 			return response;
 		},
 		{
