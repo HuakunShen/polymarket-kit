@@ -435,7 +435,6 @@ export const dataRoutes = new Elysia({ prefix: "/data" })
 				...query,
 			}
 			const response = await dataSDK.getUserActivity(queryParams);
-			console.log("activity queryParams", queryParams);
 			// console.log("activity response", response);
 			return response;
 		},
