@@ -102,7 +102,6 @@ export class GammaSDK {
 				);
 				return options;
 			}
-
 			const proxyUrl = this.buildProxyUrl(this.proxyConfig);
 
 			// For Bun/Node.js, we can use the dispatcher option with undici's ProxyAgent

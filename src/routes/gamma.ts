@@ -69,7 +69,9 @@ const parseProxyStringEffect = (
 				host: url.hostname,
 				port: parseInt(url.port, 10),
 			};
-
+			if (isNaN(config.port)) {
+				config.port = config.protocol === "https" ? 443 : 80;
+			}
 			if (url.username) {
 				config.username = decodeURIComponent(url.username);
 			}
@@ -473,6 +475,7 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 		"/markets/:slug",
 		async ({ params, query, set, gammaSDK }) => {
 			const result = await gammaSDK.getMarketBySlug(params.slug, query);
+			console.log("result", result)
 			if (result === null) {
 				set.status = 404;
 				return { error: "Not Found", message: "Market not found" };
