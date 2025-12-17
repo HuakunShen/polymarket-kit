@@ -196,6 +196,15 @@ func (c *RealTimeDataClient) Disconnect() {
 	c.mu.Unlock()
 }
 
+// ForceReconnect Closes the connection to trigger the auto-reconnect loop
+func (c *RealTimeDataClient) ForceReconnect() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.conn != nil {
+		c.conn.Close()
+	}
+}
+
 // Subscribe Subscribes to a data stream by sending a subscription message.
 func (c *RealTimeDataClient) Subscribe(msg SubscriptionMessage) {
 	c.mu.Lock()
