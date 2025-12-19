@@ -38,7 +38,7 @@
 		"typescript": "^5"
 	},
 	"dependencies": {
-		"@cloudflare/containers": "^0.0.28",
+		"@cloudflare/containers": "^0.0.31",
 		"@elysiajs/cors": "^1.4.0",
 		"@elysiajs/eden": "^1.4.5",
 		"@elysiajs/openapi": "^1.4.11",
@@ -47,9 +47,9 @@
 		"@modelcontextprotocol/sdk": "^1.21.1",
 		"@polymarket/builder-signing-sdk": "^0.0.8",
 		"@polymarket/clob-client": "github:HuakunShen/polymarket-clob-client#proxy",
-		"effect": "^3.17.13",
-		"elysia": "^1.4.16",
-		"hono": "4.9.12",
+		"effect": "^3.19.13",
+		"elysia": "^1.4.19",
+		"hono": "4.11.1",
 		"https-proxy-agent": "^7.0.6",
 		"lru-cache": "^11.1.0",
 		"tslib": "^2.6.2",
