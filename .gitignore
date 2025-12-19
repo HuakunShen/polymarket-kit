@@ -45,3 +45,6 @@ server
 .wrangler
 
 .env
+
+__pycache__
+
