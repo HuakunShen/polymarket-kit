@@ -41,7 +41,9 @@ DEFAULT_TIMEOUT = 30.0
 
 
 class DataRequestError(RuntimeError):
-    def __init__(self, message: str, *, status_code: int, error_data: Any | None = None) -> None:
+    def __init__(
+        self, message: str, *, status_code: int, error_data: Any | None = None
+    ) -> None:
         super().__init__(message)
         self.status_code = status_code
         self.error_data = error_data
@@ -104,7 +106,10 @@ class DataClient:
         elif isinstance(proxy, str):
             proxy_url = proxy
 
-        default_headers = {"User-Agent": "polymarket-kit/0.1.0", "Content-Type": "application/json"}
+        default_headers = {
+            "User-Agent": "polymarket-kit/0.1.0",
+            "Content-Type": "application/json",
+        }
         if headers:
             default_headers.update(headers)
 
@@ -130,7 +135,9 @@ class DataClient:
         if self._owns_client:
             self._client.close()
 
-    def _request(self, endpoint: str, query: BaseModel | Mapping[str, Any] | None) -> tuple[httpx.Response, Any | None]:
+    def _request(
+        self, endpoint: str, query: BaseModel | Mapping[str, Any] | None
+    ) -> tuple[httpx.Response, Any | None]:
         response = self._client.get(endpoint, params=_normalize_params(query))
         if response.status_code == 204:
             return response, None
@@ -144,7 +151,9 @@ class DataClient:
 
         return response, data
 
-    def _get_data(self, endpoint: str, query: BaseModel | Mapping[str, Any] | None, operation: str) -> Any:
+    def _get_data(
+        self, endpoint: str, query: BaseModel | Mapping[str, Any] | None, operation: str
+    ) -> Any:
         response, data = self._request(endpoint, query)
         if not response.is_success:
             raise DataRequestError(
@@ -180,7 +189,9 @@ class DataClient:
         return DataHealthResponse.model_validate(data)
 
     # Positions API
-    def get_current_positions(self, query: PositionsQuery | Mapping[str, Any]) -> list[Position]:
+    def get_current_positions(
+        self, query: PositionsQuery | Mapping[str, Any]
+    ) -> list[Position]:
         """
         Get current positions for a user
 
@@ -204,7 +215,9 @@ class DataClient:
         data = self._get_data("/positions", query, "Get current positions")
         return TypeAdapter(list[Position]).validate_python(data)
 
-    def get_closed_positions(self, query: ClosedPositionsQuery | Mapping[str, Any]) -> list[ClosedPosition]:
+    def get_closed_positions(
+        self, query: ClosedPositionsQuery | Mapping[str, Any]
+    ) -> list[ClosedPosition]:
         """
         Get closed positions for a user
 
@@ -229,7 +242,9 @@ class DataClient:
         return TypeAdapter(list[ClosedPosition]).validate_python(data)
 
     # Trades API
-    def get_trades(self, query: TradesQuery | Mapping[str, Any] | None = None) -> list[DataTrade]:
+    def get_trades(
+        self, query: TradesQuery | Mapping[str, Any] | None = None
+    ) -> list[DataTrade]:
         """
         Get trades for a user or markets
 
@@ -255,7 +270,9 @@ class DataClient:
         return TypeAdapter(list[DataTrade]).validate_python(data)
 
     # User Activity API
-    def get_user_activity(self, query: UserActivityQuery | Mapping[str, Any]) -> list[Activity]:
+    def get_user_activity(
+        self, query: UserActivityQuery | Mapping[str, Any]
+    ) -> list[Activity]:
         """
         Get user activity
 
@@ -281,7 +298,9 @@ class DataClient:
         return TypeAdapter(list[Activity]).validate_python(data)
 
     # Holders API
-    def get_top_holders(self, query: TopHoldersQuery | Mapping[str, Any]) -> list[MetaHolder]:
+    def get_top_holders(
+        self, query: TopHoldersQuery | Mapping[str, Any]
+    ) -> list[MetaHolder]:
         """
         Get top holders for markets
 
@@ -307,7 +326,9 @@ class DataClient:
         return TypeAdapter(list[MetaHolder]).validate_python(data)
 
     # Value API
-    def get_total_value(self, query: TotalValueQuery | Mapping[str, Any]) -> list[TotalValue]:
+    def get_total_value(
+        self, query: TotalValueQuery | Mapping[str, Any]
+    ) -> list[TotalValue]:
         """
         Get total value of a user's positions
 
@@ -332,7 +353,9 @@ class DataClient:
         return TypeAdapter(list[TotalValue]).validate_python(data)
 
     # Markets Traded API
-    def get_total_markets_traded(self, query: TotalMarketsTradedQuery | Mapping[str, Any]) -> TotalMarketsTraded:
+    def get_total_markets_traded(
+        self, query: TotalMarketsTradedQuery | Mapping[str, Any]
+    ) -> TotalMarketsTraded:
         """
         Get total markets a user has traded
 
@@ -357,7 +380,9 @@ class DataClient:
         return TotalMarketsTraded.model_validate(data)
 
     # Open Interest API
-    def get_open_interest(self, query: OpenInterestQuery | Mapping[str, Any]) -> list[OpenInterest]:
+    def get_open_interest(
+        self, query: OpenInterestQuery | Mapping[str, Any]
+    ) -> list[OpenInterest]:
         """
         Get open interest for markets
 
@@ -381,7 +406,9 @@ class DataClient:
         return TypeAdapter(list[OpenInterest]).validate_python(data)
 
     # Live Volume API
-    def get_live_volume(self, query: LiveVolumeQuery | Mapping[str, Any]) -> LiveVolumeResponse:
+    def get_live_volume(
+        self, query: LiveVolumeQuery | Mapping[str, Any]
+    ) -> LiveVolumeResponse:
         """
         Get live volume for an event
 

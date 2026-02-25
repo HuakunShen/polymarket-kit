@@ -53,4 +53,3 @@ __all__ = [
     "TopHoldersQuery",
     "UserActivityQuery",
 ]
-

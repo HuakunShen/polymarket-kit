@@ -37,7 +37,9 @@ class ProxyConfig(GammaModel):
     def to_url(self) -> str:
         protocol = self.protocol or "http"
         if self.username and self.password:
-            return f"{protocol}://{self.username}:{self.password}@{self.host}:{self.port}"
+            return (
+                f"{protocol}://{self.username}:{self.password}@{self.host}:{self.port}"
+            )
         return f"{protocol}://{self.host}:{self.port}"
 
     @classmethod

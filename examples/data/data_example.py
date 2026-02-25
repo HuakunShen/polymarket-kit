@@ -41,7 +41,9 @@ def main() -> None:
 
         print("\n2. Testing get current positions...")
         try:
-            positions = client.get_current_positions(PositionsQuery(user=test_user, limit=10))
+            positions = client.get_current_positions(
+                PositionsQuery(user=test_user, limit=10)
+            )
             print(f"OK: Found {len(positions)} positions")
             if positions:
                 pos = positions[0]
@@ -63,7 +65,9 @@ def main() -> None:
 
         print("\n4. Testing get user activity...")
         try:
-            activity = client.get_user_activity(UserActivityQuery(user=test_user, limit=10))
+            activity = client.get_user_activity(
+                UserActivityQuery(user=test_user, limit=10)
+            )
             print(f"OK: Found {len(activity)} activities")
             if activity:
                 act = activity[0]
@@ -93,4 +97,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

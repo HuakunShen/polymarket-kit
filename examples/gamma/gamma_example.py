@@ -49,7 +49,9 @@ def main() -> None:
 
         print("\n4. Testing events API...")
         try:
-            events = client.get_events(UpdatedEventQuery(limit=5, active=True, ascending=False))
+            events = client.get_events(
+                UpdatedEventQuery(limit=5, active=True, ascending=False)
+            )
             print(f"OK: Found {len(events)} events")
             if events:
                 event = events[0]

@@ -38,7 +38,9 @@ DEFAULT_TIMEOUT = 30.0
 
 
 class GammaRequestError(RuntimeError):
-    def __init__(self, message: str, *, status_code: int, error_data: Any | None = None) -> None:
+    def __init__(
+        self, message: str, *, status_code: int, error_data: Any | None = None
+    ) -> None:
         super().__init__(message)
         self.status_code = status_code
         self.error_data = error_data
@@ -94,7 +96,10 @@ class GammaClient:
         elif isinstance(proxy, str):
             proxy_url = proxy
 
-        default_headers = {"User-Agent": "polymarket-kit/0.1.0", "Content-Type": "application/json"}
+        default_headers = {
+            "User-Agent": "polymarket-kit/0.1.0",
+            "Content-Type": "application/json",
+        }
         if headers:
             default_headers.update(headers)
 
@@ -120,7 +125,9 @@ class GammaClient:
         if self._owns_client:
             self._client.close()
 
-    def _request(self, endpoint: str, query: BaseModel | Mapping[str, Any] | None) -> tuple[httpx.Response, Any | None]:
+    def _request(
+        self, endpoint: str, query: BaseModel | Mapping[str, Any] | None
+    ) -> tuple[httpx.Response, Any | None]:
         response = self._client.get(endpoint, params=_normalize_params(query))
         if response.status_code == 204:
             return response, None
@@ -134,7 +141,9 @@ class GammaClient:
 
         return response, data
 
-    def _get_data(self, endpoint: str, query: BaseModel | Mapping[str, Any] | None, operation: str) -> Any:
+    def _get_data(
+        self, endpoint: str, query: BaseModel | Mapping[str, Any] | None, operation: str
+    ) -> Any:
         response, data = self._request(endpoint, query)
         if not response.is_success:
             raise GammaRequestError(
@@ -144,7 +153,8 @@ class GammaClient:
             )
         if data is None:
             raise GammaRequestError(
-                f"[GammaClient] {operation} returned no data", status_code=response.status_code
+                f"[GammaClient] {operation} returned no data",
+                status_code=response.status_code,
             )
         return data
 
@@ -166,11 +176,15 @@ class GammaClient:
         data = self._get_data("/health", None, "Get health")
         return dict(data)
 
-    def get_teams(self, query: TeamQuery | Mapping[str, Any] | None = None) -> list[Team]:
+    def get_teams(
+        self, query: TeamQuery | Mapping[str, Any] | None = None
+    ) -> list[Team]:
         data = self._get_data("/teams", query, "Get teams")
         return TypeAdapter(list[Team]).validate_python(data)
 
-    def get_tags(self, query: TagQuery | Mapping[str, Any] | None = None) -> list[UpdatedTag]:
+    def get_tags(
+        self, query: TagQuery | Mapping[str, Any] | None = None
+    ) -> list[UpdatedTag]:
         data = self._get_data("/tags", query, "Get tags")
         return TypeAdapter(list[UpdatedTag]).validate_python(data)
 
@@ -222,7 +236,9 @@ class GammaClient:
         )
         return TypeAdapter(list[UpdatedTag]).validate_python(data)
 
-    def get_events(self, query: UpdatedEventQuery | Mapping[str, Any] | None = None) -> list[Event]:
+    def get_events(
+        self, query: UpdatedEventQuery | Mapping[str, Any] | None = None
+    ) -> list[Event]:
         data = self._get_data("/events", query, "Get events")
         return TypeAdapter(list[Event]).validate_python(data)
 
@@ -247,19 +263,25 @@ class GammaClient:
     def get_event_by_slug(
         self, slug: str, query: EventByIdQuery | Mapping[str, Any] | None = None
     ) -> Event | None:
-        data = self._get_optional_data(f"/events/slug/{slug}", query, "Get event by slug")
+        data = self._get_optional_data(
+            f"/events/slug/{slug}", query, "Get event by slug"
+        )
         if data is None:
             return None
         return Event.model_validate(data)
 
-    def get_markets(self, query: UpdatedMarketQuery | Mapping[str, Any] | None = None) -> list[Market]:
+    def get_markets(
+        self, query: UpdatedMarketQuery | Mapping[str, Any] | None = None
+    ) -> list[Market]:
         data = self._get_data("/markets", query, "Get markets")
         return TypeAdapter(list[Market]).validate_python(data)
 
     def get_market_by_id(
         self, market_id: int, query: MarketByIdQuery | Mapping[str, Any] | None = None
     ) -> Market | None:
-        data = self._get_optional_data(f"/markets/{market_id}", query, "Get market by ID")
+        data = self._get_optional_data(
+            f"/markets/{market_id}", query, "Get market by ID"
+        )
         if data is None:
             return None
         return Market.model_validate(data)
@@ -271,7 +293,9 @@ class GammaClient:
     def get_market_by_slug(
         self, slug: str, query: MarketByIdQuery | Mapping[str, Any] | None = None
     ) -> Market | None:
-        data = self._get_optional_data(f"/markets/slug/{slug}", query, "Get market by slug")
+        data = self._get_optional_data(
+            f"/markets/slug/{slug}", query, "Get market by slug"
+        )
         if data is None:
             return None
         return Market.model_validate(data)
@@ -283,23 +307,31 @@ class GammaClient:
     def get_series_by_id(
         self, series_id: int, query: SeriesByIdQuery | Mapping[str, Any] | None = None
     ) -> Series | None:
-        data = self._get_optional_data(f"/series/{series_id}", query, "Get series by ID")
+        data = self._get_optional_data(
+            f"/series/{series_id}", query, "Get series by ID"
+        )
         if data is None:
             return None
         return Series.model_validate(data)
 
-    def get_comments(self, query: CommentQuery | Mapping[str, Any] | None = None) -> list[Comment]:
+    def get_comments(
+        self, query: CommentQuery | Mapping[str, Any] | None = None
+    ) -> list[Comment]:
         data = self._get_data("/comments", query, "Get comments")
         return TypeAdapter(list[Comment]).validate_python(data)
 
     def get_comments_by_comment_id(
         self, comment_id: int, query: CommentByIdQuery | Mapping[str, Any] | None = None
     ) -> list[Comment]:
-        data = self._get_data(f"/comments/{comment_id}", query, "Get comments by comment ID")
+        data = self._get_data(
+            f"/comments/{comment_id}", query, "Get comments by comment ID"
+        )
         return TypeAdapter(list[Comment]).validate_python(data)
 
     def get_comments_by_user_address(
-        self, user_address: str, query: CommentsByUserQuery | Mapping[str, Any] | None = None
+        self,
+        user_address: str,
+        query: CommentsByUserQuery | Mapping[str, Any] | None = None,
     ) -> list[Comment]:
         data = self._get_data(
             f"/comments/user_address/{user_address}",

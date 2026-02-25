@@ -19,7 +19,9 @@ class ProxyConfig(DataModel):
     def to_url(self) -> str:
         protocol = self.protocol or "http"
         if self.username and self.password:
-            return f"{protocol}://{self.username}:{self.password}@{self.host}:{self.port}"
+            return (
+                f"{protocol}://{self.username}:{self.password}@{self.host}:{self.port}"
+            )
         return f"{protocol}://{self.host}:{self.port}"
 
 
@@ -222,7 +224,9 @@ class UserActivityQuery(DataModel):
     offset: int | None = None
     market: list[str] | None = None
     eventId: list[str] | None = None
-    type: Literal["TRADE", "SPLIT", "MERGE", "REDEEM", "REWARD", "CONVERSION"] | None = None
+    type: (
+        Literal["TRADE", "SPLIT", "MERGE", "REDEEM", "REWARD", "CONVERSION"] | None
+    ) = None
     start: str | None = None
     end: str | None = None
     sortBy: str | None = None
@@ -251,4 +255,3 @@ class OpenInterestQuery(DataModel):
 
 class LiveVolumeQuery(DataModel):
     id: int
-
