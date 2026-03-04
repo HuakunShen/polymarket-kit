@@ -281,7 +281,7 @@ class Market(GammaModel):
     icon: str
     description: str
     active: bool
-    volume: str
+    volume: str | None = None
     outcomes: list[str] = Field(default_factory=list)
     outcomePrices: list[str] = Field(default_factory=list)
     closed: bool
