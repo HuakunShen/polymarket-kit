@@ -109,14 +109,19 @@ class DataTrade(DataModel):
     bio: str
     profileImage: str
     profileImageOptimized: str
-    transactionHash: str
+
+
+# User Activity API
+ActivityType = Literal[
+    "TRADE", "SPLIT", "MERGE", "REDEEM", "REWARD", "CONVERSION", "MAKER_REBATE"
+]
 
 
 class Activity(DataModel):
     proxyWallet: str
     timestamp: int
     conditionId: str
-    type: Literal["TRADE", "SPLIT", "MERGE", "REDEEM", "REWARD", "CONVERSION"]
+    type: ActivityType
     size: float
     usdcSize: float | None = None
     transactionHash: str
