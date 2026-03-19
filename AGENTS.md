@@ -1,45 +1,133 @@
-# Repository Guidelines
+# Polymarket Kit — SDK + Proxy Server
 
-## Project Structure & Modules
-- `src/index.ts`: Elysia server entry. `src/run.ts`: dev runner.
-- `src/sdk/`: standalone SDKs (`GammaSDK`, `PolymarketSDK`).
-- `src/routes/`: HTTP routes (`gamma.ts`, `clob.ts`).
-- `src/types/`: TypeBox schemas (single source of truth).
-- `src/utils/`: helpers. `build/`: compiled CLI (e.g., `weather`).
-- Tests live under `src/**/__tests__/*.test.ts`.
+Dual-purpose package: standalone SDKs + optional Elysia proxy server. Available in TypeScript, Python, and Go.
 
-## Build, Test, and Dev
-- `bun install`: install deps.
-- `bun run dev`: hot-reload local server (`src/run.ts`).
-- `bun run dev:cf`: Cloudflare Workers dev via Wrangler.
-- `bun run build`: build CLI `weather` → `build/weather.js`.
-- `bun test` / `bun run test:watch`: run tests.
-- `bun run deploy`: deploy to Cloudflare Workers.
+## ARCHITECTURE
 
-## Coding Style & Naming
-- TypeScript, ESM, strict mode (`tsconfig.json`).
-- Formatting/Linting: Biome. Run `bun run format` and `bun run typecheck`.
-- Indentation: tabs; quotes: double (see `biome.json`).
-- Filenames: kebab-case (`gamma-client.ts`), tests end with `.test.ts`.
-- Exports organized via `jsr.json` and `package.json#exports`.
+```
+polymarket-kit/
+├── src/                    # TypeScript (Elysia server + SDKs)
+│   ├── index.ts           # Server entry
+│   ├── sdk/               # Standalone clients
+│   │   ├── gamma-client.ts    # Gamma API (no auth)
+│   │   ├── client.ts          # CLOB API (requires key+funder)
+│   │   └── websocket-client.ts # Real-time orderbook
+│   ├── routes/            # Proxy endpoints
+│   │   ├── gamma.ts       # GET /gamma/markets, /gamma/events
+│   │   └── clob.ts        # GET /clob/prices-history
+│   └── types/             # TypeBox schemas (single source of truth)
+├── py-src/                # Python SDK
+│   └── polymarket_kit/
+│       ├── gamma/client.py    # GammaClient (httpx)
+│       └── clob/client.py     # ClobClient (httpx)
+└── go-client/             # Go SDK
+    ├── client/            # CLOB client + WebSocket
+    └── types/             # Core types
+```
 
-## Testing Guidelines
-- Framework: `bun:test` with `describe/test/expect`.
-- Place tests in `__tests__` next to code; name `*.test.ts`.
-- Aim to cover route handlers, SDK methods, and utils. Use fixtures over network.
-- Run locally: `bun test` (optionally `--watch`).
+## SDK USAGE
 
-## Commit & Pull Requests
-- Use Conventional Commits: `feat:`, `fix:`, `chore:`, `refactor:`, etc.
-- PRs must include: clear description, linked issue, test updates, and any API/route screenshots or cURL examples.
-- Keep changes scoped; update README or docs when adding endpoints or envs.
+### TypeScript (GammaSDK — no auth required)
 
-## Security & Configuration
-- Required envs for CLOB: `POLYMARKET_KEY`, `POLYMARKET_FUNDER`. Optional: `PORT`, cache limits (see README).
-- Store secrets in `.env` locally; never commit secrets. Avoid logging sensitive headers.
-- For Workers, verify `wrangler.jsonc` before deploy and regenerate types via `bun run cf-typegen` when bindings change.
+```typescript
+import { GammaSDK } from "@hk/polymarket";
 
-## Quick Examples
-- Start dev server: `bun run dev`
-- Format all files: `bun run format`
-- Run Gamma routes tests: `bun test src/routes/__tests__/gamma.test.ts`
+const gamma = new GammaSDK({ proxy: { host: "localhost", port: 8080 } });
+const markets = await gamma.getMarkets({ limit: "10", active: "true" });
+const market = await gamma.getMarketBySlug("bitcoin-above-100k");
+```
+
+### TypeScript (PolymarketSDK — requires credentials)
+
+```typescript
+import { PolymarketSDK } from "@hk/polymarket";
+
+const poly = new PolymarketSDK({
+  privateKey: process.env.POLYMARKET_KEY!,
+  funderAddress: process.env.POLYMARKET_FUNDER!,
+});
+const history = await poly.getPriceHistory({ market: "0x123", interval: "1h" });
+```
+
+### Python (GammaClient)
+
+```python
+from polymarket_kit import GammaClient
+
+with GammaClient(proxy="http://localhost:8080") as client:
+    markets = client.get_markets(limit=10, active=True)
+```
+
+### Python (ClobClient)
+
+```python
+from polymarket_kit import ClobClient
+
+with ClobClient() as client:
+    history = client.get_price_history(market="0x123", interval="1h")
+```
+
+### Go (ClobClient)
+
+```go
+import "github.com/HuakunShen/polymarket-kit/go-client/client"
+
+c, _ := client.NewClobClient(&client.ClientConfig{
+    Host:       "https://clob.polymarket.com",
+    ChainID:    types.ChainPolygon,
+    PrivateKey: os.Getenv("POLYMARKET_KEY"),
+})
+```
+
+## WEBSOCKET (Real-Time Data)
+
+```typescript
+import { PolymarketWebSocketClient } from "@hk/polymarket";
+
+const ws = new PolymarketWebSocketClient(clobClient, {
+  assetIds: ["60487..."],
+  autoReconnect: true,
+});
+
+ws.on({
+  onBook: (msg) =>
+    console.log(`Bids: ${msg.bids.length}, Asks: ${msg.asks.length}`),
+  onPriceChange: (msg) => console.log(`${msg.price_changes.length} changes`),
+});
+
+await ws.connect();
+```
+
+## PROXY SERVER API
+
+| Endpoint                   | Description                  |
+| -------------------------- | ---------------------------- |
+| `GET /gamma/markets`       | Query markets with filtering |
+| `GET /gamma/events`        | Query events with filtering  |
+| `GET /clob/prices-history` | Price history for token      |
+| `GET /docs`                | Swagger/OpenAPI UI           |
+
+## BUILD & TEST
+
+```bash
+bun install
+bun run dev           # Hot-reload server
+bun run build         # Build CLI
+bun test              # Run tests
+bun run format        # Biome format
+bun run deploy        # Deploy to Cloudflare Workers
+```
+
+## CREDENTIALS
+
+Required for CLOB operations:
+
+- `POLYMARKET_KEY` — Polygon wallet private key (0x...)
+- `POLYMARKET_FUNDER` — Proxy/funder address (optional)
+- `POLYMARKET_SIGNATURE_TYPE` — 0=EOA, 1=Magic, 2=Contract
+
+## ANTI-PATTERNS
+
+- **DO NOT** log sensitive headers (POLYMARKET_KEY)
+- **DO NOT** commit `.env` files
+- **DO NOT** use `any` types — all schemas via TypeBox
