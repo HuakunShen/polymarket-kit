@@ -1,6 +1,7 @@
 package realtime
 
 import (
+	"bytes"
 	"encoding/json"
 	"log"
 	"sync"
@@ -50,6 +51,7 @@ type RealTimeDataClient struct {
 	mu   sync.Mutex // Protects conn and writing to it
 
 	stopChan chan struct{}
+	stopOnce sync.Once // 防止 Disconnect 被调两次时 double-close panic
 	wg       sync.WaitGroup
 }
 
@@ -89,6 +91,9 @@ func (c *RealTimeDataClient) Connect() *RealTimeDataClient {
 }
 
 func (c *RealTimeDataClient) connectLoop() {
+	c.wg.Add(1)
+	defer c.wg.Done()
+
 	for {
 		select {
 		case <-c.stopChan:
@@ -100,7 +105,7 @@ func (c *RealTimeDataClient) connectLoop() {
 		if err != nil {
 			log.Printf("dial error: %v", err)
 			if c.autoReconnect {
-				time.Sleep(1 * time.Second) // Wait before reconnecting
+				time.Sleep(1 * time.Second)
 				continue
 			}
 			return
@@ -168,32 +173,30 @@ func (c *RealTimeDataClient) handleMessage(data []byte) {
 	if len(data) == 0 {
 		return
 	}
-	// Check if it's a pong or just ignore non-json if needed, but the TS client checks for "payload" in string
-	// Here we try to unmarshal
+	// 匹配 TS 行为: 只有包含 "payload" 的消息才值得 unmarshal
+	if !bytes.Contains(data, []byte("payload")) {
+		return
+	}
 	var msg Message
 	if err := json.Unmarshal(data, &msg); err == nil {
-		// Basic check if it looks like a valid message
-		if msg.Topic != "" || msg.Type != "" { // Or check payload != nil
+		if msg.Topic != "" || msg.Type != "" {
 			if c.onCustomMessage != nil {
 				c.onCustomMessage(c, msg)
 			}
 		}
-	} else {
-		// log.Printf("onMessage error: %v, data: %s", err, string(data))
-		// The TS client logs "onMessage error" if it doesn't contain "payload".
-		// We can be silent or log debug.
 	}
 }
 
-// Disconnect Closes the WebSocket connection.
+// Disconnect Closes the WebSocket connection. Safe to call multiple times.
 func (c *RealTimeDataClient) Disconnect() {
 	c.autoReconnect = false
-	close(c.stopChan)
+	c.stopOnce.Do(func() { close(c.stopChan) })
 	c.mu.Lock()
 	if c.conn != nil {
 		c.conn.Close()
 	}
 	c.mu.Unlock()
+	c.wg.Wait() // 等待 connectLoop 退出，确保 clean shutdown
 }
 
 // ForceReconnect Closes the connection to trigger the auto-reconnect loop
