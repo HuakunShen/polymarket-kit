@@ -267,6 +267,7 @@ class Event(GammaModel):
     automaticallyResolved: bool | None = None
     negRiskMarketID: str | None = None
     deployingTimestamp: str | None = None
+    eventMetadata: dict[str, Any] | None = None
 
 
 class Market(GammaModel):
