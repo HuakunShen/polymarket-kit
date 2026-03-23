@@ -226,6 +226,47 @@ func (ws *WebSocketClient) Unsubscribe(assetIDs []string) {
 	ws.options.AssetIDs = filtered
 }
 
+// SubscribeDynamic sends a dynamic subscribe message without reconnecting.
+// Uses the Polymarket "operation": "subscribe" protocol.
+func (ws *WebSocketClient) SubscribeDynamic(assetIDs []string) error {
+	ws.mu.Lock()
+	ws.options.AssetIDs = append(ws.options.AssetIDs, assetIDs...)
+	conn := ws.conn
+	ws.mu.Unlock()
+
+	if conn == nil {
+		return fmt.Errorf("not connected")
+	}
+
+	msg := map[string]interface{}{
+		"assets_ids":             assetIDs,
+		"operation":              "subscribe",
+		"custom_feature_enabled": true,
+	}
+	return conn.WriteJSON(msg)
+}
+
+// UnsubscribeDynamic sends a dynamic unsubscribe message without reconnecting.
+// Uses the Polymarket "operation": "unsubscribe" protocol.
+func (ws *WebSocketClient) UnsubscribeDynamic(assetIDs []string) error {
+	// Remove from local list
+	ws.Unsubscribe(assetIDs)
+
+	ws.mu.RLock()
+	conn := ws.conn
+	ws.mu.RUnlock()
+
+	if conn == nil {
+		return fmt.Errorf("not connected")
+	}
+
+	msg := map[string]interface{}{
+		"assets_ids": assetIDs,
+		"operation":  "unsubscribe",
+	}
+	return conn.WriteJSON(msg)
+}
+
 // IsConnected returns whether the WebSocket is connected
 func (ws *WebSocketClient) IsConnected() bool {
 	ws.mu.RLock()
@@ -249,8 +290,9 @@ func (ws *WebSocketClient) sendSubscription() error {
 	}
 
 	message := map[string]interface{}{
-		"assets_ids": assetIDs,
-		"type":       "market",
+		"assets_ids":             assetIDs,
+		"type":                   "market",
+		"custom_feature_enabled": true,
 	}
 
 	ws.log("Sending subscription:", assetIDs)
