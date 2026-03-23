@@ -278,10 +278,13 @@ func (p *RedundantWSPool) checkHealth() {
 		pongAt := mc.LastPongAt.Load()
 		if pongAt == 0 {
 			// 还没收到过 PONG，用连接时间 + 超时判断
-			if now-mc.ConnectedAt.UnixMilli() > timeoutMs {
+			mc.connectedAtMu.RLock()
+			connAt := mc.connectedAt.UnixMilli()
+			mc.connectedAtMu.RUnlock()
+			if now-connAt > timeoutMs {
 				p.log(slog.LevelWarn, "No PONG since connect, reconnecting",
 					"conn_id", mc.id,
-					"age_ms", now-mc.ConnectedAt.UnixMilli())
+					"age_ms", now-connAt)
 				go mc.reconnect()
 			}
 			continue

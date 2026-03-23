@@ -23,16 +23,20 @@ type ManagedConn struct {
 	stop chan struct{}
 	once sync.Once
 
+	// 防止并发 reconnect（healthMonitor + readLoop 可能同时触发）
+	reconnecting atomic.Bool
+
 	// 健康状态（atomic，供外部读取）
-	LastPongAt  atomic.Int64 // UnixMilli
-	LastPingAt  atomic.Int64 // UnixMilli，最近一次 PING 发送时间
-	PongLatency atomic.Int64 // 最近一次 PING→PONG 延迟 ms
-	Connected   atomic.Bool
-	MsgCount    atomic.Int64
-	PingsSent   atomic.Int64
-	PongsRecvd  atomic.Int64
-	Reconnects  atomic.Int64
-	ConnectedAt time.Time
+	LastPongAt    atomic.Int64 // UnixMilli
+	LastPingAt    atomic.Int64 // UnixMilli，最近一次 PING 发送时间
+	PongLatency   atomic.Int64 // 最近一次 PING→PONG 延迟 ms
+	Connected     atomic.Bool
+	MsgCount      atomic.Int64
+	PingsSent     atomic.Int64
+	PongsRecvd    atomic.Int64
+	Reconnects    atomic.Int64
+	connectedAtMu sync.RWMutex
+	connectedAt   time.Time
 }
 
 func newManagedConn(id int, pool *RedundantWSPool) *ManagedConn {
@@ -52,11 +56,14 @@ func (mc *ManagedConn) connect() error {
 
 	mc.mu.Lock()
 	mc.conn = conn
-	mc.ConnectedAt = time.Now()
 	mc.Connected.Store(true)
 	mc.stop = make(chan struct{})
 	mc.once = sync.Once{}
 	mc.mu.Unlock()
+
+	mc.connectedAtMu.Lock()
+	mc.connectedAt = time.Now()
+	mc.connectedAtMu.Unlock()
 
 	// 发送全量订阅
 	if err := mc.sendFullSubscription(); err != nil {
@@ -218,8 +225,13 @@ func (mc *ManagedConn) pingLoop(conn *websocket.Conn) {
 	}
 }
 
-// reconnect 指数退避重连。
+// reconnect 指数退避重连。CAS 防止 readLoop + healthMonitor 同时触发。
 func (mc *ManagedConn) reconnect() {
+	if !mc.reconnecting.CompareAndSwap(false, true) {
+		return // 已有另一个 goroutine 在重连
+	}
+	defer mc.reconnecting.Store(false)
+
 	mc.close()
 
 	backoff := mc.pool.cfg.ReconnectBase
