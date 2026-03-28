@@ -10,6 +10,7 @@ from .models import (
     TimeRange,
     Trade,
 )
+from .trading import OrderResponse, TradingClient
 
 __all__ = [
     "ClobClient",
@@ -21,4 +22,6 @@ __all__ = [
     "TimeRange",
     "Order",
     "Trade",
+    "TradingClient",
+    "OrderResponse",
 ]

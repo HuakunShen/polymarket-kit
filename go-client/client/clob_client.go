@@ -667,6 +667,16 @@ func (c *ClobClient) createL2Headers(args *types.L2HeaderArgs) (interface{}, err
 	return auth.CreateL2Headers(c.wallet.GetPrivateKey(), c.creds, args, timestamp)
 }
 
+// SetApiCreds sets or replaces the L2 API credentials on the client.
+func (c *ClobClient) SetApiCreds(creds *types.ApiKeyCreds) {
+	c.creds = creds
+}
+
+// GetApiCreds returns the current L2 API credentials.
+func (c *ClobClient) GetApiCreds() *types.ApiKeyCreds {
+	return c.creds
+}
+
 func (c *ClobClient) addHeadersToRequest(req *http.Request, headers interface{}) {
 	switch h := headers.(type) {
 	case *types.L1PolyHeader:
