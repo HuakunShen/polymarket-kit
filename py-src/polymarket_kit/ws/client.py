@@ -221,7 +221,13 @@ class PolymarketWebSocket:
                 if self.on_raw_message:
                     self.on_raw_message(data)
 
-                self._dispatch(data)
+                # PM WS sometimes sends batched messages as arrays
+                if isinstance(data, list):
+                    for item in data:
+                        if isinstance(item, dict):
+                            self._dispatch(item)
+                else:
+                    self._dispatch(data)
 
         except websockets.ConnectionClosed as e:
             logger.warning("Connection closed: %s", e)
