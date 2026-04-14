@@ -47,6 +47,20 @@ func newManagedConn(id int, pool *RedundantWSPool) *ManagedConn {
 	}
 }
 
+// resetHealthState clears connection-scoped health timestamps before a new
+// websocket session starts. Without this, a freshly reconnected socket can
+// inherit a stale LastPongAt from the previous session and be immediately
+// marked unhealthy by the pool monitor.
+func (mc *ManagedConn) resetHealthState(now time.Time) {
+	mc.LastPongAt.Store(0)
+	mc.LastPingAt.Store(0)
+	mc.PongLatency.Store(0)
+
+	mc.connectedAtMu.Lock()
+	mc.connectedAt = now
+	mc.connectedAtMu.Unlock()
+}
+
 // connect 建立 WS 连接，发送订阅消息，启动 readLoop 和 pingLoop。
 func (mc *ManagedConn) connect() error {
 	conn, _, err := websocket.DefaultDialer.Dial(wsMarketURL, nil)
@@ -56,14 +70,10 @@ func (mc *ManagedConn) connect() error {
 
 	mc.mu.Lock()
 	mc.conn = conn
-	mc.Connected.Store(true)
 	mc.stop = make(chan struct{})
 	mc.once = sync.Once{}
 	mc.mu.Unlock()
-
-	mc.connectedAtMu.Lock()
-	mc.connectedAt = time.Now()
-	mc.connectedAtMu.Unlock()
+	mc.resetHealthState(time.Now())
 
 	// 发送全量订阅
 	if err := mc.sendFullSubscription(); err != nil {
@@ -71,6 +81,8 @@ func (mc *ManagedConn) connect() error {
 		mc.Connected.Store(false)
 		return fmt.Errorf("conn[%d] subscribe: %w", mc.id, err)
 	}
+
+	mc.Connected.Store(true)
 
 	mc.pool.log(slog.LevelInfo, "WS connection established", "conn_id", mc.id)
 
