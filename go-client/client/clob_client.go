@@ -396,70 +396,75 @@ func (c *ClobClient) GetOrder(orderID string) (*types.OpenOrder, error) {
 	return &result, err
 }
 
-// GetTrades gets trades
+// GetTrades gets trades. Uses iterative pagination to avoid stack overflow on large result sets.
 func (c *ClobClient) GetTrades(params *types.TradeParams, onlyFirstPage bool, nextCursor string) ([]types.Trade, error) {
 	if c.creds == nil {
 		return nil, fmt.Errorf("API credentials are required")
 	}
 
-	headerArgs := &types.L2HeaderArgs{
-		Method:      "GET",
-		RequestPath: GetTrades,
-	}
-
-	headers, err := c.createL2Headers(headerArgs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create L2 headers: %w", err)
-	}
-
-	queryParams := url.Values{}
 	if nextCursor == "" {
 		nextCursor = "0"
 	}
-	queryParams.Add("next_cursor", nextCursor)
 
-	if params != nil {
-		if params.ID != nil {
-			queryParams.Add("id", *params.ID)
+	var allTrades []types.Trade
+
+	for {
+		headerArgs := &types.L2HeaderArgs{
+			Method:      "GET",
+			RequestPath: GetTrades,
 		}
-		if params.MakerAddress != nil {
-			queryParams.Add("maker_address", *params.MakerAddress)
+
+		headers, err := c.createL2Headers(headerArgs)
+		if err != nil {
+			return allTrades, fmt.Errorf("failed to create L2 headers: %w", err)
 		}
-		if params.Market != nil {
-			queryParams.Add("market", *params.Market)
+
+		queryParams := url.Values{}
+		queryParams.Add("next_cursor", nextCursor)
+
+		if params != nil {
+			if params.ID != nil {
+				queryParams.Add("id", *params.ID)
+			}
+			if params.MakerAddress != nil {
+				queryParams.Add("maker_address", *params.MakerAddress)
+			}
+			if params.Market != nil {
+				queryParams.Add("market", *params.Market)
+			}
+			if params.AssetID != nil {
+				queryParams.Add("asset_id", *params.AssetID)
+			}
+			if params.Before != nil {
+				queryParams.Add("before", *params.Before)
+			}
+			if params.After != nil {
+				queryParams.Add("after", *params.After)
+			}
 		}
-		if params.AssetID != nil {
-			queryParams.Add("asset_id", *params.AssetID)
+
+		var result struct {
+			Data       []types.Trade `json:"data"`
+			NextCursor string        `json:"next_cursor"`
 		}
-		if params.Before != nil {
-			queryParams.Add("before", *params.Before)
+
+		err = c.getJSONWithHeadersAndParams(GetTrades, headers, queryParams, &result)
+		if err != nil {
+			if len(allTrades) > 0 {
+				return allTrades, nil // Return what we have so far
+			}
+			return nil, err
 		}
-		if params.After != nil {
-			queryParams.Add("after", *params.After)
+
+		allTrades = append(allTrades, result.Data...)
+
+		if onlyFirstPage || result.NextCursor == "-1" {
+			break
 		}
+		nextCursor = result.NextCursor
 	}
 
-	var result struct {
-		Data       []types.Trade `json:"data"`
-		NextCursor string        `json:"next_cursor"`
-	}
-
-	err = c.getJSONWithHeadersAndParams(GetTrades, headers, queryParams, &result)
-	if err != nil {
-		return nil, err
-	}
-
-	if onlyFirstPage || result.NextCursor == "-1" {
-		return result.Data, nil
-	}
-
-	// Recursively get all pages
-	moreTrades, err := c.GetTrades(params, onlyFirstPage, result.NextCursor)
-	if err != nil {
-		return result.Data, nil // Return what we have so far
-	}
-
-	return append(result.Data, moreTrades...), nil
+	return allTrades, nil
 }
 
 // Helper methods for HTTP requests
@@ -510,18 +515,46 @@ func (c *ClobClient) getJSON(endpoint string, result interface{}) error {
 	return c.getJSONWithParams(endpoint, url.Values{}, result)
 }
 
+// getRawWithParams makes a GET request and returns the raw response bytes,
+// avoiding the double marshal/unmarshal overhead of getWithParams → getJSONWithParams.
+func (c *ClobClient) getRawWithParams(endpoint string, params url.Values) ([]byte, error) {
+	fullURL := c.host + endpoint
+	if len(params) > 0 {
+		fullURL += "?" + params.Encode()
+	}
+
+	req, err := http.NewRequest("GET", fullURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	if c.geoBlockToken != "" {
+		q := req.URL.Query()
+		q.Add("geo_block_token", c.geoBlockToken)
+		req.URL.RawQuery = q.Encode()
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
+	}
+
+	return io.ReadAll(resp.Body)
+}
+
 func (c *ClobClient) getJSONWithParams(endpoint string, params url.Values, result interface{}) error {
-	data, err := c.getWithParams(endpoint, params)
+	data, err := c.getRawWithParams(endpoint, params)
 	if err != nil {
 		return err
 	}
 
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		return fmt.Errorf("failed to marshal response: %w", err)
-	}
-
-	return json.Unmarshal(jsonData, result)
+	return json.Unmarshal(data, result)
 }
 
 func (c *ClobClient) getJSONWithHeaders(endpoint string, headers interface{}, result interface{}) error {

@@ -87,9 +87,16 @@ func (c *UserWSClient) Start(ctx context.Context) error {
 		default:
 		}
 
+		connStart := time.Now()
 		err := c.connectAndRun(ctx)
 		if ctx.Err() != nil {
 			return ctx.Err()
+		}
+
+		// If the connection was alive for a meaningful period, reset backoff
+		// so the next reconnect attempt starts fast.
+		if time.Since(connStart) > userPongTimeout {
+			delay = userReconnectBase
 		}
 
 		c.log.Warn("User WS disconnected, reconnecting...",
@@ -171,6 +178,10 @@ func (c *UserWSClient) connectAndRun(ctx context.Context) error {
 		c.cfg.OnConnect()
 	}
 
+	// Reset backoff on successful connection so next reconnect starts fast.
+	// The caller's delay variable is on the stack, so we signal via a wrapper.
+	// (handled by the caller resetting delay after connectAndRun returns nil error)
+
 	// 启动 ping loop
 	pingDone := make(chan struct{})
 	go func() {
@@ -178,8 +189,20 @@ func (c *UserWSClient) connectAndRun(ctx context.Context) error {
 		c.pingLoop(ctx, conn)
 	}()
 
+	// Close the connection when context is canceled to unblock ReadMessage immediately
+	// instead of waiting up to userPongTimeout for the read deadline.
+	ctxDone := make(chan struct{})
+	go func() {
+		select {
+		case <-ctx.Done():
+			conn.Close()
+		case <-ctxDone:
+		}
+	}()
+
 	// Read loop (blocking)
 	err = c.readLoop(ctx, conn)
+	close(ctxDone)
 
 	// Wait for ping loop to finish
 	<-pingDone

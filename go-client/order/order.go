@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"strconv"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -77,12 +78,12 @@ func BuildSignedLimitOrder(privateKey *ecdsa.PrivateKey, opts LimitOrderOpts) (*
 
 	if side == model.BUY {
 		// BUY: pay makerAmount USDC, receive takerAmount tokens
-		makerAmt = toDecimal6(opts.Size * opts.Price)
+		makerAmt = mulToDecimal6(opts.Size, opts.Price)
 		takerAmt = toDecimal6(opts.Size)
 	} else {
 		// SELL: provide makerAmount tokens, receive takerAmount USDC
 		makerAmt = toDecimal6(opts.Size)
-		takerAmt = toDecimal6(opts.Size * opts.Price)
+		takerAmt = mulToDecimal6(opts.Size, opts.Price)
 	}
 
 	// 确定 maker 地址
@@ -121,9 +122,45 @@ func BuildSignedLimitOrder(privateKey *ecdsa.PrivateKey, opts LimitOrderOpts) (*
 }
 
 // toDecimal6 converts a float to a string integer with 6 decimal places.
+// Uses string-based conversion to avoid IEEE 754 float multiplication artifacts.
 // e.g., 0.50 → "500000", 10.0 → "10000000"
 func toDecimal6(v float64) string {
-	raw := v * float64(decimalsMul)
-	rounded := math.Round(raw)
-	return big.NewInt(int64(rounded)).String()
+	s := strconv.FormatFloat(v, 'f', -1, 64)
+	r, ok := new(big.Rat).SetString(s)
+	if !ok {
+		// Fallback to float64 if string parsing fails
+		return big.NewInt(int64(math.Round(v * float64(decimalsMul)))).String()
+	}
+	r.Mul(r, new(big.Rat).SetInt64(decimalsMul))
+	return roundRatToInt(r).String()
+}
+
+// mulToDecimal6 multiplies two float64 values using exact rational arithmetic
+// and returns the result as a 6-decimal-place integer string.
+// This avoids precision loss from float64 multiplication (e.g., 0.29 * 100).
+func mulToDecimal6(a, b float64) string {
+	aStr := strconv.FormatFloat(a, 'f', -1, 64)
+	bStr := strconv.FormatFloat(b, 'f', -1, 64)
+	aRat, aOK := new(big.Rat).SetString(aStr)
+	bRat, bOK := new(big.Rat).SetString(bStr)
+	if !aOK || !bOK {
+		return big.NewInt(int64(math.Round(a * b * float64(decimalsMul)))).String()
+	}
+	r := new(big.Rat).Mul(aRat, bRat)
+	r.Mul(r, new(big.Rat).SetInt64(decimalsMul))
+	return roundRatToInt(r).String()
+}
+
+// roundRatToInt rounds a big.Rat to the nearest integer (half-up).
+func roundRatToInt(r *big.Rat) *big.Int {
+	num := new(big.Int).Set(r.Num())
+	den := r.Denom()
+	result := new(big.Int).Div(num, den)
+	rem := new(big.Int).Mod(num, den)
+	// Round half-up
+	doubled := new(big.Int).Mul(rem, big.NewInt(2))
+	if doubled.Cmp(den) >= 0 {
+		result.Add(result, big.NewInt(1))
+	}
+	return result
 }

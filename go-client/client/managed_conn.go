@@ -73,7 +73,6 @@ func (mc *ManagedConn) connect() error {
 	mc.stop = make(chan struct{})
 	mc.once = sync.Once{}
 	mc.mu.Unlock()
-	mc.resetHealthState(time.Now())
 
 	// 发送全量订阅
 	if err := mc.sendFullSubscription(); err != nil {
@@ -82,6 +81,10 @@ func (mc *ManagedConn) connect() error {
 		return fmt.Errorf("conn[%d] subscribe: %w", mc.id, err)
 	}
 
+	// Reset health state AFTER subscription succeeds, right before marking connected.
+	// This ensures connectedAt reflects when the connection became fully ready,
+	// preventing the health monitor from timing out during a slow subscription.
+	mc.resetHealthState(time.Now())
 	mc.Connected.Store(true)
 
 	mc.pool.log(slog.LevelInfo, "WS connection established", "conn_id", mc.id)
@@ -259,12 +262,7 @@ func (mc *ManagedConn) reconnect() {
 
 		time.Sleep(backoff)
 
-		// 重建 stop channel 和 once
-		mc.mu.Lock()
-		mc.stop = make(chan struct{})
-		mc.once = sync.Once{}
-		mc.mu.Unlock()
-
+		// connect() recreates stop channel and once on successful Dial
 		if err := mc.connect(); err != nil {
 			mc.pool.log(slog.LevelWarn, "Reconnect failed", "conn_id", mc.id, "error", err)
 			backoff = min(backoff*2, mc.pool.cfg.ReconnectMax)

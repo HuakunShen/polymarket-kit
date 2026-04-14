@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/HuakunShen/polymarket-kit/go-client/types"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/HuakunShen/polymarket-kit/go-client/types"
 )
 
 // CreateL1Headers creates Level 1 authentication headers for API key creation
@@ -133,15 +133,14 @@ func InjectBuilderHeaders(l2Headers *types.L2PolyHeader, builderHeaders *L2WithB
 	return combined
 }
 
-// VerifyEIP712Signature verifies an EIP712 signature
+// VerifyEIP712Signature verifies an EIP712 signature using the same encoding
+// as BuildClobEip712Signature (proper ABI encoding, not JSON marshaling).
 func VerifyEIP712Signature(address string, signature string, timestamp int64, nonce uint64, chainID types.Chain) (bool, error) {
-	// Parse the signature
 	_, err := hexutil.Decode(signature)
 	if err != nil {
 		return false, fmt.Errorf("failed to decode signature: %w", err)
 	}
 
-	// Create the typed data hash
 	domain := EIP712Domain{
 		Name:    "ClobAuthDomain",
 		Version: "1",
@@ -155,26 +154,27 @@ func VerifyEIP712Signature(address string, signature string, timestamp int64, no
 		Message:   MSG_TO_SIGN,
 	}
 
-	typedData := TypedData{
-		Types: map[string][]EIP712Type{
-			"ClobAuth": {
-				{Name: "address", Type: "address"},
-				{Name: "timestamp", Type: "string"},
-				{Name: "nonce", Type: "uint256"},
-				{Name: "message", Type: "string"},
-			},
-		},
-		PrimaryType: "ClobAuth",
-		Domain:      domain,
-		Message:     message,
-	}
-
-	hash, err := getTypedDataHash(typedData)
+	// Use the same correct encoding path as BuildClobEip712Signature
+	domainSeparator, err := getDomainSeparator(domain)
 	if err != nil {
-		return false, fmt.Errorf("failed to get typed data hash: %w", err)
+		return false, fmt.Errorf("failed to get domain separator: %w", err)
 	}
 
-	// Recover the address
+	typeHash, err := getTypeHash(nil)
+	if err != nil {
+		return false, fmt.Errorf("failed to get type hash: %w", err)
+	}
+
+	encodeData, err := encodeClobAuthData(message)
+	if err != nil {
+		return false, fmt.Errorf("failed to encode data: %w", err)
+	}
+
+	structHash := crypto.Keccak256Hash(append(typeHash.Bytes(), encodeData...))
+	hash := crypto.Keccak256Hash(
+		append(append([]byte("\x19\x01"), domainSeparator.Bytes()...), structHash.Bytes()...),
+	)
+
 	recoveredAddress, err := RecoverAddress(hash, signature)
 	if err != nil {
 		return false, fmt.Errorf("failed to recover address: %w", err)

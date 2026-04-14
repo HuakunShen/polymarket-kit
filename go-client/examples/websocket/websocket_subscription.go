@@ -132,8 +132,6 @@ func (ws *WebSocketOrderBook) sendSubscriptionMessage() {
 
 // handleMessages handles incoming WebSocket messages
 func (ws *WebSocketOrderBook) handleMessages() {
-	defer close(ws.done)
-
 	for {
 		select {
 		case <-ws.done:
@@ -268,7 +266,7 @@ func main() {
 		ChainID:       types.ChainPolygon,
 		PrivateKey:    privateKey,
 		UseServerTime: true,
-		Timeout:       30 * 0,
+		Timeout:       30 * time.Second,
 	}
 
 	// Create CLOB client

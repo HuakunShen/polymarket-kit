@@ -86,12 +86,12 @@ func NewRealTimeDataClient(args RealTimeDataClientArgs) *RealTimeDataClient {
 // Connect Establishes a WebSocket connection to the server.
 func (c *RealTimeDataClient) Connect() *RealTimeDataClient {
 	c.notifyStatusChange(ConnectionStatusConnecting)
+	c.wg.Add(1) // Must be before goroutine to prevent Disconnect racing to wg.Wait
 	go c.connectLoop()
 	return c
 }
 
 func (c *RealTimeDataClient) connectLoop() {
-	c.wg.Add(1)
 	defer c.wg.Done()
 
 	for {
@@ -124,9 +124,9 @@ func (c *RealTimeDataClient) connectLoop() {
 		stopPing := make(chan struct{})
 		go c.pingLoop(stopPing)
 
-		// Read loop
+		// Read loop — use local conn to avoid racing with Disconnect/ForceReconnect
 		for {
-			_, message, err := c.conn.ReadMessage()
+			_, message, err := conn.ReadMessage()
 			if err != nil {
 				log.Printf("read error: %v", err)
 				break
@@ -136,8 +136,10 @@ func (c *RealTimeDataClient) connectLoop() {
 
 		close(stopPing)
 		c.mu.Lock()
-		c.conn.Close()
-		c.conn = nil
+		if c.conn == conn {
+			c.conn.Close()
+			c.conn = nil
+		}
 		c.mu.Unlock()
 		c.notifyStatusChange(ConnectionStatusDisconnected)
 

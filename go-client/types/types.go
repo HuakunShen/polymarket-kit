@@ -77,15 +77,6 @@ type L2PolyHeader struct {
 	POLYPassphrase string `json:"POLY_PASSPHRASE"`
 }
 
-// L2WithBuilderHeader represents L2 headers with builder authentication
-type L2WithBuilderHeader struct {
-	L2PolyHeader
-	POLYBuilderAPIKey    string `json:"POLY_BUILDER_API_KEY"`
-	POLYBuilderTimestamp string `json:"POLY_BUILDER_TIMESTAMP"`
-	POLYBuilderPassphrase string `json:"POLY_BUILDER_PASSPHRASE"`
-	POLYBuilderSignature string `json:"POLY_BUILDER_SIGNATURE"`
-}
-
 // SignedOrder represents a signed order
 type SignedOrder struct {
 	Salt         string        `json:"salt"`

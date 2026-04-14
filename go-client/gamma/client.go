@@ -58,12 +58,11 @@ func NewGammaSDK(config *GammaSDKConfig) *GammaSDK {
 
 		parsedProxyURL, err := url.Parse(proxyURL)
 		if err != nil {
-			fmt.Printf("Warning: Failed to parse proxy URL %s: %v\n", proxyURL, err)
+			// Silently ignore invalid proxy URL — libraries should not print to stdout
 		} else {
 			httpClient.Transport = &http.Transport{
 				Proxy: http.ProxyURL(parsedProxyURL),
 			}
-			fmt.Printf("✅ Proxy configured: %s\n", parsedProxyURL.String())
 		}
 	}
 

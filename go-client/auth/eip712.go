@@ -2,7 +2,6 @@ package auth
 
 import (
 	"crypto/ecdsa"
-	"encoding/json"
 	"fmt"
 	"math/big"
 
@@ -37,14 +36,6 @@ type ClobAuthData struct {
 	Timestamp string `json:"timestamp"`
 	Nonce     uint64 `json:"nonce"`
 	Message   string `json:"message"`
-}
-
-// TypedData represents the full EIP-712 typed data structure
-type TypedData struct {
-	Types       map[string][]EIP712Type `json:"types"`
-	PrimaryType string                  `json:"primaryType"`
-	Domain      EIP712Domain            `json:"domain"`
-	Message     interface{}             `json:"message"`
 }
 
 // BuildClobEip712Signature builds the canonical Polymarket CLOB EIP712 signature
@@ -174,62 +165,9 @@ func encodeClobAuthData(data ClobAuthData) ([]byte, error) {
 	return encodedData, nil
 }
 
-// SignTypedData signs EIP-712 typed data using the private key
-func SignTypedData(privateKey *ecdsa.PrivateKey, typedData TypedData) (string, error) {
-	// This is a more complete implementation that follows the EIP-712 spec exactly
-	hash, err := getTypedDataHash(typedData)
-	if err != nil {
-		return "", fmt.Errorf("failed to get typed data hash: %w", err)
-	}
 
-	// Sign the hash
-	signature, err := crypto.Sign(hash.Bytes(), privateKey)
-	if err != nil {
-		return "", fmt.Errorf("failed to sign hash: %w", err)
-	}
-
-	// Convert to hex string
-	signatureHex := hexutil.Encode(signature)
-
-	return signatureHex, nil
-}
-
-// getTypedDataHash computes the hash of typed data according to EIP-712
-func getTypedDataHash(typedData TypedData) (common.Hash, error) {
-	// Hash the domain separator
-	domainSeparator, err := getDomainSeparator(typedData.Domain)
-	if err != nil {
-		return common.Hash{}, err
-	}
-
-	// Hash the message
-	messageHash, err := getMessageHash(typedData)
-	if err != nil {
-		return common.Hash{}, err
-	}
-
-	// Construct final hash: keccak256("||" || domainSeparator || messageHash)
-	finalHash := crypto.Keccak256Hash(
-		[]byte("\x19\x01"),
-		domainSeparator.Bytes(),
-		messageHash.Bytes(),
-	)
-
-	return finalHash, nil
-}
-
-// getMessageHash hashes the message part of typed data
-func getMessageHash(typedData TypedData) (common.Hash, error) {
-	// Convert message to bytes
-	messageBytes, err := json.Marshal(typedData.Message)
-	if err != nil {
-		return common.Hash{}, fmt.Errorf("failed to marshal message: %w", err)
-	}
-
-	return crypto.Keccak256Hash(messageBytes), nil
-}
-
-// RecoverAddress recovers the address from a signature
+// RecoverAddress recovers the address from a signature.
+// The signature must be 65 bytes with v as the last byte (either 0/1 or 27/28).
 func RecoverAddress(hash common.Hash, signature string) (common.Address, error) {
 	sig, err := hexutil.Decode(signature)
 	if err != nil {
@@ -240,9 +178,10 @@ func RecoverAddress(hash common.Hash, signature string) (common.Address, error) 
 		return common.Address{}, fmt.Errorf("signature must be 65 bytes long")
 	}
 
-	// Adjust v value if needed (go-ethereum expects 27 or 28)
-	if sig[64] != 27 && sig[64] != 28 {
-		sig[64] += 27
+	// crypto.SigToPub expects v = 0 or 1 (the recovery ID).
+	// Ethereum convention uses v = 27 or 28, so normalize.
+	if sig[64] >= 27 {
+		sig[64] -= 27
 	}
 
 	pubkey, err := crypto.SigToPub(hash.Bytes(), sig)

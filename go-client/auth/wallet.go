@@ -93,9 +93,9 @@ func RecoverAddressFromMessage(message []byte, signature string) (common.Address
 	// Compute message hash
 	hash := crypto.Keccak256Hash(message)
 
-	// Adjust v value if needed (go-ethereum expects 27 or 28)
-	if sig[64] != 27 && sig[64] != 28 {
-		sig[64] += 27
+	// crypto.SigToPub expects v = 0 or 1 (recovery ID), not 27/28 (Ethereum convention)
+	if sig[64] >= 27 {
+		sig[64] -= 27
 	}
 
 	pubkey, err := crypto.SigToPub(hash.Bytes(), sig)

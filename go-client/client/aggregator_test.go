@@ -90,22 +90,34 @@ func TestAggregator_TTLExpiry(t *testing.T) {
 }
 
 func TestAggregator_CapEviction(t *testing.T) {
-	agg := NewAggregator(10, 60*time.Second)
+	// Short TTL so entries expire quickly
+	agg := NewAggregator(10, 1*time.Millisecond)
 
-	// 填满 + 超出
-	for i := 0; i < 15; i++ {
+	// Fill to capacity
+	for i := 0; i < 10; i++ {
 		msg := []byte(fmt.Sprintf(`{"event_type":"book","asset_id":"%d","market":"m","timestamp":"t","hash":"h%d","bids":[],"asks":[]}`, i, i))
 		if !agg.Process(msg) {
 			t.Fatalf("msg %d should be new", i)
 		}
 	}
 
-	// eviction 应该已经清理了一些条目
+	// Wait for entries to expire
+	time.Sleep(5 * time.Millisecond)
+
+	// Insert more to exceed capacity and trigger eviction of expired entries
+	for i := 10; i < 15; i++ {
+		msg := []byte(fmt.Sprintf(`{"event_type":"book","asset_id":"%d","market":"m","timestamp":"t","hash":"h%d","bids":[],"asks":[]}`, i, i))
+		if !agg.Process(msg) {
+			t.Fatalf("msg %d should be new", i)
+		}
+	}
+
+	// Eviction should have removed the 10 expired entries, leaving only the 5 new ones
 	agg.mu.Lock()
 	size := len(agg.seen)
 	agg.mu.Unlock()
-	if size > 15 {
-		t.Fatalf("seen map should have been evicted, got %d entries", size)
+	if size > 5 {
+		t.Fatalf("expected <=5 entries after eviction of expired entries, got %d", size)
 	}
 }
 
