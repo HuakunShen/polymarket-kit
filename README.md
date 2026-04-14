@@ -2,7 +2,7 @@
 
 [![JSR](https://jsr.io/badges/@hk/polymarket)](https://jsr.io/@hk/polymarket)
 
-A fully typed SDK and proxy server built with Elysia for Polymarket APIs. This package provides standalone SDK clients, WebSocket real-time streaming, and a proxy server with type-safe endpoints for CLOB and Gamma APIs, featuring comprehensive validation and automatic OpenAPI schema generation. Available in both TypeScript and Go.
+A fully typed SDK and proxy server built with Elysia for Polymarket APIs. This package provides standalone SDK clients, WebSocket real-time streaming, and a proxy server with type-safe endpoints for CLOB and Gamma APIs, featuring comprehensive validation and automatic OpenAPI schema generation. Available in TypeScript, Python, and Go.
 
 ## Features
 
@@ -12,7 +12,7 @@ A fully typed SDK and proxy server built with Elysia for Polymarket APIs. This p
 - **MCP Server**: Model Context Protocol server for AI interactions
 - **Type Safety**: End-to-end type validation and transformation
 - **Multiple Runtimes**: Supports Bun, Node.js, Deno, and Cloudflare Workers
-- **Multi-Language Support**: TypeScript and Go clients with identical APIs
+- **Multi-Language Support**: TypeScript, Python, and Go clients with identical APIs
 
 ## Motivation & Approach
 
@@ -22,34 +22,28 @@ A fully typed SDK and proxy server built with Elysia for Polymarket APIs. This p
 - Transformations: The proxy doesn't always return exactly the same payload as the original API. It normalizes data by parsing and validating fields. For example, some endpoints return an array of strings as a JSON-stringified string; the proxy parses this into a proper typed array for easier consumption and validation.
 - Status: Work in progress — not all APIs are included yet.
 
-## Features
-
-- **Dual-Purpose Package**: Standalone SDK clients + Elysia proxy server
-- **Unified TypeBox Validation**: Single source of truth for all schema validation using Elysia TypeBox
-- **Type Safety**: Full TypeScript typing throughout with no `any` types
-- **Standalone SDKs**: Use `PolymarketSDK` and `GammaSDK` directly in your applications
-- **Proxy Server**: Optional Elysia server with REST API endpoints
-- **OpenAPI Schema Generation**: Automatic Swagger documentation generation
-- **CORS Support**: Ready for web application integration
-- **Comprehensive Error Handling**: Structured error responses with proper status codes
-- **Health Checks**: Built-in health monitoring endpoints
-- **Production Ready**: Includes proper logging, validation, and error handling
-
 ## Architecture
 
 This package provides two ways to use Polymarket APIs:
 
 ### 1. Standalone SDK Clients
 
-- **`PolymarketSDK`**: For CLOB operations (requires credentials)
-- **`GammaSDK`**: For Gamma API operations (no credentials required)
-- **`PolymarketWebSocketClient`**: For real-time market data streaming (TypeScript)
-- **`WebSocketClient`**: For real-time market data streaming (Go)
+- **`PolymarketSDK`**: For CLOB operations (requires credentials) — TypeScript
+- **`GammaSDK`**: For Gamma API operations (no credentials required) — TypeScript
+- **`DataSDK`**: For user positions, trades, and activity data — TypeScript
+- **`PolymarketWebSocketClient`**: For real-time market data streaming — TypeScript
+- **`GammaClient`**: Gamma API client — Python
+- **`ClobClient`**: CLOB price history client — Python
+- **`TradingClient`**: Order placement and management — Python
+- **`PolymarketWebSocket`**: Async WebSocket for market and user channels — Python
+- **`WebSocketClient`**: For real-time market data streaming — Go
+- **`RedundantWSPool`**: Redundant parallel connections with message deduplication — Go
 
 ### 2. Proxy Server (Optional)
 
 - **Gamma API** (`/gamma/*`) - Market and event data from `gamma-api.polymarket.com`
 - **CLOB API** (`/clob/*`) - Trading and price history from Polymarket CLOB client
+- **Data API** (`/data/*`) - User positions, trades, and activity data
 
 ### Directory Structure
 
@@ -63,25 +57,40 @@ src/
 │   ├── index.ts       # SDK exports
 │   ├── client.ts      # PolymarketSDK (CLOB client)
 │   ├── gamma-client.ts # GammaSDK (Gamma API client)
+│   ├── data-client.ts  # DataSDK (Data API client)
 │   └── websocket-client.ts # WebSocket client for real-time data
 ├── routes/            # Elysia server routes
 │   ├── gamma.ts       # Gamma API endpoints
-│   └── clob.ts        # CLOB API endpoints
+│   ├── clob.ts        # CLOB API endpoints
+│   └── data.ts        # Data API endpoints
 ├── types/
 │   ├── elysia-schemas.ts  # Unified TypeBox schema definitions
 │   └── websocket-schemas.ts # WebSocket message schemas (Zod)
 └── utils/             # Utility functions
 
+py-src/
+└── polymarket_kit/
+    ├── __init__.py        # Package exports
+    ├── profile.py         # Wallet address extraction from usernames
+    ├── gamma/             # Gamma API client (GammaClient, GammaSDK)
+    ├── clob/              # CLOB client (ClobClient, TradingClient)
+    ├── data/              # Data API client (DataSDK)
+    └── ws/                # Async WebSocket client (PolymarketWebSocket)
+
 go-client/
-├── client/
-│   ├── clob_client.go     # CLOB client implementation
-│   └── websocket_client.go # WebSocket client implementation
-├── types/
-│   ├── types.go           # Core type definitions
-│   └── websocket.go       # WebSocket message types
-└── examples/
-    ├── websocket_simple.go      # Simple WebSocket example
-    └── websocket_subscription.go # Advanced WebSocket example
+├── auth/              # Ethereum wallet & signing
+├── client/            # CLOB client implementation
+│   ├── clob_client.go          # Main API client
+│   ├── websocket_client.go     # Market WebSocket
+│   ├── user_ws.go              # User channel WebSocket
+│   ├── orders.go               # Order building & placement
+│   ├── ws_pool.go              # Redundant WebSocket pool
+│   └── aggregator.go           # Message deduplication
+├── order/             # Order building utilities
+├── realtime/          # Real-time data client
+├── data/              # Data API client
+├── gamma/             # Gamma API client
+└── examples/          # Comprehensive usage examples
 ```
 
 ### JSR Package Exports (from jsr.json)
@@ -92,7 +101,7 @@ go-client/
 
 ## SDK Usage
 
-### Standalone SDK Usage
+### TypeScript SDK
 
 #### Using GammaSDK (No credentials required)
 
@@ -144,6 +153,116 @@ const priceHistory = await polymarketSDK.getPriceHistory({
 const health = await polymarketSDK.healthCheck();
 ```
 
+### Python SDK
+
+#### Installation
+
+```bash
+# Using uv (recommended)
+uv add polymarket-kit
+
+# Using pip
+pip install polymarket-kit
+```
+
+#### Using GammaClient (No credentials required)
+
+```python
+from polymarket_kit import GammaSDK
+
+gamma = GammaSDK()
+
+# Get markets
+markets = gamma.get_markets(limit=10, active=True)
+
+# Get events
+events = gamma.get_events(limit=5, active=True)
+
+# Get market by slug
+market = gamma.get_market_by_slug("bitcoin-above-100k")
+```
+
+#### Using TradingClient (Order placement)
+
+```python
+import asyncio
+from polymarket_kit import TradingClient
+
+async def main():
+    client = TradingClient(
+        private_key="your_private_key",
+        funder="your_funder_address",
+    )
+
+    # Initialize and derive API credentials
+    creds = await client.initialize()
+
+    # Place a GTC limit buy order
+    resp = await client.place_limit_order(
+        token_id="60487116984468020978247225474488676749601001829886755968952521846780452448915",
+        price=0.45,
+        size=10.0,
+        side="BUY",
+    )
+    print(f"Order placed: {resp.order_id}, status={resp.status}")
+
+    # Query open orders
+    open_orders = await client.get_open_orders()
+
+    # Cancel an order
+    await client.cancel_order(resp.order_id)
+
+asyncio.run(main())
+```
+
+#### Python WebSocket (Market channel)
+
+```python
+import asyncio
+from polymarket_kit import PolymarketWebSocket
+from polymarket_kit.ws import BookMessage, PriceChangeMessage, LastTradePriceMessage
+
+async def main():
+    ws = PolymarketWebSocket("market")
+
+    ws.on_book = lambda msg: print(f"Book: bids={len(msg.bids)} asks={len(msg.asks)}")
+    ws.on_price_change = lambda msg: print(f"Price change: {len(msg.price_changes)} changes")
+    ws.on_last_trade = lambda msg: print(f"Trade: {msg.side} @ {msg.price}")
+    ws.on_connect = lambda: print("Connected!")
+
+    await ws.connect()
+    await ws.subscribe([
+        "60487116984468020978247225474488676749601001829886755968952521846780452448915"
+    ])
+
+    await asyncio.Event().wait()  # run forever
+
+asyncio.run(main())
+```
+
+#### Python WebSocket (User channel)
+
+```python
+import asyncio
+from polymarket_kit import PolymarketWebSocket, ApiCreds
+
+async def main():
+    creds = ApiCreds(
+        api_key="your_api_key",
+        secret="your_secret",
+        passphrase="your_passphrase",
+    )
+
+    ws = PolymarketWebSocket("user", api_creds=creds)
+    ws.on_order = lambda evt: print(f"Order event: {evt}")
+    ws.on_trade = lambda evt: print(f"Trade event: {evt}")
+
+    await ws.connect()
+    await asyncio.Event().wait()
+
+asyncio.run(main())
+```
+
 ## WebSocket Real-Time Data
 
 Stream real-time market data with automatic authentication, reconnection, and type-safe message handling.
@@ -168,23 +287,18 @@ const ws = new PolymarketWebSocketClient(clobClient, {
 // Register event handlers
 ws.on({
   onBook: (msg) => {
-    console.log(`📚 Book Update - Bids: ${msg.bids.length}, Asks: ${msg.asks.length}`);
-    // Fully typed message with validation
+    console.log(`Book Update - Bids: ${msg.bids.length}, Asks: ${msg.asks.length}`);
   },
-  
   onPriceChange: (msg) => {
-    console.log(`💹 Price Change - ${msg.price_changes.length} changes`);
+    console.log(`Price Change - ${msg.price_changes.length} changes`);
   },
-  
   onLastTradePrice: (msg) => {
-    console.log(`💰 Trade: ${msg.side} @ ${msg.price}`);
+    console.log(`Trade: ${msg.side} @ ${msg.price}`);
   },
-  
   onError: (error) => console.error("Error:", error),
   onConnect: () => console.log("Connected!"),
 });
 
-// Connect and start receiving data
 await ws.connect();
 ```
 
@@ -204,7 +318,6 @@ config := &client.ClientConfig{
 
 clobClient, _ := client.NewClobClient(config)
 
-// Create WebSocket client
 wsClient := client.NewWebSocketClient(clobClient, &client.WebSocketClientOptions{
     AssetIDs: []string{
         "60487116984468020978247225474488676749601001829886755968952521846780452448915",
@@ -213,47 +326,60 @@ wsClient := client.NewWebSocketClient(clobClient, &client.WebSocketClientOptions
     Debug:         true,
 })
 
-// Register event handlers
 wsClient.On(&client.WebSocketCallbacks{
     OnBook: func(msg *types.BookMessage) {
-        fmt.Printf("📚 Book Update - Bids: %d, Asks: %d\n", 
-            len(msg.Bids), len(msg.Asks))
+        fmt.Printf("Book Update - Bids: %d, Asks: %d\n", len(msg.Bids), len(msg.Asks))
     },
-    
-    OnPriceChange: func(msg *types.PriceChangeMessage) {
-        fmt.Printf("💹 Price Change - %d changes\n", len(msg.PriceChanges))
-    },
-    
     OnLastTradePrice: func(msg *types.LastTradePriceMessage) {
-        fmt.Printf("💰 Trade: %s @ %s\n", msg.Side, msg.Price)
+        fmt.Printf("Trade: %s @ %s\n", msg.Side, msg.Price)
     },
-    
     OnError: func(err error) {
         fmt.Printf("Error: %v\n", err)
     },
 })
 
-// Connect and start receiving data
 wsClient.Connect()
+```
+
+### Go Redundant WebSocket Pool
+
+For high-availability scenarios, use `RedundantWSPool` which maintains N parallel connections with automatic message deduplication:
+
+```go
+pool := client.NewRedundantWSPool(&client.PoolConfig{
+    Redundancy:   3,           // 3 parallel connections
+    DedupTTL:     60 * time.Second,
+    OnMessage: func(msg []byte) {
+        // deduplicated message callback
+        fmt.Println(string(msg))
+    },
+})
+
+ctx := context.Background()
+pool.Start(ctx)
+pool.Subscribe([]string{"asset_id_1", "asset_id_2"})
 ```
 
 ### WebSocket Features
 
-- ✅ **Automatic Authentication** - Handles API key derivation automatically
-- ✅ **Type-Safe Messages** - Full validation and typing for all message types
-- ✅ **Auto-Reconnection** - Configurable reconnection with retry logic
-- ✅ **Event Handlers** - Clean callback API for each message type
-- ✅ **Connection Management** - Easy subscribe/unsubscribe methods
-- ✅ **Debug Logging** - Optional detailed logging for troubleshooting
+- **Automatic Authentication** - Handles API key derivation automatically
+- **Type-Safe Messages** - Full validation and typing for all message types
+- **Auto-Reconnection** - Configurable reconnection with exponential backoff
+- **Event Handlers** - Clean callback API for each message type
+- **User Channel** - Authenticated order/trade event streaming (Python & Go)
+- **Redundant Pool** - Multiple parallel connections with deduplication (Go)
+- **Debug Logging** - Optional detailed logging for troubleshooting
 
 ### Message Types
 
-The WebSocket client handles four message types:
+The WebSocket client handles these message types:
 
 1. **Book Messages** - Full orderbook snapshots and updates
 2. **Price Change Messages** - Real-time price level changes
 3. **Tick Size Change Messages** - Minimum tick size updates
 4. **Last Trade Price Messages** - Trade execution events
+5. **Order Events** - Order placement/fill events (user channel)
+6. **Trade Events** - Trade execution events (user channel)
 
 See [WebSocket Client Documentation](./docs/WEBSOCKET_CLIENT.md) for detailed API reference and examples.
 
@@ -270,7 +396,7 @@ import type {
   EventQueryType,
   PriceHistoryQueryType,
   PriceHistoryResponseType,
-  
+
   // WebSocket Types
   MarketChannelMessage,
   BookMessage,
@@ -309,28 +435,46 @@ import type {
 - `GET /clob/cache/stats` - Get cache statistics for SDK instances and CLOB clients
 - `DELETE /clob/cache` - Clear all caches
 
+### Data API Endpoints
+
+- `GET /data/positions` - Get user positions
+- `GET /data/closed-positions` - Get closed positions
+- `GET /data/trades` - Get user trades
+- `GET /data/activity` - Get user activity
+- `GET /data/holders` - Get market holders
+- `GET /data/top-holders` - Get top holders for a market
+- `GET /data/total-value` - Get total portfolio value
+- `GET /data/markets-traded` - Get total markets traded count
+- `GET /data/open-interest` - Get open interest
+- `GET /data/live-volume` - Get live trading volume
+- `GET /data/health` - Data API health check
+
 ## Installation & Setup
 
-### Using as SDK Only
+### Python SDK
 
-1. **Install from JSR**:
+```bash
+# Using uv
+uv add polymarket-kit
 
-   ```bash
-   # Using Deno
-   deno add @hk/polymarket
+# Using pip
+pip install polymarket-kit
+```
 
-   # Using Bun
-   bunx jsr add @hk/polymarket
+Requires Python >= 3.12.
 
-   # Using npm
-   npx jsr add @hk/polymarket
-   ```
+### TypeScript SDK
 
-2. **Use directly in your code**:
-   ```typescript
-   import { GammaSDK, PolymarketSDK } from "@hk/polymarket";
-   // No server setup required!
-   ```
+```bash
+# Using Deno
+deno add @hk/polymarket
+
+# Using Bun
+bunx jsr add @hk/polymarket
+
+# Using npm
+npx jsr add @hk/polymarket
+```
 
 ### Running the Proxy Server
 
@@ -372,9 +516,9 @@ import type {
    bun run deploy
    ```
 
-## OpenAPI Schema Generation Plan
+## OpenAPI Schema Generation
 
-The server automatically generates OpenAPI 3.0 schemas that can be used to create type-safe SDKs for other languages:
+The server automatically generates OpenAPI 3.0 schemas that can be used to create type-safe SDKs for other languages.
 
 ### Accessing the Schema
 
@@ -383,12 +527,8 @@ The server automatically generates OpenAPI 3.0 schemas that can be used to creat
 
 ### Generating SDKs from OpenAPI Schema
 
-The generated OpenAPI schema can be used with various code generators:
-
-#### Python SDK Generation
-
 ```bash
-# Using openapi-generator-cli
+# Install generator
 npm install -g @openapitools/openapi-generator-cli
 
 # Generate Python client
@@ -397,22 +537,14 @@ openapi-generator-cli generate \
   -g python \
   -o ./generated/python-client \
   --additional-properties=packageName=polymarket_proxy_client
-```
 
-#### Go SDK Generation
-
-```bash
 # Generate Go client
 openapi-generator-cli generate \
   -i http://localhost:3000/docs/json \
   -g go \
   -o ./generated/go-client \
   --additional-properties=packageName=polymarket
-```
 
-#### TypeScript SDK Generation
-
-```bash
 # Generate TypeScript client
 openapi-generator-cli generate \
   -i http://localhost:3000/docs/json \
@@ -422,16 +554,9 @@ openapi-generator-cli generate \
 
 ## Type Safety & Validation
 
-### Unified TypeBox Schema System
+### TypeScript: Unified TypeBox Schema System
 
-This package uses a **single source of truth** for all type definitions and validation through Elysia TypeBox schemas located in `src/types/elysia-schemas.ts`. This provides:
-
-- **Compile-time type safety**: Full TypeScript types for all API operations
-- **Runtime validation**: Automatic request/response validation in proxy server routes
-- **OpenAPI generation**: Automatic schema generation for documentation
-- **Cross-platform compatibility**: TypeBox schemas work across Bun, Node.js, Deno, and Cloudflare Workers
-
-### Schema Architecture
+All types are defined in `src/types/elysia-schemas.ts` using TypeBox — a single source of truth for compile-time types, runtime validation, and OpenAPI generation.
 
 ```typescript
 // All schemas are defined once in elysia-schemas.ts
@@ -445,83 +570,9 @@ export const MarketSchema = t.Object({
 export type MarketType = typeof MarketSchema.static;
 ```
 
-### Benefits Over Duplicate Schemas
+### Python: Pydantic Models
 
-Previously, this package had duplicate schema definitions:
-
-- ❌ `sdk/types.ts` (Effect schemas)
-- ❌ `types/elysia-schemas.ts` (TypeBox schemas)
-
-Now we have:
-
-- ✅ **Single source**: `types/elysia-schemas.ts` (TypeBox schemas only)
-- ✅ **No duplicate maintenance**
-- ✅ **Consistent validation** across SDK and server
-- ✅ **Smaller bundle size** (removed Effect dependency)
-
-## Usage Examples
-
-### SDK Usage Examples
-
-```typescript
-import { GammaSDK, PolymarketSDK, type MarketType } from "@hk/polymarket";
-
-// Using GammaSDK
-const gamma = new GammaSDK();
-const markets: MarketType[] = await gamma.getMarkets({
-  limit: "10",
-  active: "true",
-});
-
-// Using PolymarketSDK
-const polySdk = new PolymarketSDK({
-  privateKey: process.env.POLYMARKET_KEY!,
-  funderAddress: process.env.POLYMARKET_FUNDER!,
-});
-
-const priceHistory = await polySdk.getPriceHistory({
-  market: "0x123...",
-  interval: "1h",
-  startDate: "2024-01-01",
-});
-```
-
-### Proxy Server Usage
-
-```typescript
-// Direct HTTP API calls to proxy server
-const markets = await fetch(
-  "http://localhost:3000/gamma/markets?limit=10&active=true"
-).then((res) => res.json());
-
-const priceHistory = await fetch(
-  "http://localhost:3000/clob/prices-history?market=0x123&interval=1h",
-  {
-    headers: {
-      "x-polymarket-key": "your_key",
-      "x-polymarket-funder": "your_funder",
-    },
-  }
-).then((res) => res.json());
-```
-
-### Python (with generated SDK)
-
-```python
-import polymarket_proxy_client
-
-client = polymarket_proxy_client.ApiClient()
-api = polymarket_proxy_client.GammaAPIApi(client)
-
-# Get markets
-markets = api.gamma_markets_get(slug="bitcoin-above-100k")
-
-# Get price history
-price_data = api.clob_price_history_token_id_get(
-    token_id="0x123",
-    interval="1h"
-)
-```
+All Python types are defined as Pydantic models, providing runtime validation and IDE auto-completion.
 
 ## MCP Server
 
@@ -530,7 +581,6 @@ The Model Context Protocol (MCP) server provides a natural language interface to
 ### Starting the MCP Server
 
 ```bash
-# Start the MCP server
 bun run src/mcp/polymarket.ts
 ```
 
@@ -541,14 +591,7 @@ bun run src/mcp/polymarket.ts
 - **Search & Discovery**: `search_polymarket`, `get_tags`
 - **Analytics**: `get_market_trends`, `get_popular_markets`
 
-### Available Resources
-
-- `markets://active`: Live feed of active markets
-- `events://featured`: Featured events and tournaments
-
 ### Integration with AI Clients
-
-Configure the MCP server in your AI client:
 
 ```json
 {
@@ -561,25 +604,6 @@ Configure the MCP server in your AI client:
 }
 ```
 
-### Natural Language Examples
-
-```
-# Market Discovery
-"Show me the most active prediction markets right now"
-"Find markets about the 2024 US election"
-"What are the trending markets in the last 24 hours?"
-
-# Event Analysis
-"Give me details about event ID 456 in markdown format"
-"What are the featured events happening this week?"
-"Show me all markets for the World Cup event"
-
-# Market Research
-"Analyze market trends for the past week"
-"What are the most popular markets by trading volume?"
-"Show me markets that have seen significant price changes"
-```
-
 See [GEMINI.md](./GEMINI.md) for detailed usage examples and integration guides.
 
 ## Development Plan
@@ -589,41 +613,33 @@ See [GEMINI.md](./GEMINI.md) for detailed usage examples and integration guides.
 - [x] Basic Elysia server setup
 - [x] Gamma API routes with full typing
 - [x] CLOB API routes with full typing
+- [x] Data API routes with full typing
 - [x] OpenAPI documentation generation
 - [x] CORS and error handling
-- [x] **Unified TypeBox schema system**
-- [x] **Standalone SDK clients**
-- [x] **JSR package publishing support**
-- [x] **Eliminated duplicate schemas**
-- [x] **Comprehensive caching system**
+- [x] Unified TypeBox schema system
+- [x] Standalone SDK clients (TypeScript)
+- [x] Python SDK (GammaClient, ClobClient, TradingClient, WebSocket)
+- [x] JSR package publishing support
+- [x] Eliminated duplicate schemas
+- [x] Comprehensive caching system
 
-### Phase 2: SDK Generation
+### Phase 2: Advanced Features ✅
 
-- [ ] Automated SDK generation pipeline for other languages
-- [ ] Python SDK with proper typing
-- [ ] Go SDK generation
-- [ ] Enhanced TypeScript client generation
+- [x] WebSocket support for real-time data (TypeScript, Python, Go)
+- [x] Type-safe WebSocket message schemas
+- [x] Auto-reconnection and error handling
+- [x] User channel WebSocket (authenticated order/trade events)
+- [x] Redundant WebSocket pool with message deduplication (Go)
+- [x] Order placement with EIP-712 signing (Python, Go)
+- [x] Profile wallet address extraction (Python)
 
-### Phase 3: Enhanced Features ✅
+### Phase 3: In Progress
 
 - [ ] Rate limiting and request throttling
 - [ ] Authentication/API key management
 - [ ] Monitoring and metrics collection
-- [x] **WebSocket support for real-time data** ✅
-- [x] **Type-safe WebSocket message schemas** ✅
-- [x] **Auto-reconnection and error handling** ✅
 - [ ] Enhanced error recovery mechanisms
-
-### Recent Updates ✅
-
-- **WebSocket Integration**: Full real-time market data streaming with type-safe clients in TypeScript and Go
-- **Message Validation**: Comprehensive Zod/struct validation for all WebSocket message types
-- **Auto-Reconnection**: Robust connection management with configurable retry logic
-- **Schema Consolidation**: Migrated from dual Effect + TypeBox schemas to unified TypeBox-only approach
-- **Type Safety**: Eliminated all `any` types and improved TypeScript strictness
-- **Bundle Optimization**: Removed Effect dependency, reduced package size
-- **SDK Architecture**: Clean separation between standalone SDKs and proxy server
-- **JSR Support**: Ready for publishing to JavaScript Registry with proper exports
+- [ ] Automated SDK generation pipeline
 
 ## Contributing
 
