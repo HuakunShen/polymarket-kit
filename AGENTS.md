@@ -18,11 +18,14 @@ polymarket-kit/
 │   └── types/             # TypeBox schemas (single source of truth)
 ├── py-src/                # Python SDK
 │   └── polymarket_kit/
-│       ├── gamma/client.py    # GammaClient (httpx)
-│       └── clob/client.py     # ClobClient (httpx)
+│       ├── gamma/             # GammaClient (httpx)
+│       ├── clob/              # ClobClient + TradingClient (httpx)
+│       ├── data/              # DataSDK (user positions, trades)
+│       └── ws/                # Async WebSocket (market + user channels)
 └── go-client/             # Go SDK
-    ├── client/            # CLOB client + WebSocket
-    └── types/             # Core types
+    ├── client/                # CLOB client + WebSocket + RedundantWSPool
+    ├── auth/                  # Ethereum wallet & EIP-712 signing
+    └── types/                 # Core types
 ```
 
 ## SDK USAGE
