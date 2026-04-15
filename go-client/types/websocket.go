@@ -16,6 +16,9 @@ const (
 	EventTypePriceChange    EventType = "price_change"
 	EventTypeTickSizeChange EventType = "tick_size_change"
 	EventTypeLastTradePrice EventType = "last_trade_price"
+	EventTypeBestBidAsk     EventType = "best_bid_ask"
+	EventTypeNewMarket      EventType = "new_market"
+	EventTypeMarketResolved EventType = "market_resolved"
 )
 
 // Note: OrderSummary and Side types are already defined in types.go
@@ -183,6 +186,122 @@ func (m *LastTradePriceMessage) Validate() error {
 	return nil
 }
 
+// BestBidAskMessage represents the best bid/ask update event.
+type BestBidAskMessage struct {
+	EventType EventType `json:"event_type"`
+	AssetID   string    `json:"asset_id"`
+	Market    string    `json:"market"`
+	BestBid   string    `json:"best_bid"`
+	BestAsk   string    `json:"best_ask"`
+	Spread    string    `json:"spread"`
+	Timestamp string    `json:"timestamp"`
+}
+
+func (m *BestBidAskMessage) Validate() error {
+	if m.EventType != EventTypeBestBidAsk {
+		return fmt.Errorf("invalid event_type: expected 'best_bid_ask', got '%s'", m.EventType)
+	}
+	if m.AssetID == "" {
+		return fmt.Errorf("asset_id is required")
+	}
+	if m.Market == "" {
+		return fmt.Errorf("market is required")
+	}
+	if m.BestBid == "" {
+		return fmt.Errorf("best_bid is required")
+	}
+	if m.BestAsk == "" {
+		return fmt.Errorf("best_ask is required")
+	}
+	if m.Timestamp == "" {
+		return fmt.Errorf("timestamp is required")
+	}
+	return nil
+}
+
+// EventMessage carries metadata for market lifecycle events.
+type EventMessage struct {
+	ID          string `json:"id"`
+	Ticker      string `json:"ticker"`
+	Slug        string `json:"slug"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+}
+
+// NewMarketMessage represents a new market creation event.
+type NewMarketMessage struct {
+	EventType    EventType    `json:"event_type"`
+	ID           string       `json:"id"`
+	Question     string       `json:"question"`
+	Market       string       `json:"market"`
+	Slug         string       `json:"slug"`
+	Description  string       `json:"description"`
+	AssetIDs     []string     `json:"assets_ids"`
+	Outcomes     []string     `json:"outcomes"`
+	EventMessage EventMessage `json:"event_message"`
+	Timestamp    string       `json:"timestamp"`
+}
+
+func (m *NewMarketMessage) Validate() error {
+	if m.EventType != EventTypeNewMarket {
+		return fmt.Errorf("invalid event_type: expected 'new_market', got '%s'", m.EventType)
+	}
+	if m.ID == "" {
+		return fmt.Errorf("id is required")
+	}
+	if m.Market == "" {
+		return fmt.Errorf("market is required")
+	}
+	if len(m.AssetIDs) == 0 {
+		return fmt.Errorf("assets_ids cannot be empty")
+	}
+	if m.Timestamp == "" {
+		return fmt.Errorf("timestamp is required")
+	}
+	return nil
+}
+
+// MarketResolvedMessage represents a market resolution event.
+type MarketResolvedMessage struct {
+	EventType      EventType     `json:"event_type"`
+	ID             string        `json:"id"`
+	Question       string        `json:"question,omitempty"`
+	Market         string        `json:"market"`
+	Slug           string        `json:"slug,omitempty"`
+	Description    string        `json:"description,omitempty"`
+	AssetIDs       []string      `json:"assets_ids"`
+	Outcomes       []string      `json:"outcomes"`
+	WinningAssetID string        `json:"winning_asset_id"`
+	WinningOutcome string        `json:"winning_outcome"`
+	EventMessage   *EventMessage `json:"event_message,omitempty"`
+	Timestamp      string        `json:"timestamp"`
+}
+
+func (m *MarketResolvedMessage) Validate() error {
+	if m.EventType != EventTypeMarketResolved {
+		return fmt.Errorf("invalid event_type: expected 'market_resolved', got '%s'", m.EventType)
+	}
+	if m.ID == "" {
+		return fmt.Errorf("id is required")
+	}
+	if m.Market == "" {
+		return fmt.Errorf("market is required")
+	}
+	if len(m.AssetIDs) == 0 {
+		return fmt.Errorf("assets_ids cannot be empty")
+	}
+	if m.WinningAssetID == "" {
+		return fmt.Errorf("winning_asset_id is required")
+	}
+	if m.WinningOutcome == "" {
+		return fmt.Errorf("winning_outcome is required")
+	}
+	if m.Timestamp == "" {
+		return fmt.Errorf("timestamp is required")
+	}
+	return nil
+}
+
 // MarketChannelMessage is a union type for all market channel messages
 type MarketChannelMessage interface {
 	Validate() error
@@ -206,6 +325,18 @@ func (m *TickSizeChangeMessage) GetEventType() EventType {
 
 // GetEventType returns the event type for LastTradePriceMessage
 func (m *LastTradePriceMessage) GetEventType() EventType {
+	return m.EventType
+}
+
+func (m *BestBidAskMessage) GetEventType() EventType {
+	return m.EventType
+}
+
+func (m *NewMarketMessage) GetEventType() EventType {
+	return m.EventType
+}
+
+func (m *MarketResolvedMessage) GetEventType() EventType {
 	return m.EventType
 }
 
@@ -262,6 +393,36 @@ func ParseMarketChannelMessage(data []byte) (MarketChannelMessage, error) {
 		}
 		return &msg, nil
 
+	case EventTypeBestBidAsk:
+		var msg BestBidAskMessage
+		if err := json.Unmarshal(data, &msg); err != nil {
+			return nil, fmt.Errorf("failed to parse best_bid_ask message: %w", err)
+		}
+		if err := msg.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid best_bid_ask message: %w", err)
+		}
+		return &msg, nil
+
+	case EventTypeNewMarket:
+		var msg NewMarketMessage
+		if err := json.Unmarshal(data, &msg); err != nil {
+			return nil, fmt.Errorf("failed to parse new_market message: %w", err)
+		}
+		if err := msg.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid new_market message: %w", err)
+		}
+		return &msg, nil
+
+	case EventTypeMarketResolved:
+		var msg MarketResolvedMessage
+		if err := json.Unmarshal(data, &msg); err != nil {
+			return nil, fmt.Errorf("failed to parse market_resolved message: %w", err)
+		}
+		if err := msg.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid market_resolved message: %w", err)
+		}
+		return &msg, nil
+
 	default:
 		return nil, fmt.Errorf("unknown event_type: %s", eventTypeWrapper.EventType)
 	}
@@ -296,6 +457,27 @@ func AsTickSizeChangeMessage(msg MarketChannelMessage) (*TickSizeChangeMessage, 
 // AsLastTradePriceMessage attempts to cast to LastTradePriceMessage
 func AsLastTradePriceMessage(msg MarketChannelMessage) (*LastTradePriceMessage, bool) {
 	if m, ok := msg.(*LastTradePriceMessage); ok {
+		return m, true
+	}
+	return nil, false
+}
+
+func AsBestBidAskMessage(msg MarketChannelMessage) (*BestBidAskMessage, bool) {
+	if m, ok := msg.(*BestBidAskMessage); ok {
+		return m, true
+	}
+	return nil, false
+}
+
+func AsNewMarketMessage(msg MarketChannelMessage) (*NewMarketMessage, bool) {
+	if m, ok := msg.(*NewMarketMessage); ok {
+		return m, true
+	}
+	return nil, false
+}
+
+func AsMarketResolvedMessage(msg MarketChannelMessage) (*MarketResolvedMessage, bool) {
+	if m, ok := msg.(*MarketResolvedMessage); ok {
 		return m, true
 	}
 	return nil, false

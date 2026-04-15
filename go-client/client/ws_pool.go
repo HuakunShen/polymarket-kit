@@ -13,19 +13,19 @@ import (
 
 // PoolConfig 配置冗余 WS 连接池。
 type PoolConfig struct {
-	Redundancy       int           // 并行连接数（默认 2）
-	StaggerDelay     time.Duration // 连接间启动延迟（默认 3s）
-	PingInterval     time.Duration // PING 间隔（默认 10s）
-	PongTimeout      time.Duration // PONG 超时，超时则重连（默认 30s）
-	HealthCheckEvery time.Duration // 健康检查间隔（默认 5s）
-	ReconnectBase    time.Duration // 重连初始退避（默认 1s）
-	ReconnectMax     time.Duration // 重连最大退避（默认 30s）
-	DedupTTL         time.Duration // 去重 TTL（默认 60s）
-	DedupCap         int           // 去重缓存容量（默认 10000）
-	CustomFeature    bool          // 订阅时发送 custom_feature_enabled（默认 true）
-	OnMessage        func([]byte)  // 去重后消息回调（必填）
+	Redundancy       int                              // 并行连接数（默认 2）
+	StaggerDelay     time.Duration                    // 连接间启动延迟（默认 3s）
+	PingInterval     time.Duration                    // PING 间隔（默认 10s）
+	PongTimeout      time.Duration                    // PONG 超时，超时则重连（默认 30s）
+	HealthCheckEvery time.Duration                    // 健康检查间隔（默认 5s）
+	ReconnectBase    time.Duration                    // 重连初始退避（默认 1s）
+	ReconnectMax     time.Duration                    // 重连最大退避（默认 30s）
+	DedupTTL         time.Duration                    // 去重 TTL（默认 60s）
+	DedupCap         int                              // 去重缓存容量（默认 10000）
+	CustomFeature    bool                             // 订阅时发送 custom_feature_enabled（默认 true）
+	OnMessage        func([]byte)                     // 去重后消息回调（必填）
 	OnConnState      func(connID int, connected bool) // 连接状态变化回调（可选）
-	Logger           *slog.Logger  // 日志（可选，默认 slog.Default）
+	Logger           *slog.Logger                     // 日志（可选，默认 slog.Default）
 }
 
 func (c *PoolConfig) applyDefaults() {
@@ -133,7 +133,7 @@ func (p *RedundantWSPool) Start(ctx context.Context) error {
 }
 
 // Subscribe 动态添加 asset IDs（对 pool 内所有连接广播）。
-// 内部使用全量重订阅（type: "market"），确保 Polymarket 服务端正确处理。
+// 仅对新增的 IDs 发送增量 subscribe；重连恢复时才发送全量订阅。
 func (p *RedundantWSPool) Subscribe(assetIDs []string) {
 	if len(assetIDs) == 0 {
 		return
@@ -156,11 +156,11 @@ func (p *RedundantWSPool) Subscribe(assetIDs []string) {
 
 	p.log(slog.LevelInfo, "Subscribing to new tokens", "added", added, "total", p.subscribedCount())
 
-	// 重发全量订阅，避免 dynamic subscribe 在无初始订阅时不生效
+	// 仅发送增量 subscribe；连接重建时由 connect() 发送全量订阅恢复状态。
 	for _, mc := range p.conns {
 		if mc.Connected.Load() {
-			if err := mc.sendFullSubscription(); err != nil {
-				p.log(slog.LevelWarn, "Full re-subscribe failed",
+			if err := mc.sendDynamic(assetIDs, "subscribe"); err != nil {
+				p.log(slog.LevelWarn, "Dynamic subscribe failed",
 					"conn_id", mc.id, "error", err)
 			}
 		}
