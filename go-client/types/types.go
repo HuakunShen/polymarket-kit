@@ -238,6 +238,11 @@ type MarketPrice struct {
 	P float64 `json:"p"` // price
 }
 
+// PriceHistoryResponse represents the response from /prices-history
+type PriceHistoryResponse struct {
+	History []MarketPrice `json:"history"`
+}
+
 // PriceHistoryFilterParams represents price history filter parameters
 type PriceHistoryFilterParams struct {
 	Market    *string            `json:"market,omitempty"`

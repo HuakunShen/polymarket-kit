@@ -35,6 +35,7 @@ type ClientConfig struct {
 	GeoBlockToken string
 	UseServerTime bool
 	Timeout       time.Duration
+	ProxyURL      string // HTTP proxy URL (optional)
 }
 
 // NewClobClient creates a new CLOB client
@@ -62,6 +63,21 @@ func NewClobClient(config *ClientConfig) (*ClobClient, error) {
 		timeout = 30 * time.Second
 	}
 
+	httpClient := &http.Client{
+		Timeout: timeout,
+	}
+
+	// Configure proxy if provided
+	if config.ProxyURL != "" {
+		proxyURL, err := url.Parse(config.ProxyURL)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse proxy URL: %w", err)
+		}
+		httpClient.Transport = &http.Transport{
+			Proxy: http.ProxyURL(proxyURL),
+		}
+	}
+
 	client := &ClobClient{
 		host:          host,
 		chainID:       config.ChainID,
@@ -70,9 +86,7 @@ func NewClobClient(config *ClientConfig) (*ClobClient, error) {
 		builderConfig: config.BuilderConfig,
 		geoBlockToken: config.GeoBlockToken,
 		useServerTime: config.UseServerTime,
-		httpClient: &http.Client{
-			Timeout: timeout,
-		},
+		httpClient:    httpClient,
 	}
 
 	return client, nil
@@ -238,6 +252,32 @@ func (c *ClobClient) GetPricesHistory(params types.PriceHistoryFilterParams) (in
 	}
 
 	return c.getWithParams(GetPricesHistory, queryParams)
+}
+
+// GetPricesHistoryTyped gets price history with a typed response
+func (c *ClobClient) GetPricesHistoryTyped(params types.PriceHistoryFilterParams) ([]types.MarketPrice, error) {
+	queryParams := url.Values{}
+	if params.Market != nil {
+		queryParams.Add("market", *params.Market)
+	}
+	if params.StartTs != nil {
+		queryParams.Add("startTs", fmt.Sprintf("%d", *params.StartTs))
+	}
+	if params.EndTs != nil {
+		queryParams.Add("endTs", fmt.Sprintf("%d", *params.EndTs))
+	}
+	if params.Fidelity != nil {
+		queryParams.Add("fidelity", fmt.Sprintf("%d", *params.Fidelity))
+	}
+	if params.Interval != nil {
+		queryParams.Add("interval", string(*params.Interval))
+	}
+
+	var result types.PriceHistoryResponse
+	if err := c.getJSONWithParams(GetPricesHistory, queryParams, &result); err != nil {
+		return nil, err
+	}
+	return result.History, nil
 }
 
 // CreateApiKey creates a new API key
