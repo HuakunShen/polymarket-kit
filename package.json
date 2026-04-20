@@ -1,7 +1,7 @@
 {
 	"name": "@hk/polymarket",
 	"module": "src/index.ts",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"private": true,
 	"bin": {
 		"weather": "./build/weather.js",
@@ -47,6 +47,7 @@
 		"@modelcontextprotocol/sdk": "^1.21.1",
 		"@polymarket/builder-signing-sdk": "^0.0.8",
 		"@polymarket/clob-client": "github:HuakunShen/polymarket-clob-client#proxy",
+		"@polymarket/clob-client-v2": "^1.0.0",
 		"effect": "^3.19.13",
 		"elysia": "^1.4.19",
 		"hono": "4.11.1",
