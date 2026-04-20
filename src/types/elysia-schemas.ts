@@ -6,6 +6,7 @@
  */
 
 import { t, type TSchema } from "elysia";
+import { TypeCompiler } from "@sinclair/typebox/compiler";
 
 // Base types used across different schemas
 const StringArray = t.Array(t.String());

@@ -95,7 +95,7 @@ const createDataSDKEffect = (
 /**
  * Create Data API routes with proper typing and validation for all available endpoints
  */
-export const dataRoutes = new Elysia({ prefix: "/data" })
+export const dataRoutes = new Elysia({ prefix: "/data", normalize: "typebox" })
 	// Middleware to create DataSDK instance based on proxy header
 	.derive(({ headers }) => {
 		const proxyHeaderValue = headers["x-http-proxy"];

@@ -209,7 +209,7 @@ async function getPolymarketSDK(
 /**
  * Create CLOB API routes with proper typing and validation
  */
-export const clobRoutes = new Elysia({ prefix: "/clob" })
+export const clobRoutes = new Elysia({ prefix: "/clob", normalize: "typebox" })
 	.error({
 		ClobValidationError,
 		ClobApiError,

@@ -108,7 +108,7 @@ const createGammaSDKEffect = (
 /**
  * Create Gamma API routes with proper typing and validation for all available endpoints
  */
-export const gammaRoutes = new Elysia({ prefix: "/gamma" })
+export const gammaRoutes = new Elysia({ prefix: "/gamma", normalize: "typebox" })
 	// Middleware to create GammaSDK instance based on proxy header
 	.resolve(({ headers }) => {
 		const proxyHeaderValue = headers["x-http-proxy"];

@@ -3,7 +3,7 @@ import { clobRoutes } from "./routes/clob";
 import { dataRoutes } from "./routes/data";
 import { gammaRoutes } from "./routes/gamma";
 
-export const app = new Elysia()
+export const app = new Elysia({ normalize: "typebox" })
 	// Global error handler
 	.onError(({ code, error, set }) => {
 		const errorMessage =
