@@ -15,6 +15,10 @@ from pydantic import BaseModel, TypeAdapter
 
 from .models import (
     Activity,
+    BuilderLeaderboardEntry,
+    BuilderLeaderboardQuery,
+    BuilderVolumeEntry,
+    BuilderVolumeQuery,
     ClosedPosition,
     ClosedPositionsQuery,
     DataHealthResponse,
@@ -28,6 +32,8 @@ from .models import (
     PositionsQuery,
     ProxyConfig,
     TradesQuery,
+    TraderLeaderboardEntry,
+    TraderLeaderboardQuery,
     TotalMarketsTraded,
     TotalMarketsTradedQuery,
     TotalValue,
@@ -432,6 +438,30 @@ class DataClient:
         """
         data = self._get_data("/live-volume", query, "Get live volume")
         return LiveVolumeResponse.model_validate(data)
+
+    # Leaderboard API
+
+    def get_trader_leaderboard(
+        self, query: TraderLeaderboardQuery | Mapping[str, Any] | None = None
+    ) -> list[TraderLeaderboardEntry]:
+        data = self._get_data("/v1/leaderboard", query, "Get trader leaderboard")
+        return TypeAdapter(list[TraderLeaderboardEntry]).validate_python(data)
+
+    def get_aggregated_builder_leaderboard(
+        self, query: BuilderLeaderboardQuery | Mapping[str, Any] | None = None
+    ) -> list[BuilderLeaderboardEntry]:
+        data = self._get_data(
+            "/v1/builders/leaderboard", query, "Get aggregated builder leaderboard"
+        )
+        return TypeAdapter(list[BuilderLeaderboardEntry]).validate_python(data)
+
+    def get_daily_builder_volume_timeseries(
+        self, query: BuilderVolumeQuery | Mapping[str, Any] | None = None
+    ) -> list[BuilderVolumeEntry]:
+        data = self._get_data(
+            "/v1/builders/volume", query, "Get daily builder volume timeseries"
+        )
+        return TypeAdapter(list[BuilderVolumeEntry]).validate_python(data)
 
     # Convenience methods for common use cases
 

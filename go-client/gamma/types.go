@@ -426,6 +426,44 @@ type IPResponse struct {
 	Hostname string `json:"hostname,omitempty"`
 }
 
+// EventsKeysetQuery represents query parameters for keyset-paginated events
+type EventsKeysetQuery struct {
+	AfterCursor    *string `json:"after_cursor,omitempty"`
+	Limit          *int    `json:"limit,omitempty"`
+	Active         *bool   `json:"active,omitempty"`
+	Closed         *bool   `json:"closed,omitempty"`
+	Archived       *bool   `json:"archived,omitempty"`
+	Featured       *bool   `json:"featured,omitempty"`
+	TagID          *int    `json:"tag_id,omitempty"`
+	TagSlug        *string `json:"tag_slug,omitempty"`
+	PaginationType *string `json:"pagination_type,omitempty"`
+}
+
+// MarketsKeysetQuery represents query parameters for keyset-paginated markets
+type MarketsKeysetQuery struct {
+	AfterCursor    *string `json:"after_cursor,omitempty"`
+	Limit          *int    `json:"limit,omitempty"`
+	Active         *bool   `json:"active,omitempty"`
+	Closed         *bool   `json:"closed,omitempty"`
+	Archived       *bool   `json:"archived,omitempty"`
+	Featured       *bool   `json:"featured,omitempty"`
+	TagID          *int    `json:"tag_id,omitempty"`
+	TagSlug        *string `json:"tag_slug,omitempty"`
+	PaginationType *string `json:"pagination_type,omitempty"`
+}
+
+// KeysetPaginatedEventsResponse represents a keyset-paginated events response
+type KeysetPaginatedEventsResponse struct {
+	Data       []Event `json:"data"`
+	NextCursor *string `json:"next_cursor,omitempty"`
+}
+
+// KeysetPaginatedMarketsResponse represents a keyset-paginated markets response
+type KeysetPaginatedMarketsResponse struct {
+	Data       []Market `json:"data"`
+	NextCursor *string  `json:"next_cursor,omitempty"`
+}
+
 // StringPtr creates a pointer to a string
 func StringPtr(s string) *string {
 	return &s

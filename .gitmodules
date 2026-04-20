@@ -7,3 +7,6 @@
 [submodule "vendors/real-time-data-client"]
 	path = vendors/real-time-data-client
 	url = https://github.com/Polymarket/real-time-data-client.git
+[submodule "vendors/clob-client-v2"]
+	path = vendors/clob-client-v2
+	url = https://github.com/Polymarket/clob-client-v2.git

@@ -12,8 +12,12 @@ from .models import (
     CommentsByUserQuery,
     Event,
     EventByIdQuery,
+    EventsKeysetQuery,
+    EventsKeysetResponse,
     Market,
     MarketByIdQuery,
+    MarketsKeysetQuery,
+    MarketsKeysetResponse,
     PaginatedEventQuery,
     PaginatedEventsResponse,
     ProxyConfig,
@@ -398,6 +402,38 @@ class GammaClient:
         else:
             query = {**dict(query), "closed": True}
         return self.get_markets(query)
+
+    def get_events_keyset(
+        self, query: EventsKeysetQuery | Mapping[str, Any] | None = None
+    ) -> EventsKeysetResponse:
+        params = _normalize_params(query)
+        params["pagination_type"] = "keyset"
+        data = self._get_data("/events", params, "Get events keyset")
+        if isinstance(data, list):
+            return EventsKeysetResponse(
+                data=TypeAdapter(list[Event]).validate_python(data),
+                next_cursor=None,
+            )
+        return EventsKeysetResponse(
+            data=TypeAdapter(list[Event]).validate_python(data.get("data", [])),
+            next_cursor=data.get("next_cursor"),
+        )
+
+    def get_markets_keyset(
+        self, query: MarketsKeysetQuery | Mapping[str, Any] | None = None
+    ) -> MarketsKeysetResponse:
+        params = _normalize_params(query)
+        params["pagination_type"] = "keyset"
+        data = self._get_data("/markets", params, "Get markets keyset")
+        if isinstance(data, list):
+            return MarketsKeysetResponse(
+                data=TypeAdapter(list[Market]).validate_python(data),
+                next_cursor=None,
+            )
+        return MarketsKeysetResponse(
+            data=TypeAdapter(list[Market]).validate_python(data.get("data", [])),
+            next_cursor=data.get("next_cursor"),
+        )
 
 
 GammaSDK = GammaClient

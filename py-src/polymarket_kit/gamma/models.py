@@ -547,3 +547,35 @@ class SearchQuery(GammaModel):
     events_tag: list[str] | str | None = None
     sort: str | None = None
     ascending: bool | None = None
+
+
+class EventsKeysetQuery(GammaModel):
+    after_cursor: str | None = None
+    limit: int | None = None
+    active: bool | None = None
+    closed: bool | None = None
+    archived: bool | None = None
+    featured: bool | None = None
+    tag_id: int | None = None
+    tag_slug: str | None = None
+
+
+class MarketsKeysetQuery(GammaModel):
+    after_cursor: str | None = None
+    limit: int | None = None
+    active: bool | None = None
+    closed: bool | None = None
+    archived: bool | None = None
+    featured: bool | None = None
+    tag_id: int | None = None
+    tag_slug: str | None = None
+
+
+class EventsKeysetResponse(GammaModel):
+    data: list[Event] = Field(default_factory=list)
+    next_cursor: str | None = None
+
+
+class MarketsKeysetResponse(GammaModel):
+    data: list[Market] = Field(default_factory=list)
+    next_cursor: str | None = None

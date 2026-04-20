@@ -368,6 +368,50 @@ func (d *DataSDK) GetOpenInterest(query *OpenInterestQuery) ([]OpenInterest, err
 	return d.unmarshalOpenInterestResponse(resp, "Get open interest")
 }
 
+// Leaderboard API
+
+// GetTraderLeaderboard gets trader leaderboard rankings
+func (d *DataSDK) GetTraderLeaderboard(query *TraderLeaderboardQuery) ([]TraderLeaderboardEntry, error) {
+	if query == nil {
+		query = &TraderLeaderboardQuery{}
+	}
+
+	resp, err := d.makeRequest("GET", "/v1/leaderboard", query)
+	if err != nil {
+		return nil, err
+	}
+
+	return d.unmarshalTraderLeaderboardResponse(resp, "Get trader leaderboard")
+}
+
+// GetAggregatedBuilderLeaderboard gets aggregated builder leaderboard
+func (d *DataSDK) GetAggregatedBuilderLeaderboard(query *BuilderLeaderboardQuery) ([]BuilderLeaderboardEntry, error) {
+	if query == nil {
+		query = &BuilderLeaderboardQuery{}
+	}
+
+	resp, err := d.makeRequest("GET", "/v1/builders/leaderboard", query)
+	if err != nil {
+		return nil, err
+	}
+
+	return d.unmarshalBuilderLeaderboardResponse(resp, "Get aggregated builder leaderboard")
+}
+
+// GetDailyBuilderVolumeTimeSeries gets daily builder volume time-series
+func (d *DataSDK) GetDailyBuilderVolumeTimeSeries(query *BuilderVolumeQuery) ([]BuilderVolumeEntry, error) {
+	if query == nil {
+		query = &BuilderVolumeQuery{}
+	}
+
+	resp, err := d.makeRequest("GET", "/v1/builders/volume", query)
+	if err != nil {
+		return nil, err
+	}
+
+	return d.unmarshalBuilderVolumeResponse(resp, "Get daily builder volume time-series")
+}
+
 // GetLiveVolume gets live volume for an event
 func (d *DataSDK) GetLiveVolume(query *LiveVolumeQuery) (*LiveVolumeResponse, error) {
 	if query == nil {
@@ -636,6 +680,48 @@ func (d *DataSDK) unmarshalLiveVolumeResponse(resp *APIResponse, operation strin
 	}
 
 	return &result, nil
+}
+
+func (d *DataSDK) unmarshalTraderLeaderboardResponse(resp *APIResponse, operation string) ([]TraderLeaderboardEntry, error) {
+	data, err := d.extractResponseData(resp, operation)
+	if err != nil {
+		return nil, err
+	}
+
+	var result []TraderLeaderboardEntry
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal %s response: %w", operation, err)
+	}
+
+	return result, nil
+}
+
+func (d *DataSDK) unmarshalBuilderLeaderboardResponse(resp *APIResponse, operation string) ([]BuilderLeaderboardEntry, error) {
+	data, err := d.extractResponseData(resp, operation)
+	if err != nil {
+		return nil, err
+	}
+
+	var result []BuilderLeaderboardEntry
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal %s response: %w", operation, err)
+	}
+
+	return result, nil
+}
+
+func (d *DataSDK) unmarshalBuilderVolumeResponse(resp *APIResponse, operation string) ([]BuilderVolumeEntry, error) {
+	data, err := d.extractResponseData(resp, operation)
+	if err != nil {
+		return nil, err
+	}
+
+	var result []BuilderVolumeEntry
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal %s response: %w", operation, err)
+	}
+
+	return result, nil
 }
 
 // APIResponse represents a generic API response

@@ -26,6 +26,12 @@ import type {
 	LiveVolumeQueryType,
 	DataHealthResponseType,
 	ProxyConfigType,
+	BuilderLeaderboardQueryType,
+	BuilderLeaderboardEntryType,
+	BuilderVolumeQueryType,
+	BuilderVolumeEntryType,
+	TraderLeaderboardQueryType,
+	TraderLeaderboardEntryType,
 } from "../types/elysia-schemas";
 import { Effect } from "effect";
 
@@ -481,6 +487,83 @@ export class DataSDK {
 			query,
 		);
 		return this.extractResponseData(response, "Get live volume");
+	}
+
+	// Builders API
+	/**
+	 * Get aggregated builder leaderboard
+	 *
+	 * @param query - Query parameters for time period and pagination
+	 * @returns Promise resolving to array of builder leaderboard entries
+	 * @throws {Error} When API request fails
+	 *
+	 * @example
+	 * ```ts
+	 * const leaderboard = await data.getAggregatedBuilderLeaderboard({
+	 *   timePeriod: "DAY",
+	 *   limit: 10
+	 * });
+	 * ```
+	 */
+	async getAggregatedBuilderLeaderboard(
+		query: BuilderLeaderboardQueryType = {},
+	): Promise<BuilderLeaderboardEntryType[]> {
+		const response = await this.makeRequest<BuilderLeaderboardEntryType[]>(
+			"/v1/builders/leaderboard",
+			query,
+		);
+		return this.extractResponseData(response, "Get aggregated builder leaderboard");
+	}
+
+	/**
+	 * Get daily builder volume time-series
+	 *
+	 * @param query - Query parameters for time period
+	 * @returns Promise resolving to array of builder volume entries
+	 * @throws {Error} When API request fails
+	 *
+	 * @example
+	 * ```ts
+	 * const volume = await data.getDailyBuilderVolumeTimeSeries({
+	 *   timePeriod: "DAY"
+	 * });
+	 * ```
+	 */
+	async getDailyBuilderVolumeTimeSeries(
+		query: BuilderVolumeQueryType = {},
+	): Promise<BuilderVolumeEntryType[]> {
+		const response = await this.makeRequest<BuilderVolumeEntryType[]>(
+			"/v1/builders/volume",
+			query,
+		);
+		return this.extractResponseData(response, "Get daily builder volume time-series");
+	}
+
+	/**
+	 * Get trader leaderboard rankings
+	 *
+	 * @param query - Query parameters for category, time period, ordering, and pagination
+	 * @returns Promise resolving to array of trader leaderboard entries
+	 * @throws {Error} When API request fails
+	 *
+	 * @example
+	 * ```ts
+	 * const leaderboard = await data.getTraderLeaderboard({
+	 *   category: "OVERALL",
+	 *   timePeriod: "WEEK",
+	 *   orderBy: "PNL",
+	 *   limit: 25
+	 * });
+	 * ```
+	 */
+	async getTraderLeaderboard(
+		query: TraderLeaderboardQueryType = {},
+	): Promise<TraderLeaderboardEntryType[]> {
+		const response = await this.makeRequest<TraderLeaderboardEntryType[]>(
+			"/v1/leaderboard",
+			query,
+		);
+		return this.extractResponseData(response, "Get trader leaderboard");
 	}
 
 	// Convenience methods for common use cases

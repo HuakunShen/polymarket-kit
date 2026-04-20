@@ -1,6 +1,7 @@
 package gamma
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -949,6 +950,116 @@ func (g *GammaSDK) GetActiveMarkets(query *UpdatedMarketQuery) ([]Market, error)
 	active := true
 	query.Active = &active
 	return g.GetMarkets(query)
+}
+
+// GetEventsKeyset gets events using keyset (cursor-based) pagination
+func (g *GammaSDK) GetEventsKeyset(query *EventsKeysetQuery) (*KeysetPaginatedEventsResponse, error) {
+	if query == nil {
+		query = &EventsKeysetQuery{}
+	}
+
+	paginationType := "keyset"
+	query.PaginationType = &paginationType
+
+	resp, err := g.makeRequest("GET", "/events", query)
+	if err != nil {
+		return nil, err
+	}
+
+	return g.unmarshalEventsKeysetResponse(resp, "Get events keyset")
+}
+
+// GetMarketsKeyset gets markets using keyset (cursor-based) pagination
+func (g *GammaSDK) GetMarketsKeyset(query *MarketsKeysetQuery) (*KeysetPaginatedMarketsResponse, error) {
+	if query == nil {
+		query = &MarketsKeysetQuery{}
+	}
+
+	paginationType := "keyset"
+	query.PaginationType = &paginationType
+
+	resp, err := g.makeRequest("GET", "/markets", query)
+	if err != nil {
+		return nil, err
+	}
+
+	return g.unmarshalMarketsKeysetResponse(resp, "Get markets keyset")
+}
+
+// unmarshalEventsKeysetResponse handles both plain-array and keyset-object responses for events
+func (g *GammaSDK) unmarshalEventsKeysetResponse(resp *APIResponse, operation string) (*KeysetPaginatedEventsResponse, error) {
+	data, err := g.extractResponseData(resp, operation)
+	if err != nil {
+		return nil, err
+	}
+
+	var events []Event
+	var nextCursor *string
+
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) > 0 && trimmed[0] == '{' {
+		var keysetResp struct {
+			Data       []map[string]interface{} `json:"data"`
+			NextCursor *string                  `json:"next_cursor"`
+		}
+		if err := json.Unmarshal(data, &keysetResp); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal %s response: %w", operation, err)
+		}
+		nextCursor = keysetResp.NextCursor
+		events = make([]Event, len(keysetResp.Data))
+		for i, item := range keysetResp.Data {
+			events[i] = g.transformEventData(item)
+		}
+	} else {
+		var rawItems []map[string]interface{}
+		if err := json.Unmarshal(data, &rawItems); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal %s data: %w", operation, err)
+		}
+		events = make([]Event, len(rawItems))
+		for i, item := range rawItems {
+			events[i] = g.transformEventData(item)
+		}
+	}
+
+	return &KeysetPaginatedEventsResponse{Data: events, NextCursor: nextCursor}, nil
+}
+
+// unmarshalMarketsKeysetResponse handles both plain-array and keyset-object responses for markets
+func (g *GammaSDK) unmarshalMarketsKeysetResponse(resp *APIResponse, operation string) (*KeysetPaginatedMarketsResponse, error) {
+	data, err := g.extractResponseData(resp, operation)
+	if err != nil {
+		return nil, err
+	}
+
+	var markets []Market
+	var nextCursor *string
+
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) > 0 && trimmed[0] == '{' {
+		var keysetResp struct {
+			Data       []map[string]interface{} `json:"data"`
+			NextCursor *string                  `json:"next_cursor"`
+		}
+		if err := json.Unmarshal(data, &keysetResp); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal %s response: %w", operation, err)
+		}
+		nextCursor = keysetResp.NextCursor
+		markets = make([]Market, len(keysetResp.Data))
+		for i, item := range keysetResp.Data {
+			markets[i] = g.transformMarketData(item)
+		}
+	} else {
+		var rawItems []map[string]interface{}
+		if err := json.Unmarshal(data, &rawItems); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal %s data: %w", operation, err)
+		}
+		markets = make([]Market, len(rawItems))
+		for i, item := range rawItems {
+			markets[i] = g.transformMarketData(item)
+		}
+	}
+
+	return &KeysetPaginatedMarketsResponse{Data: markets, NextCursor: nextCursor}, nil
 }
 
 // GetClosedMarkets gets closed markets

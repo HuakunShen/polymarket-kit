@@ -260,3 +260,53 @@ class OpenInterestQuery(DataModel):
 
 class LiveVolumeQuery(DataModel):
     id: int
+
+
+class TraderLeaderboardQuery(DataModel):
+    category: str | None = None
+    timePeriod: str | None = None
+    orderBy: str | None = None
+    limit: int | None = None
+    offset: int | None = None
+    user: str | None = None
+    userName: str | None = None
+
+
+class TraderLeaderboardEntry(DataModel):
+    rank: str | None = None
+    proxyWallet: str | None = None
+    userName: str | None = None
+    vol: float | None = None
+    pnl: float | None = None
+    profileImage: str | None = None
+    xUsername: str | None = None
+    verifiedBadge: bool | None = None
+
+
+class BuilderLeaderboardQuery(DataModel):
+    timePeriod: str | None = None
+    limit: int | None = None
+    offset: int | None = None
+
+
+class BuilderLeaderboardEntry(DataModel):
+    rank: str | None = None
+    builder: str | None = None
+    volume: float | None = None
+    activeUsers: int | None = None
+    verified: bool | None = None
+    builderLogo: str | None = None
+
+
+class BuilderVolumeQuery(DataModel):
+    timePeriod: str | None = None
+
+
+class BuilderVolumeEntry(DataModel):
+    dt: str | None = None
+    builder: str | None = None
+    builderLogo: str | None = None
+    verified: bool | None = None
+    volume: float | None = None
+    activeUsers: int | None = None
+    rank: str | None = None

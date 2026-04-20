@@ -46,6 +46,9 @@ import {
 	// Search
 	SearchQuerySchema,
 	SearchResponseSchema,
+	// Keyset pagination
+	EventsKeysetQuerySchema,
+	MarketsKeysetQuerySchema,
 	// Error responses
 	ErrorResponseSchema,
 	GammaErrorResponseSchema,
@@ -349,6 +352,60 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 	)
 
 	.get(
+		"/events/keyset",
+		async ({ query, gammaSDK }) => {
+			return await gammaSDK.getEventsKeyset(query);
+		},
+		{
+			query: EventsKeysetQuerySchema,
+			response: {
+				200: t.Object({
+					data: t.Array(EventSchema),
+					next_cursor: t.Optional(
+						t.String({
+							description:
+								"Cursor for the next page. Pass as after_cursor in the next request.",
+						}),
+					),
+				}),
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["Gamma API - Events"],
+				summary: "Get events with cursor-based pagination",
+				description:
+					"Retrieve events using efficient cursor-based (keyset) pagination. Use next_cursor from the response as after_cursor in the next request to get the next page.",
+			},
+		},
+	)
+
+	.get(
+		"/events/id/:id",
+		async ({ params, query, set, gammaSDK }) => {
+			const result = await gammaSDK.getEventById(Number(params.id), query);
+			if (result === null) {
+				set.status = 404;
+				return { error: "Not Found", message: "Event not found" };
+			}
+			return result;
+		},
+		{
+			params: t.Object({ id: t.String() }),
+			query: EventByIdQuerySchema,
+			response: {
+				200: EventSchema,
+				404: ErrorResponseSchema,
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["Gamma API - Events"],
+				summary: "Get event by ID",
+				description: "Retrieve a specific event by its numeric ID",
+			},
+		},
+	)
+
+	.get(
 		"/events/:slug",
 		async ({ params, query, set, gammaSDK }) => {
 			const result = await gammaSDK.getEventBySlug(params.slug, query);
@@ -467,6 +524,60 @@ export const gammaRoutes = new Elysia({ prefix: "/gamma" })
 				tags: ["Gamma API - Markets"],
 				summary: "Get markets",
 				description: "Retrieve markets with comprehensive filtering options",
+			},
+		},
+	)
+
+	.get(
+		"/markets/keyset",
+		async ({ query, gammaSDK }) => {
+			return await gammaSDK.getMarketsKeyset(query);
+		},
+		{
+			query: MarketsKeysetQuerySchema,
+			response: {
+				200: t.Object({
+					data: t.Array(MarketSchema),
+					next_cursor: t.Optional(
+						t.String({
+							description:
+								"Cursor for the next page. Pass as after_cursor in the next request.",
+						}),
+					),
+				}),
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["Gamma API - Markets"],
+				summary: "Get markets with cursor-based pagination",
+				description:
+					"Retrieve markets using efficient cursor-based (keyset) pagination. Use next_cursor from the response as after_cursor in the next request to get the next page.",
+			},
+		},
+	)
+
+	.get(
+		"/markets/id/:id",
+		async ({ params, query, set, gammaSDK }) => {
+			const result = await gammaSDK.getMarketById(Number(params.id), query);
+			if (result === null) {
+				set.status = 404;
+				return { error: "Not Found", message: "Market not found" };
+			}
+			return result;
+		},
+		{
+			params: t.Object({ id: t.String() }),
+			query: MarketByIdQuerySchema,
+			response: {
+				200: MarketSchema,
+				404: ErrorResponseSchema,
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["Gamma API - Markets"],
+				summary: "Get market by ID",
+				description: "Retrieve a specific market by its numeric ID",
 			},
 		},
 	)

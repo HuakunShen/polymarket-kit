@@ -1466,6 +1466,48 @@ export const LiveVolumeQuerySchema = t.Object({
 	id: t.Number({ minimum: 1 }), // Required, event ID
 });
 
+/**
+ * Schema for builder leaderboard query parameters
+ */
+export const BuilderLeaderboardQuerySchema = t.Object({
+	timePeriod: t.Optional(t.Union([t.Literal("DAY"), t.Literal("WEEK"), t.Literal("MONTH"), t.Literal("ALL")])),
+	limit: t.Optional(t.Number({ minimum: 0, maximum: 50 })),
+	offset: t.Optional(t.Number({ minimum: 0, maximum: 1000 })),
+});
+
+/**
+ * Schema for builder leaderboard entry
+ */
+export const BuilderLeaderboardEntrySchema = t.Object({
+	rank: t.Optional(t.String()),
+	builder: t.Optional(t.String()),
+	volume: t.Optional(t.Number()),
+	activeUsers: t.Optional(t.Number()),
+	verified: t.Optional(t.Boolean()),
+	builderLogo: t.Optional(t.String()),
+});
+
+/**
+ * Schema for builder daily volume time-series query parameters
+ */
+export const BuilderVolumeQuerySchema = t.Object({
+	timePeriod: t.Optional(t.Union([t.Literal("DAY"), t.Literal("WEEK"), t.Literal("MONTH"), t.Literal("ALL")])),
+});
+
+/**
+ * Schema for builder daily volume entry
+ */
+export const BuilderVolumeEntrySchema = t.Object({
+	dt: t.Optional(t.String()),
+	builder: t.Optional(t.String()),
+	builderLogo: t.Optional(t.String()),
+	verified: t.Optional(t.Boolean()),
+	volume: t.Optional(t.Number()),
+	activeUsers: t.Optional(t.Number()),
+	rank: t.Optional(t.String()),
+});
+
+
 // Data API Type Exports
 
 /** TypeScript type for Data API health response derived from DataHealthResponseSchema */
@@ -1540,3 +1582,260 @@ export type PolymarketProfileType = typeof PolymarketProfileSchema.static;
 
 /** TypeScript type for Polymarket profile query parameters derived from PolymarketProfileQuerySchema */
 export type PolymarketProfileQueryType = typeof PolymarketProfileQuerySchema.static;
+
+/** TypeScript type for builder leaderboard query parameters derived from BuilderLeaderboardQuerySchema */
+export type BuilderLeaderboardQueryType = typeof BuilderLeaderboardQuerySchema.static;
+
+/** TypeScript type for builder leaderboard entry derived from BuilderLeaderboardEntrySchema */
+export type BuilderLeaderboardEntryType = typeof BuilderLeaderboardEntrySchema.static;
+
+/** TypeScript type for builder daily volume time-series query parameters derived from BuilderVolumeQuerySchema */
+export type BuilderVolumeQueryType = typeof BuilderVolumeQuerySchema.static;
+
+/** TypeScript type for builder volume entry derived from BuilderVolumeEntrySchema */
+export type BuilderVolumeEntryType = typeof BuilderVolumeEntrySchema.static;
+
+// ============================================================
+// Data API — Trader Leaderboard
+// ============================================================
+
+/**
+ * Schema for trader leaderboard query parameters
+ */
+export const TraderLeaderboardQuerySchema = t.Object({
+	category: t.Optional(t.UnionEnum([
+		"OVERALL", "POLITICS", "SPORTS", "CRYPTO", "CULTURE",
+		"MENTIONS", "WEATHER", "ECONOMICS", "TECH", "FINANCE",
+	], { description: "Market category for the leaderboard", default: "OVERALL" })),
+	timePeriod: t.Optional(t.UnionEnum(["DAY", "WEEK", "MONTH", "ALL"], {
+		description: "Time period for leaderboard results",
+		default: "DAY",
+	})),
+	orderBy: t.Optional(t.UnionEnum(["PNL", "VOL"], {
+		description: "Leaderboard ordering criteria",
+		default: "PNL",
+	})),
+	limit: t.Optional(t.Number({ description: "Max number of traders to return (1-50)", minimum: 1, maximum: 50, default: 25 })),
+	offset: t.Optional(t.Number({ description: "Starting index for pagination (0-1000)", minimum: 0, maximum: 1000, default: 0 })),
+	user: t.Optional(t.String({ description: "Limit leaderboard to a single user by address" })),
+	userName: t.Optional(t.String({ description: "Limit leaderboard to a single username" })),
+});
+
+/**
+ * Schema for a single trader leaderboard entry
+ */
+export const TraderLeaderboardEntrySchema = t.Object({
+	rank: t.Optional(t.String({ description: "The rank position of the trader" })),
+	proxyWallet: t.Optional(t.String({ description: "Trader's proxy wallet address" })),
+	userName: t.Optional(t.String({ description: "The trader's username" })),
+	vol: t.Optional(t.Number({ description: "Trading volume for this trader" })),
+	pnl: t.Optional(t.Number({ description: "Profit and loss for this trader" })),
+	profileImage: t.Optional(t.String({ description: "URL to the trader's profile image" })),
+	xUsername: t.Optional(t.String({ description: "The trader's X (Twitter) username" })),
+	verifiedBadge: t.Optional(t.Boolean({ description: "Whether the trader has a verified badge" })),
+});
+
+/** TypeScript type for trader leaderboard query parameters */
+export type TraderLeaderboardQueryType = typeof TraderLeaderboardQuerySchema.static;
+
+/** TypeScript type for trader leaderboard entry */
+export type TraderLeaderboardEntryType = typeof TraderLeaderboardEntrySchema.static;
+
+// ============================================================
+// CLOB Public API — Market Data (no auth required)
+// ============================================================
+
+/**
+ * Schema for market-by-token response
+ */
+export const MarketByTokenResponseSchema = t.Object({
+	condition_id: t.String({ description: "The condition ID of the market containing the given token" }),
+	primary_token_id: t.String({ description: "The primary (Yes) token ID" }),
+	secondary_token_id: t.String({ description: "The secondary (No) token ID" }),
+});
+
+/**
+ * Schema for CLOB tick size response
+ */
+export const ClobTickSizeResponseSchema = t.Object({
+	minimum_tick_size: t.Union([t.String(), t.Number()], { description: "The minimum tick size for the token" }),
+});
+
+/**
+ * Schema for CLOB neg risk response
+ */
+export const ClobNegRiskResponseSchema = t.Object({
+	neg_risk: t.Boolean({ description: "Whether this token has negative risk" }),
+});
+
+/**
+ * Schema for CLOB fee rate response
+ */
+export const ClobFeeRateResponseSchema = t.Object({
+	base_fee: t.Number({ description: "Base fee rate in basis points" }),
+});
+
+/**
+ * Schema for CLOB last trade price response
+ */
+export const ClobLastTradePriceResponseSchema = t.Object({
+	price: t.Optional(t.String({ description: "Last trade price" })),
+});
+
+/**
+ * Schema for CLOB last trade price with token info (used in batch response)
+ */
+export const ClobLastTradePriceWithTokenSchema = t.Object({
+	token_id: t.Optional(t.String()),
+	price: t.Optional(t.String({ description: "Last trade price" })),
+});
+
+/**
+ * Schema for querying CLOB token-based endpoints
+ */
+export const ClobTokenQuerySchema = t.Object({
+	token_id: t.String({ description: "CLOB token ID" }),
+});
+
+/**
+ * Schema for CLOB prices-history batch query (multiple markets)
+ */
+export const ClobPricesHistoryBatchQuerySchema = t.Object({
+	markets: t.Array(t.String(), { description: "List of token IDs to get prices for" }),
+	interval: t.Optional(t.UnionEnum(["1m", "1h", "6h", "1d", "1w", "max"], { description: "Interval for aggregation" })),
+	startTs: t.Optional(t.Number({ description: "Start timestamp in Unix seconds" })),
+	endTs: t.Optional(t.Number({ description: "End timestamp in Unix seconds" })),
+	fidelity: t.Optional(t.Number({ description: "Data resolution in minutes" })),
+});
+
+/** TypeScript type for market-by-token response */
+export type MarketByTokenResponseType = typeof MarketByTokenResponseSchema.static;
+
+/** TypeScript type for CLOB tick size response */
+export type ClobTickSizeResponseType = typeof ClobTickSizeResponseSchema.static;
+
+/** TypeScript type for CLOB neg risk response */
+export type ClobNegRiskResponseType = typeof ClobNegRiskResponseSchema.static;
+
+/** TypeScript type for CLOB fee rate response */
+export type ClobFeeRateResponseType = typeof ClobFeeRateResponseSchema.static;
+
+/** TypeScript type for CLOB last trade price response */
+export type ClobLastTradePriceResponseType = typeof ClobLastTradePriceResponseSchema.static;
+
+/** TypeScript type for CLOB token query */
+export type ClobTokenQueryType = typeof ClobTokenQuerySchema.static;
+
+/** TypeScript type for CLOB batch price history query */
+export type ClobPricesHistoryBatchQueryType = typeof ClobPricesHistoryBatchQuerySchema.static;
+
+// ============================================================
+// CLOB Rewards API (public, no auth required)
+// ============================================================
+
+/**
+ * Schema for a single reward config entry inside a market reward
+ */
+export const CurrentRewardConfigSchema = t.Object({
+	id: t.Optional(t.Number({ description: "Rewards config ID" })),
+	asset_address: t.String({ description: "Address of the reward asset" }),
+	start_date: t.String({ description: "Start date of the rewards period (YYYY-MM-DD)" }),
+	end_date: t.Optional(t.String({ description: "End date of the rewards period (YYYY-MM-DD)" })),
+	rate_per_day: t.Number({ description: "Daily reward rate" }),
+	total_rewards: t.Optional(t.Number({ description: "Total rewards amount" })),
+});
+
+/**
+ * Schema for a current active reward for a market
+ */
+export const CurrentRewardSchema = t.Object({
+	condition_id: t.String({ description: "Condition ID of the market" }),
+	rewards_max_spread: t.Optional(t.Number({ description: "Maximum spread for rewards eligibility" })),
+	rewards_min_size: t.Optional(t.Number({ description: "Minimum order size for rewards eligibility" })),
+	rewards_config: t.Optional(t.Array(CurrentRewardConfigSchema)),
+	sponsored_daily_rate: t.Optional(t.Number({ description: "Sponsored daily rate" })),
+	sponsors_count: t.Optional(t.Number({ description: "Number of sponsors" })),
+	native_daily_rate: t.Optional(t.Number({ description: "Native daily rate excluding sponsors" })),
+	total_daily_rate: t.Optional(t.Number({ description: "Total daily rate including sponsors" })),
+});
+
+/**
+ * Schema for paginated rewards response
+ */
+export const PaginatedRewardsResponseSchema = t.Object({
+	limit: t.Number({ description: "Maximum number of items per page" }),
+	count: t.Number({ description: "Number of items in the current response" }),
+	next_cursor: t.String({ description: "Cursor for the next page. LTE= indicates the last page." }),
+	data: t.Array(CurrentRewardSchema),
+});
+
+/**
+ * Schema for current rewards query parameters
+ */
+export const CurrentRewardsQuerySchema = t.Object({
+	sponsored: t.Optional(t.Boolean({ description: "If true, returns sponsored reward configurations", default: false })),
+	next_cursor: t.Optional(t.String({ description: "Pagination cursor from previous response" })),
+});
+
+/** TypeScript type for reward config entry */
+export type CurrentRewardConfigType = typeof CurrentRewardConfigSchema.static;
+
+/** TypeScript type for current market reward */
+export type CurrentRewardType = typeof CurrentRewardSchema.static;
+
+/** TypeScript type for paginated rewards response */
+export type PaginatedRewardsResponseType = typeof PaginatedRewardsResponseSchema.static;
+
+/** TypeScript type for current rewards query */
+export type CurrentRewardsQueryType = typeof CurrentRewardsQuerySchema.static;
+
+// ============================================================
+// Gamma API — Keyset Pagination
+// ============================================================
+
+/**
+ * Schema for events keyset (cursor-based) pagination query
+ */
+export const EventsKeysetQuerySchema = t.Object({
+	after_cursor: t.Optional(t.String({ description: "Cursor from a previous response for keyset pagination" })),
+	limit: t.Optional(t.Number({ description: "Number of items to return" })),
+	active: t.Optional(t.Boolean({ description: "Filter by active status" })),
+	closed: t.Optional(t.Boolean({ description: "Filter by closed status" })),
+	archived: t.Optional(t.Boolean({ description: "Filter by archived status" })),
+	featured: t.Optional(t.Boolean({ description: "Filter by featured status" })),
+	tag_id: t.Optional(t.Number({ description: "Filter by tag ID" })),
+	tag_slug: t.Optional(t.String({ description: "Filter by tag slug" })),
+});
+
+/**
+ * Schema for markets keyset (cursor-based) pagination query
+ */
+export const MarketsKeysetQuerySchema = t.Object({
+	after_cursor: t.Optional(t.String({ description: "Cursor from a previous response for keyset pagination" })),
+	limit: t.Optional(t.Number({ description: "Number of items to return" })),
+	active: t.Optional(t.Boolean({ description: "Filter by active status" })),
+	closed: t.Optional(t.Boolean({ description: "Filter by closed status" })),
+	archived: t.Optional(t.Boolean({ description: "Filter by archived status" })),
+	featured: t.Optional(t.Boolean({ description: "Filter by featured status" })),
+	tag_id: t.Optional(t.Number({ description: "Filter by tag ID" })),
+	tag_slug: t.Optional(t.String({ description: "Filter by tag slug" })),
+});
+
+/**
+ * Generic keyset pagination response with next_cursor
+ */
+export const KeysetPaginatedEventsResponseSchema = t.Object({
+	data: t.Array(t.Any()),
+	next_cursor: t.Optional(t.String({ description: "Cursor to use for the next page of results" })),
+});
+
+export const KeysetPaginatedMarketsResponseSchema = t.Object({
+	data: t.Array(t.Any()),
+	next_cursor: t.Optional(t.String({ description: "Cursor to use for the next page of results" })),
+});
+
+/** TypeScript type for events keyset query */
+export type EventsKeysetQueryType = typeof EventsKeysetQuerySchema.static;
+
+/** TypeScript type for markets keyset query */
+export type MarketsKeysetQueryType = typeof MarketsKeysetQuerySchema.static;

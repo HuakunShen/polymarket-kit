@@ -11,7 +11,7 @@
 
 import { Effect, pipe } from "effect";
 import { Elysia, t } from "elysia";
-import { PolymarketSDK } from "../sdk/";
+import { ClobPublicClient, PolymarketSDK, type ProxyConfigType } from "../sdk/";
 import { Side } from "@polymarket/clob-client";
 
 // Custom error classes for better error handling
@@ -155,10 +155,34 @@ import {
 	TradeSchema,
 	PaginationPayloadSchema,
 	MarketPaginationQuerySchema,
+	ClobTickSizeResponseSchema,
+	ClobFeeRateResponseSchema,
+	ClobNegRiskResponseSchema,
+	ClobLastTradePriceResponseSchema,
+	ClobLastTradePriceWithTokenSchema,
+	ClobTokenQuerySchema,
+	MarketByTokenResponseSchema,
 	ErrorResponseSchema,
 } from "../types/elysia-schemas";
 
-// No caching - create new SDK instances for each request
+/**
+ * Parse proxy URL string to ProxyConfigType
+ */
+function parseProxyUrl(proxyUrl: string): ProxyConfigType | undefined {
+	try {
+		const url = new URL(proxyUrl);
+		const config: ProxyConfigType = {
+			protocol: url.protocol.slice(0, -1) as "http" | "https",
+			host: url.hostname,
+			port: parseInt(url.port, 10) || (url.protocol === "https:" ? 443 : 80),
+		};
+		if (url.username) config.username = decodeURIComponent(url.username);
+		if (url.password) config.password = decodeURIComponent(url.password);
+		return config;
+	} catch {
+		return undefined;
+	}
+}
 
 /**
  * Get Polymarket SDK instance (no caching)
@@ -169,21 +193,12 @@ async function getPolymarketSDK(
 	proxyUrl?: string,
 	builderConfig?: any,
 ): Promise<PolymarketSDK> {
-	// Create new SDK instance
-	// console.log("getPolymarketSDK", {
-	// 	privateKey,
-	// 	funderAddress,
-	// 	proxyUrl,
-	// 	builderConfig,
-	// });
-
 	const sdk = new PolymarketSDK({
 		...(privateKey && { privateKey }),
 		...(funderAddress && { funderAddress }),
 		...(builderConfig && { builderConfig }),
 	});
 
-	// Set proxy if provided
 	if (proxyUrl) {
 		await sdk.setProxy(proxyUrl);
 	}
@@ -223,42 +238,31 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 		}
 	})
 	.resolve(async ({ headers }) => {
-		// console.log("headers", headers);
-
-		// Check for authentication headers
 		const privateKey = headers["x-polymarket-key"] as string;
-
 		const funderAddress = headers["x-polymarket-funder"] as string;
-
-		// Check for BuilderConfig headers
-		// const builderUrl = headers["x-polymarket-builder-url"] as string;
-		// const builderToken = headers["x-polymarket-builder-token"] as string;
-
-		// let builderConfig: any;
-		// if (builderUrl) {
-		// 	builderConfig = new BuilderConfig({
-		// 		remoteBuilderConfig: {
-		// 			url: builderUrl,
-		// 			...(builderToken && { token: builderToken }),
-		// 		},
-		// 	});
-		// }
-
-		// Setup HTTP proxy if header is present
 		const proxyHeaderValue = headers["x-http-proxy"];
-		// console.log("proxyHeaderValue", proxyHeaderValue);
 
 		const polymarketSDK = await getPolymarketSDK(
 			privateKey || undefined,
 			funderAddress || undefined,
 			proxyHeaderValue,
-			// builderConfig,
+		);
+
+		// Create public client with proxy support
+		const proxyConfig = proxyHeaderValue
+			? parseProxyUrl(proxyHeaderValue)
+			: undefined;
+		const clobPublicClient = new ClobPublicClient(
+			proxyConfig ? { proxy: proxyConfig } : undefined,
 		);
 
 		return {
 			polymarketSDK,
+			clobPublicClient,
 		};
 	})
+
+	// --- Price History ---
 	.get(
 		"/prices-history",
 		({ query, polymarketSDK }) => {
@@ -286,15 +290,16 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 				tags: ["CLOB API"],
 				summary: "Get price history",
 				description:
-					"Retrieve price history for a specific token via market query parameter. Supports interval-based queries (1m, 1h, 6h, 1d, 1w, max) or time range queries. Time ranges can be specified using Unix timestamps (startTs, endTs in seconds) or human-readable dates (startDate, endDate like '2025-08-13' or '2025-08-13T00:00:00.000Z'). Optional fidelity parameter controls data resolution in minutes. This endpoint works without authentication, but can optionally use legacy headers (x-polymarket-key, x-polymarket-funder) or new BuilderConfig headers (x-polymarket-builder-url, x-polymarket-builder-token) if needed.",
+					"Retrieve price history for a specific token via market query parameter. Supports interval-based queries (1m, 1h, 6h, 1d, 1w, max) or time range queries.",
 			},
 		},
 	)
 
+	// --- Health & Meta ---
 	.get(
 		"/health",
 		async ({ set, polymarketSDK }) => {
-			const health = await runClobOperation(() => polymarketSDK.healthCheck(), {
+			const health = await runClobOperation<{status: "healthy" | "unhealthy"; timestamp: string; clob: string; cached?: boolean; error?: string}>(() => polymarketSDK.healthCheck(), {
 				defaultStatus: 503,
 			});
 			if (health.status === "unhealthy") {
@@ -322,56 +327,61 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 			detail: {
 				tags: ["CLOB API"],
 				summary: "Health check",
-				description:
-					"Check the health status of CLOB client connection. Works with or without authentication. Can use legacy headers (x-polymarket-key, x-polymarket-funder) or new BuilderConfig headers (x-polymarket-builder-url, x-polymarket-builder-token).",
+				description: "Check the health status of CLOB client connection.",
+			},
+		},
+	)
+
+	.get(
+		"/time",
+		({ clobPublicClient }) =>
+			runClobOperation(() => clobPublicClient.getServerTime()),
+		{
+			response: {
+				200: t.Object({ time: t.Number({ description: "Server Unix timestamp in seconds" }) }),
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["CLOB API"],
+				summary: "Get server time",
+				description: "Retrieve the current CLOB server Unix timestamp in seconds.",
 			},
 		},
 	)
 
 	.get(
 		"/cache/stats",
-		async () => {
-			return {
-				message:
-					"Caching has been removed - SDK instances are created fresh for each request",
-				timestamp: new Date().toISOString(),
-			};
-		},
+		async () => ({
+			message:
+				"Caching has been removed - SDK instances are created fresh for each request",
+			timestamp: new Date().toISOString(),
+		}),
 		{
 			response: {
-				200: t.Object({
-					message: t.String(),
-					timestamp: t.String(),
-				}),
+				200: t.Object({ message: t.String(), timestamp: t.String() }),
 			},
 			detail: {
 				tags: ["CLOB API"],
 				summary: "Cache statistics",
-				description:
-					"Caching has been removed. SDK instances are created fresh for each request to ensure proper authentication handling.",
+				description: "SDK instances are created fresh for each request.",
 			},
 		},
 	)
 
+	// --- Order Book ---
 	.get(
 		"/book/:tokenId",
 		async ({ params, polymarketSDK }) => {
 			const result = await runClobOperation(() =>
 				polymarketSDK.getBook(params.tokenId),
 			);
-
 			if (result && typeof result === "object" && "error" in result) {
 				throw new ClobApiError(result.error as string, 404);
 			}
-
 			return result;
 		},
 		{
-			params: t.Object({
-				tokenId: t.String({
-					description: "The CLOB token ID to get order book for",
-				}),
-			}),
+			params: t.Object({ tokenId: t.String() }),
 			headers: PolymarketAuthHeaderSchema,
 			response: {
 				200: OrderBookSummarySchema,
@@ -382,8 +392,7 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 			detail: {
 				tags: ["CLOB API"],
 				summary: "Get order book",
-				description:
-					"Retrieve the current order book for a specific token ID. Returns bids, asks, and market metadata including minimum order size and tick size. This endpoint works without authentication, but can optionally use legacy headers (x-polymarket-key, x-polymarket-funder) or new BuilderConfig headers (x-polymarket-builder-url, x-polymarket-builder-token) if needed.",
+				description: "Retrieve the current order book for a specific token ID.",
 			},
 		},
 	)
@@ -410,12 +419,12 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 			detail: {
 				tags: ["CLOB API"],
 				summary: "Get multiple order books",
-				description:
-					"Retrieve order books for multiple token IDs. Each item should include token_id and optionally side (BUY/SELL). This endpoint works without authentication, but can optionally use legacy headers (x-polymarket-key, x-polymarket-funder) or new BuilderConfig headers (x-polymarket-builder-url, x-polymarket-builder-token) if needed.",
+				description: "Retrieve order books for multiple token IDs.",
 			},
 		},
 	)
 
+	// --- Prices ---
 	.get(
 		"/price/:tokenId/:side",
 		({ params, polymarketSDK }) =>
@@ -427,26 +436,19 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 			})),
 		{
 			params: t.Object({
-				tokenId: t.String({
-					description: "The CLOB token ID to get price for",
-				}),
-				side: t.Union([t.Literal("buy"), t.Literal("sell")], {
-					description: "The side to get price for (buy or sell)",
-				}),
+				tokenId: t.String(),
+				side: t.Union([t.Literal("buy"), t.Literal("sell")]),
 			}),
 			headers: PolymarketAuthHeaderSchema,
 			response: {
-				200: t.Object({
-					price: t.Number(),
-				}),
+				200: t.Object({ price: t.Number() }),
 				400: ErrorResponseSchema,
 				500: ErrorResponseSchema,
 			},
 			detail: {
 				tags: ["CLOB API"],
 				summary: "Get price for specific side",
-				description:
-					"Get the current price for a specific token ID and side (buy/sell). Headers x-polymarket-key and x-polymarket-funder are required in production, optional in development (falls back to environment variables).",
+				description: "Get the current price for a specific token ID and side (buy/sell).",
 			},
 		},
 	)
@@ -454,7 +456,7 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 	.post(
 		"/prices",
 		({ body, polymarketSDK }) => {
-			const transformedBody = body.map((item) => ({
+			const transformedBody = body.map((item: any) => ({
 				token_id: item.token_id,
 				side: item.side === "BUY" ? Side.BUY : Side.SELL,
 			}));
@@ -466,21 +468,19 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 			body: t.Array(BookParamsSchema),
 			headers: PolymarketAuthHeaderSchema,
 			response: {
-				200: t.Object({
-					prices: t.Array(t.Number()),
-				}),
+				200: t.Object({ prices: t.Array(t.Number()) }),
 				400: ErrorResponseSchema,
 				500: ErrorResponseSchema,
 			},
 			detail: {
 				tags: ["CLOB API"],
 				summary: "Get multiple prices",
-				description:
-					"Get prices for multiple token IDs and sides. Each item should include token_id and side (BUY/SELL). Headers x-polymarket-key and x-polymarket-funder are required in production, optional in development (falls back to environment variables).",
+				description: "Get prices for multiple token IDs and sides.",
 			},
 		},
 	)
 
+	// --- Midpoints ---
 	.get(
 		"/midpoint/:tokenId",
 		({ params, polymarketSDK }) =>
@@ -488,24 +488,17 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 				midpoint: await polymarketSDK.getMidpoint(params.tokenId),
 			})),
 		{
-			params: t.Object({
-				tokenId: t.String({
-					description: "The CLOB token ID to get midpoint for",
-				}),
-			}),
+			params: t.Object({ tokenId: t.String() }),
 			headers: PolymarketAuthHeaderSchema,
 			response: {
-				200: t.Object({
-					midpoint: t.Number(),
-				}),
+				200: t.Object({ midpoint: t.Number() }),
 				400: ErrorResponseSchema,
 				500: ErrorResponseSchema,
 			},
 			detail: {
 				tags: ["CLOB API"],
 				summary: "Get midpoint price",
-				description:
-					"Get the midpoint price for a specific token ID. Headers x-polymarket-key and x-polymarket-funder are required in production, optional in development (falls back to environment variables).",
+				description: "Get the midpoint price for a specific token ID.",
 			},
 		},
 	)
@@ -515,7 +508,7 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 		({ body, polymarketSDK }) => {
 			const transformedBody = body.map((item: any) => ({
 				token_id: item.token_id,
-				side: Side.BUY, // Midpoint doesn't actually use side, but BookParams requires it
+				side: Side.BUY,
 			}));
 			return runClobOperation(async () => ({
 				midpoints: await polymarketSDK.getMidpoints(transformedBody),
@@ -525,27 +518,25 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 			body: t.Array(TokenParamsSchema),
 			headers: PolymarketAuthHeaderSchema,
 			response: {
-				200: t.Object({
-					midpoints: t.Array(t.Number()),
-				}),
+				200: t.Object({ midpoints: t.Array(t.Number()) }),
 				400: ErrorResponseSchema,
 				500: ErrorResponseSchema,
 			},
 			detail: {
 				tags: ["CLOB API"],
 				summary: "Get multiple midpoint prices",
-				description:
-					"Get midpoint prices for multiple token IDs. Each item should include token_id. Headers x-polymarket-key and x-polymarket-funder are required in production, optional in development (falls back to environment variables).",
+				description: "Get midpoint prices for multiple token IDs.",
 			},
 		},
 	)
 
+	// --- Spreads ---
 	.post(
 		"/spreads",
 		({ body, polymarketSDK }) => {
 			const transformedBody = body.map((item: any) => ({
 				token_id: item.token_id,
-				side: Side.BUY, // Spreads don't actually use side, but BookParams requires it
+				side: Side.BUY,
 			}));
 			return runClobOperation(async () => ({
 				spreads: await polymarketSDK.getSpreads(transformedBody),
@@ -555,21 +546,120 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 			body: t.Array(TokenParamsSchema),
 			headers: PolymarketAuthHeaderSchema,
 			response: {
-				200: t.Object({
-					spreads: t.Array(t.Number()),
-				}),
+				200: t.Object({ spreads: t.Array(t.Number()) }),
 				400: ErrorResponseSchema,
 				500: ErrorResponseSchema,
 			},
 			detail: {
 				tags: ["CLOB API"],
 				summary: "Get bid-ask spreads",
-				description:
-					"Get bid-ask spreads for multiple token IDs. Each item should include token_id. Headers x-polymarket-key and x-polymarket-funder are required in production, optional in development (falls back to environment variables).",
+				description: "Get bid-ask spreads for multiple token IDs.",
 			},
 		},
 	)
 
+	// --- Tick Size / Fee Rate / Neg Risk ---
+	.get(
+		"/tick-size/:tokenId",
+		({ params, clobPublicClient }) =>
+			runClobOperation(() => clobPublicClient.getTickSize(params.tokenId)),
+		{
+			params: t.Object({ tokenId: t.String({ description: "CLOB token ID" }) }),
+			response: {
+				200: ClobTickSizeResponseSchema,
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["CLOB API"],
+				summary: "Get tick size",
+				description:
+					"Retrieve the minimum tick size (price increment) for a specific token. No authentication required.",
+			},
+		},
+	)
+
+	.get(
+		"/fee-rate/:tokenId",
+		({ params, clobPublicClient }) =>
+			runClobOperation(() => clobPublicClient.getFeeRate(params.tokenId)),
+		{
+			params: t.Object({ tokenId: t.String({ description: "CLOB token ID" }) }),
+			response: {
+				200: ClobFeeRateResponseSchema,
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["CLOB API"],
+				summary: "Get fee rate",
+				description:
+					"Retrieve the base fee rate in basis points for a specific token. No authentication required.",
+			},
+		},
+	)
+
+	.get(
+		"/neg-risk/:tokenId",
+		({ params, clobPublicClient }) =>
+			runClobOperation(() => clobPublicClient.getNegRisk(params.tokenId)),
+		{
+			params: t.Object({ tokenId: t.String({ description: "CLOB token ID" }) }),
+			response: {
+				200: ClobNegRiskResponseSchema,
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["CLOB API"],
+				summary: "Get negative risk flag",
+				description:
+					"Retrieve whether a specific token has negative risk. No authentication required.",
+			},
+		},
+	)
+
+	// --- Last Trade Price ---
+	.get(
+		"/last-trade-price",
+		({ query, clobPublicClient }) =>
+			runClobOperation(() =>
+				clobPublicClient.getLastTradePrice(query.token_id),
+			),
+		{
+			query: ClobTokenQuerySchema,
+			response: {
+				200: ClobLastTradePriceResponseSchema,
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["CLOB API"],
+				summary: "Get last trade price",
+				description:
+					"Retrieve the most recent trade price for a specific token. No authentication required.",
+			},
+		},
+	)
+
+	.post(
+		"/last-trades-prices",
+		({ body, clobPublicClient }) =>
+			runClobOperation(() => clobPublicClient.getLastTradesPrices(body)),
+		{
+			body: t.Array(
+				t.Object({ token_id: t.String({ description: "CLOB token ID" }) }),
+			),
+			response: {
+				200: t.Array(ClobLastTradePriceWithTokenSchema),
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["CLOB API"],
+				summary: "Get last trade prices for multiple tokens",
+				description:
+					"Retrieve the most recent trade prices for multiple tokens. No authentication required.",
+			},
+		},
+	)
+
+	// --- Trades ---
 	.post(
 		"/trades",
 		({ body, polymarketSDK }) => {
@@ -586,41 +676,81 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 			body: TradeQueryWithCursorSchema,
 			headers: PolymarketAuthHeaderSchema,
 			response: {
-				200: t.Object({
-					trades: t.Array(TradeSchema),
-				}),
+				200: t.Object({ trades: t.Array(TradeSchema) }),
 				400: ErrorResponseSchema,
 				500: ErrorResponseSchema,
 			},
 			detail: {
 				tags: ["CLOB API"],
 				summary: "Get trades",
-				description:
-					"Get trades with optional filtering. All parameters are optional. Headers x-polymarket-key and x-polymarket-funder are required in production, optional in development (falls back to environment variables).",
+				description: "Get trades with optional filtering.",
 			},
 		},
 	)
+
+	// --- Markets ---
 	.get(
 		"/market/:conditionId",
 		({ params, polymarketSDK }) =>
 			runClobOperation(() => polymarketSDK.getMarket(params.conditionId)),
 		{
-			params: t.Object({
-				conditionId: t.String({
-					description: "The condition ID to get market for",
-				}),
-			}),
+			params: t.Object({ conditionId: t.String() }),
 			headers: PolymarketAuthHeaderSchema,
 			response: {
-				200: t.Any(), // Market structure varies, using Any for now
+				200: t.Any(),
 				400: ErrorResponseSchema,
 				500: ErrorResponseSchema,
 			},
 			detail: {
 				tags: ["CLOB API"],
 				summary: "Get market by condition ID",
+				description: "Get market information for a specific condition ID.",
+			},
+		},
+	)
+
+	.get(
+		"/clob-markets/:conditionId",
+		({ params, clobPublicClient }) =>
+			runClobOperation(() =>
+				clobPublicClient.getClobMarketInfo(params.conditionId),
+			),
+		{
+			params: t.Object({
+				conditionId: t.String({ description: "The condition ID of the market" }),
+			}),
+			response: {
+				200: t.Any(),
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["CLOB API"],
+				summary: "Get CLOB market parameters",
 				description:
-					"Get market information for a specific condition ID. Headers x-polymarket-key and x-polymarket-funder are required in production, optional in development (falls back to environment variables).",
+					"Retrieve CLOB market parameters (token IDs, tick size, neg risk) for a condition ID. No authentication required.",
+			},
+		},
+	)
+
+	.get(
+		"/markets-by-token/:tokenId",
+		({ params, clobPublicClient }) =>
+			runClobOperation(() =>
+				clobPublicClient.getMarketByToken(params.tokenId),
+			),
+		{
+			params: t.Object({
+				tokenId: t.String({ description: "CLOB token ID" }),
+			}),
+			response: {
+				200: MarketByTokenResponseSchema,
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["CLOB API"],
+				summary: "Get market by token ID",
+				description:
+					"Retrieve market condition ID and token pair for a given token ID. No authentication required.",
 			},
 		},
 	)
@@ -640,8 +770,7 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 			detail: {
 				tags: ["CLOB API"],
 				summary: "Get markets",
-				description:
-					"Get paginated list of markets. Optional next_cursor for pagination. Headers x-polymarket-key and x-polymarket-funder are required in production, optional in development (falls back to environment variables).",
+				description: "Get paginated list of markets.",
 			},
 		},
 	)
@@ -663,8 +792,7 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 			detail: {
 				tags: ["CLOB API"],
 				summary: "Get sampling markets",
-				description:
-					"Get paginated list of sampling markets. Optional next_cursor for pagination. Headers x-polymarket-key and x-polymarket-funder are required in production, optional in development (falls back to environment variables).",
+				description: "Get paginated list of sampling markets.",
 			},
 		},
 	)
@@ -686,8 +814,7 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 			detail: {
 				tags: ["CLOB API"],
 				summary: "Get simplified markets",
-				description:
-					"Get paginated list of simplified markets. Optional next_cursor for pagination. Headers x-polymarket-key and x-polymarket-funder are required in production, optional in development (falls back to environment variables).",
+				description: "Get paginated list of simplified markets.",
 			},
 		},
 	)
@@ -709,33 +836,26 @@ export const clobRoutes = new Elysia({ prefix: "/clob" })
 			detail: {
 				tags: ["CLOB API"],
 				summary: "Get sampling simplified markets",
-				description:
-					"Get paginated list of sampling simplified markets. Optional next_cursor for pagination. Headers x-polymarket-key and x-polymarket-funder are required in production, optional in development (falls back to environment variables).",
+				description: "Get paginated list of sampling simplified markets.",
 			},
 		},
 	)
 
 	.delete(
 		"/cache",
-		async () => {
-			return {
-				message:
-					"No cache to clear - SDK instances are created fresh for each request",
-				timestamp: new Date().toISOString(),
-			};
-		},
+		async () => ({
+			message:
+				"No cache to clear - SDK instances are created fresh for each request",
+			timestamp: new Date().toISOString(),
+		}),
 		{
 			response: {
-				200: t.Object({
-					message: t.String(),
-					timestamp: t.String(),
-				}),
+				200: t.Object({ message: t.String(), timestamp: t.String() }),
 			},
 			detail: {
 				tags: ["CLOB API"],
 				summary: "Clear all caches",
-				description:
-					"No cache exists. SDK instances are created fresh for each request to ensure proper authentication handling.",
+				description: "No cache exists. SDK instances are created fresh per request.",
 			},
 		},
 	);

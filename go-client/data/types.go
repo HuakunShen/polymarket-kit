@@ -256,3 +256,59 @@ type OpenInterestQuery struct {
 type LiveVolumeQuery struct {
 	ID int `json:"id"` // Required, event ID, minimum 1
 }
+
+// TraderLeaderboardQuery represents query parameters for the trader leaderboard
+type TraderLeaderboardQuery struct {
+	Category   *string `json:"category,omitempty"`   // OVERALL, POLITICS, SPORTS, CRYPTO, CULTURE, MENTIONS, WEATHER, ECONOMICS, TECH, FINANCE
+	TimePeriod *string `json:"timePeriod,omitempty"` // DAY, WEEK, MONTH, ALL
+	OrderBy    *string `json:"orderBy,omitempty"`    // PNL, VOL
+	Limit      *int    `json:"limit,omitempty"`      // 1-50
+	Offset     *int    `json:"offset,omitempty"`     // 0-1000
+	User       *string `json:"user,omitempty"`
+	UserName   *string `json:"userName,omitempty"`
+}
+
+// TraderLeaderboardEntry represents a single entry in the trader leaderboard
+type TraderLeaderboardEntry struct {
+	Rank          *string  `json:"rank,omitempty"`
+	ProxyWallet   *string  `json:"proxyWallet,omitempty"`
+	UserName      *string  `json:"userName,omitempty"`
+	Vol           *float64 `json:"vol,omitempty"`
+	Pnl           *float64 `json:"pnl,omitempty"`
+	ProfileImage  *string  `json:"profileImage,omitempty"`
+	XUsername     *string  `json:"xUsername,omitempty"`
+	VerifiedBadge *bool    `json:"verifiedBadge,omitempty"`
+}
+
+// BuilderLeaderboardQuery represents query parameters for the builder leaderboard
+type BuilderLeaderboardQuery struct {
+	TimePeriod *string `json:"timePeriod,omitempty"` // DAY, WEEK, MONTH, ALL
+	Limit      *int    `json:"limit,omitempty"`      // 0-50
+	Offset     *int    `json:"offset,omitempty"`     // 0-1000
+}
+
+// BuilderLeaderboardEntry represents a single entry in the builder leaderboard
+type BuilderLeaderboardEntry struct {
+	Rank        *string  `json:"rank,omitempty"`
+	Builder     *string  `json:"builder,omitempty"`
+	Volume      *float64 `json:"volume,omitempty"`
+	ActiveUsers *int     `json:"activeUsers,omitempty"`
+	Verified    *bool    `json:"verified,omitempty"`
+	BuilderLogo *string  `json:"builderLogo,omitempty"`
+}
+
+// BuilderVolumeQuery represents query parameters for builder daily volume time-series
+type BuilderVolumeQuery struct {
+	TimePeriod *string `json:"timePeriod,omitempty"` // DAY, WEEK, MONTH, ALL
+}
+
+// BuilderVolumeEntry represents a single entry in the builder daily volume time-series
+type BuilderVolumeEntry struct {
+	Dt          *string  `json:"dt,omitempty"`
+	Builder     *string  `json:"builder,omitempty"`
+	BuilderLogo *string  `json:"builderLogo,omitempty"`
+	Verified    *bool    `json:"verified,omitempty"`
+	Volume      *float64 `json:"volume,omitempty"`
+	ActiveUsers *int     `json:"activeUsers,omitempty"`
+	Rank        *string  `json:"rank,omitempty"`
+}

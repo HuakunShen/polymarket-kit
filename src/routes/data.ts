@@ -32,7 +32,13 @@ import {
 	LiveVolumeResponseSchema,
 	LiveVolumeQuerySchema,
 	PolymarketProfileSchema,
-	// PolymarketProfileQuerySchema,
+	// Leaderboards
+	TraderLeaderboardQuerySchema,
+	TraderLeaderboardEntrySchema,
+	BuilderLeaderboardQuerySchema,
+	BuilderLeaderboardEntrySchema,
+	BuilderVolumeQuerySchema,
+	BuilderVolumeEntrySchema,
 	// Error responses
 	ErrorResponseSchema,
 } from "../types/elysia-schemas";
@@ -433,10 +439,8 @@ export const dataRoutes = new Elysia({ prefix: "/data" })
 			const queryParams = {
 				user: params.userAddress,
 				...query,
-			}
-			const response = await dataSDK.getUserActivity(queryParams);
-			// console.log("activity response", response);
-			return response;
+			};
+			return await dataSDK.getUserActivity(queryParams);
 		},
 		{
 			params: t.Object({
@@ -464,7 +468,7 @@ export const dataRoutes = new Elysia({ prefix: "/data" })
 		> => {
 			const address = params.userAddress;
 			const url = `https://polymarket.com/api/profile/userData?address=${encodeURIComponent(address)}`;
-			
+
 			try {
 				const response = await fetch(url);
 				if (!response.ok) {
@@ -474,7 +478,8 @@ export const dataRoutes = new Elysia({ prefix: "/data" })
 						message: `Polymarket API returned ${response.status}`,
 					};
 				}
-				const data = (await response.json()) as typeof PolymarketProfileSchema.static;
+				const data =
+					(await response.json()) as typeof PolymarketProfileSchema.static;
 				return data;
 			} catch (error) {
 				console.error("[Profile API] Error fetching user profile:", error);
@@ -499,6 +504,70 @@ export const dataRoutes = new Elysia({ prefix: "/data" })
 				summary: "Get user profile from Polymarket",
 				description:
 					"Retrieve user profile information including name, avatar, and verification status from Polymarket's profile API",
+			},
+		},
+	)
+
+	// Leaderboards API
+	.get(
+		"/leaderboard/traders",
+		async ({ query, dataSDK }) => {
+			return await dataSDK.getTraderLeaderboard(query);
+		},
+		{
+			query: TraderLeaderboardQuerySchema,
+			response: {
+				200: t.Array(TraderLeaderboardEntrySchema),
+				400: ErrorResponseSchema,
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["Data API - Leaderboards"],
+				summary: "Get trader leaderboard rankings",
+				description:
+					"Retrieve trader leaderboard rankings with optional filtering by category, time period, and ordering. Supports pagination.",
+			},
+		},
+	)
+
+	.get(
+		"/leaderboard/builders",
+		async ({ query, dataSDK }) => {
+			return await dataSDK.getAggregatedBuilderLeaderboard(query);
+		},
+		{
+			query: BuilderLeaderboardQuerySchema,
+			response: {
+				200: t.Array(BuilderLeaderboardEntrySchema),
+				400: ErrorResponseSchema,
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["Data API - Leaderboards"],
+				summary: "Get aggregated builder leaderboard",
+				description:
+					"Retrieve aggregated builder leaderboard rankings with optional filtering by time period.",
+			},
+		},
+	)
+
+	.get(
+		"/leaderboard/builders/volume",
+		async ({ query, dataSDK }) => {
+			return await dataSDK.getDailyBuilderVolumeTimeSeries(query);
+		},
+		{
+			query: BuilderVolumeQuerySchema,
+			response: {
+				200: t.Array(BuilderVolumeEntrySchema),
+				400: ErrorResponseSchema,
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["Data API - Leaderboards"],
+				summary: "Get daily builder volume time-series",
+				description:
+					"Retrieve the daily volume time-series for builders with optional filtering by time period.",
 			},
 		},
 	);
