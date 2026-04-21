@@ -98,13 +98,13 @@ const createDataSDKEffect = (
 export function createDataRoutes(opts?: Pick<NonNullable<ConstructorParameters<typeof Elysia>[0]>, "aot" | "adapter" | "name">) {
 	return new Elysia({ prefix: "/data", normalize: "typebox", ...opts })
 	// Middleware to create DataSDK instance based on proxy header
-	.derive(({ headers }) => {
+	.derive(({ headers, store }) => {
 		const proxyHeaderValue = headers["x-http-proxy"];
 		const proxyHeader = Array.isArray(proxyHeaderValue)
 			? proxyHeaderValue[0]
 			: typeof proxyHeaderValue === "string"
 				? proxyHeaderValue
-				: undefined;
+				: (store as Record<string, unknown>)?.httpProxyUrl as string | undefined;
 
 		const dataSDK = Effect.runSync(createDataSDKEffect(proxyHeader));
 

@@ -111,13 +111,13 @@ const createGammaSDKEffect = (
 export function createGammaRoutes(opts?: Pick<NonNullable<ConstructorParameters<typeof Elysia>[0]>, "aot" | "adapter" | "name">) {
 	return new Elysia({ prefix: "/gamma", normalize: "typebox", ...opts })
 	// Middleware to create GammaSDK instance based on proxy header
-	.resolve(({ headers }) => {
+	.resolve(({ headers, store }) => {
 		const proxyHeaderValue = headers["x-http-proxy"];
 		const proxyHeader = Array.isArray(proxyHeaderValue)
 			? proxyHeaderValue[0]
 			: typeof proxyHeaderValue === "string"
 				? proxyHeaderValue
-				: undefined;
+				: (store as Record<string, unknown>)?.httpProxyUrl as string | undefined;
 
 		const gammaSDK = Effect.runSync(createGammaSDKEffect(proxyHeader));
 

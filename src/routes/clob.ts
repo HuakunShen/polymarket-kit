@@ -241,10 +241,11 @@ export function createClobRoutes(opts?: Pick<NonNullable<ConstructorParameters<t
 				};
 		}
 	})
-	.resolve(async ({ headers }) => {
+	.resolve(async ({ headers, store }) => {
 		const privateKey = headers["x-polymarket-key"] as string;
 		const funderAddress = headers["x-polymarket-funder"] as string;
-		const proxyHeaderValue = headers["x-http-proxy"];
+		const proxyHeaderValue = headers["x-http-proxy"]
+			|| ((store as Record<string, unknown>)?.httpProxyUrl as string | undefined);
 
 		const polymarketSDK = await getPolymarketSDK(
 			privateKey || undefined,
