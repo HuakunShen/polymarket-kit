@@ -749,7 +749,7 @@ export const UpdatedTagSchema = t.Object({
 	publishedAt: OptionalString,
 	createdBy: OptionalNumber,
 	updatedBy: OptionalNumber,
-	createdAt: t.String(),
+	createdAt: OptionalString,
 	updatedAt: OptionalString,
 	forceHide: OptionalBoolean,
 	isCarousel: OptionalBoolean,
