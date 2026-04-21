@@ -95,7 +95,8 @@ const createDataSDKEffect = (
 /**
  * Create Data API routes with proper typing and validation for all available endpoints
  */
-export const dataRoutes = new Elysia({ prefix: "/data", normalize: "typebox" })
+export function createDataRoutes(opts?: Pick<NonNullable<ConstructorParameters<typeof Elysia>[0]>, "aot" | "adapter" | "name">) {
+	return new Elysia({ prefix: "/data", normalize: "typebox", ...opts })
 	// Middleware to create DataSDK instance based on proxy header
 	.derive(({ headers }) => {
 		const proxyHeaderValue = headers["x-http-proxy"];
@@ -571,3 +572,6 @@ export const dataRoutes = new Elysia({ prefix: "/data", normalize: "typebox" })
 			},
 		},
 	);
+}
+
+export const dataRoutes = createDataRoutes();

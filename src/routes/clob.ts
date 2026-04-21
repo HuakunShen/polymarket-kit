@@ -33,32 +33,35 @@ class ClobApiError extends Error {
 	}
 }
 
-const PolymarketAuthHeaderSchema = t.Object({
-	"x-polymarket-key": t.Optional(
-		t.String({
-			description:
-				"Polymarket private key for CLOB authentication (legacy method, optional)",
-		}),
-	),
-	"x-polymarket-funder": t.Optional(
-		t.String({
-			description:
-				"Polymarket funder address for CLOB operations (legacy method, optional)",
-		}),
-	),
-	"x-polymarket-builder-url": t.Optional(
-		t.String({
-			description:
-				"Builder service URL for remote signing (new authentication method)",
-		}),
-	),
-	"x-polymarket-builder-token": t.Optional(
-		t.String({
-			description:
-				"Optional authorization token for builder service (new authentication method)",
-		}),
-	),
-});
+const PolymarketAuthHeaderSchema = t.Object(
+	{
+		"x-polymarket-key": t.Optional(
+			t.String({
+				description:
+					"Polymarket private key for CLOB authentication (legacy method, optional)",
+			}),
+		),
+		"x-polymarket-funder": t.Optional(
+			t.String({
+				description:
+					"Polymarket funder address for CLOB operations (legacy method, optional)",
+			}),
+		),
+		"x-polymarket-builder-url": t.Optional(
+			t.String({
+				description:
+					"Builder service URL for remote signing (new authentication method)",
+			}),
+		),
+		"x-polymarket-builder-token": t.Optional(
+			t.String({
+				description:
+					"Optional authorization token for builder service (new authentication method)",
+			}),
+		),
+	},
+	{ additionalProperties: true },
+);
 
 const TradeQueryWithCursorSchema = t.Object({
 	id: t.Optional(t.String()),
@@ -209,7 +212,8 @@ async function getPolymarketSDK(
 /**
  * Create CLOB API routes with proper typing and validation
  */
-export const clobRoutes = new Elysia({ prefix: "/clob", normalize: "typebox" })
+export function createClobRoutes(opts?: Pick<NonNullable<ConstructorParameters<typeof Elysia>[0]>, "aot" | "adapter" | "name">) {
+	return new Elysia({ prefix: "/clob", normalize: "typebox", ...opts })
 	.error({
 		ClobValidationError,
 		ClobApiError,
@@ -859,3 +863,6 @@ export const clobRoutes = new Elysia({ prefix: "/clob", normalize: "typebox" })
 			},
 		},
 	);
+}
+
+export const clobRoutes = createClobRoutes();
