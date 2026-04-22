@@ -1016,6 +1016,7 @@ export const SearchQuerySchema = t.Object({
 	events_tag: t.Optional(t.Array(t.String())),
 	sort: OptionalString,
 	ascending: OptionalBoolean,
+	search_profiles: OptionalBoolean,
 });
 
 // Search Response Schema

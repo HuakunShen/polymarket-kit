@@ -365,18 +365,19 @@ type CommentsByUserQuery struct {
 
 // SearchQuery represents query parameters for search
 type SearchQuery struct {
-	Q               *string  `json:"q,omitempty"`
-	LimitPerType    *int     `json:"limit_per_type,omitempty"`
-	EventsStatus    *string  `json:"events_status,omitempty"`
-	EventsActive    *bool    `json:"events_active,omitempty"`
-	EventsClosed    *bool    `json:"events_closed,omitempty"`
-	EventsArchived  *bool    `json:"events_archived,omitempty"`
-	EventsFeatured  *bool    `json:"events_featured,omitempty"`
-	MarketsActive   *bool    `json:"markets_active,omitempty"`
-	MarketsClosed   *bool    `json:"markets_closed,omitempty"`
-	TagsCarousel    *bool    `json:"tags_carousel,omitempty"`
-	SeriesActive    *bool    `json:"series_active,omitempty"`
-	SeriesClosed    *bool    `json:"series_closed,omitempty"`
+	Q               *string `json:"q,omitempty"`
+	LimitPerType    *int    `json:"limit_per_type,omitempty"`
+	EventsStatus    *string `json:"events_status,omitempty"`
+	EventsActive    *bool   `json:"events_active,omitempty"`
+	EventsClosed    *bool   `json:"events_closed,omitempty"`
+	EventsArchived  *bool   `json:"events_archived,omitempty"`
+	EventsFeatured  *bool   `json:"events_featured,omitempty"`
+	MarketsActive   *bool   `json:"markets_active,omitempty"`
+	MarketsClosed   *bool   `json:"markets_closed,omitempty"`
+	TagsCarousel    *bool   `json:"tags_carousel,omitempty"`
+	SeriesActive    *bool   `json:"series_active,omitempty"`
+	SeriesClosed    *bool   `json:"series_closed,omitempty"`
+	SearchProfiles  *bool   `json:"search_profiles,omitempty"`
 }
 
 // SearchResponse represents the response from search API
