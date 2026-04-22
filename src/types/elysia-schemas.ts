@@ -1269,7 +1269,7 @@ export const ActivitySchema = t.Object({
 	proxyWallet: t.String(),
 	timestamp: t.Number(),
 	conditionId: t.String(),
-	type: t.Union([t.Literal("TRADE"), t.Literal("SPLIT"), t.Literal("MERGE"), t.Literal("REDEEM"), t.Literal("REWARD"), t.Literal("CONVERSION")]),
+	type: t.Union([t.Literal("TRADE"), t.Literal("SPLIT"), t.Literal("MERGE"), t.Literal("REDEEM"), t.Literal("REWARD"), t.Literal("CONVERSION"), t.Literal("YIELD")]),
 	size: t.Number(),
 	usdcSize: t.Optional(t.Number()), // May be missing in some activity types
 	transactionHash: t.String(),
