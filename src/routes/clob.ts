@@ -152,6 +152,8 @@ const runClobOperation = <T>(
 import {
 	PriceHistoryQuerySchema,
 	PriceHistoryResponseSchema,
+	BatchPricesHistoryRequestSchema,
+	BatchPricesHistoryResponseSchema,
 	OrderBookSummarySchema,
 	BookParamsSchema,
 	TokenParamsSchema,
@@ -296,6 +298,36 @@ export function createClobRoutes(opts?: Pick<NonNullable<ConstructorParameters<t
 				summary: "Get price history",
 				description:
 					"Retrieve price history for a specific token via market query parameter. Supports interval-based queries (1m, 1h, 6h, 1d, 1w, max) or time range queries.",
+			},
+		},
+	)
+
+	.post(
+		"/batch-prices-history",
+		async ({ body, clobPublicClient }) => {
+			return runClobOperation(() =>
+				clobPublicClient.getBatchPricesHistory({
+					markets: body.markets,
+					startTs: body.start_ts,
+					endTs: body.end_ts,
+					interval: body.interval,
+					fidelity: body.fidelity,
+				}),
+			);
+		},
+		{
+			body: BatchPricesHistoryRequestSchema,
+			headers: t.Optional(PolymarketAuthHeaderSchema),
+			response: {
+				200: BatchPricesHistoryResponseSchema,
+				400: ErrorResponseSchema,
+				500: ErrorResponseSchema,
+			},
+			detail: {
+				tags: ["CLOB API"],
+				summary: "Get batch prices history",
+				description:
+					"Retrieve historical price data for multiple markets in a single request. Maximum 20 markets per request.",
 			},
 		},
 	)

@@ -196,11 +196,32 @@ export class ClobPublicClient {
 	 */
 	async getMarketByToken(tokenId: string): Promise<MarketByTokenResponseType> {
 		return this.run(async () => {
-			// Use the internal helper to resolve token → condition mapping
 			const result = await (this.client as any).get(
 				`${(this.client as any).host}/markets-by-token/${tokenId}`,
 			);
 			return result as MarketByTokenResponseType;
 		}, `getMarketByToken(${tokenId})`);
+	}
+
+	async getBatchPricesHistory(params: {
+		markets: string[];
+		startTs?: number;
+		endTs?: number;
+		interval?: "max" | "all" | "1m" | "1w" | "1d" | "6h" | "1h";
+		fidelity?: number;
+	}): Promise<{ history: Record<string, { t: number; p: number }[]> }> {
+		return this.run(async () => {
+			const result = await (this.client as any).post(
+				`${(this.client as any).host}/batch-prices-history`,
+				{
+					markets: params.markets,
+					start_ts: params.startTs,
+					end_ts: params.endTs,
+					interval: params.interval,
+					fidelity: params.fidelity,
+				},
+			);
+			return result as { history: Record<string, { t: number; p: number }[]> };
+		}, `getBatchPricesHistory(${params.markets.length} markets)`);
 	}
 }

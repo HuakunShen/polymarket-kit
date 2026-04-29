@@ -374,6 +374,26 @@ export const PriceHistoryResponseSchema = t.Object({
 	]),
 });
 
+export const BatchPricesHistoryRequestSchema = t.Object({
+	markets: t.Array(t.String(), { maxItems: 20 }),
+	start_ts: t.Optional(t.Number()),
+	end_ts: t.Optional(t.Number()),
+	interval: t.Optional(t.Union([
+		t.Literal("max"),
+		t.Literal("all"),
+		t.Literal("1m"),
+		t.Literal("1w"),
+		t.Literal("1d"),
+		t.Literal("6h"),
+		t.Literal("1h"),
+	])),
+	fidelity: t.Optional(t.Number()),
+});
+
+export const BatchPricesHistoryResponseSchema = t.Object({
+	history: t.Record(t.String(), t.Array(PriceHistoryPointSchema)),
+});
+
 /**
  * Schema for market query parameters
  *
@@ -1068,6 +1088,12 @@ export type EventQueryType = typeof EventQuerySchema.static;
 
 /** TypeScript type for price history query parameters derived from PriceHistoryQuerySchema */
 export type PriceHistoryQueryType = typeof PriceHistoryQuerySchema.static;
+
+/** TypeScript type for batch price history request derived from BatchPricesHistoryRequestSchema */
+export type BatchPricesHistoryRequestType = typeof BatchPricesHistoryRequestSchema.static;
+
+/** TypeScript type for batch price history response derived from BatchPricesHistoryResponseSchema */
+export type BatchPricesHistoryResponseType = typeof BatchPricesHistoryResponseSchema.static;
 
 /** TypeScript type for CLOB client configuration derived from ClobClientConfigSchema */
 export type ClobClientConfigType = typeof ClobClientConfigSchema.static;
