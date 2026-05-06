@@ -29,15 +29,26 @@ type UserWSConfig struct {
 	// Markets is an optional list of condition IDs to filter events.
 	Markets []string
 	// OnOrder is called for order events (PLACEMENT, UPDATE, CANCELLATION).
+	// Prefer OnOrderRaw if you need to persist the original WS bytes
+	// verbatim — re-marshalling the typed struct may drop fields not yet
+	// modeled in *types.OrderEvent.
 	OnOrder func(*types.OrderEvent)
+	// OnOrderRaw is called with the raw WS bytes alongside the parsed event.
+	// If both OnOrder and OnOrderRaw are set, both fire (OnOrderRaw first).
+	OnOrderRaw func(raw json.RawMessage, evt *types.OrderEvent)
 	// OnTrade is called for trade events (MATCHED, MINED, CONFIRMED, FAILED).
 	OnTrade func(*types.TradeEvent)
+	// OnTradeRaw is called with the raw WS bytes alongside the parsed event.
+	// If both OnTrade and OnTradeRaw are set, both fire (OnTradeRaw first).
+	OnTradeRaw func(raw json.RawMessage, evt *types.TradeEvent)
 	// OnError is called on non-fatal errors (parse failures, etc.).
 	OnError func(error)
 	// OnConnect is called when the connection is established.
 	OnConnect func()
 	// OnDisconnect is called when the connection is lost.
 	OnDisconnect func()
+	// OnPong is called when a PONG keepalive reply is received from the server.
+	OnPong func()
 	// Logger overrides the default logger.
 	Logger *slog.Logger
 }
@@ -240,8 +251,11 @@ func (c *UserWSClient) readLoop(ctx context.Context, conn *websocket.Conn) error
 
 		msg := string(raw)
 
-		// Handle PONG
+		// Handle PONG keepalive reply.
 		if msg == "PONG" {
+			if c.cfg.OnPong != nil {
+				c.cfg.OnPong()
+			}
 			continue
 		}
 
@@ -263,10 +277,16 @@ func (c *UserWSClient) readLoop(ctx context.Context, conn *websocket.Conn) error
 
 		switch evt := parsed.(type) {
 		case *types.OrderEvent:
+			if c.cfg.OnOrderRaw != nil {
+				c.cfg.OnOrderRaw(json.RawMessage(raw), evt)
+			}
 			if c.cfg.OnOrder != nil {
 				c.cfg.OnOrder(evt)
 			}
 		case *types.TradeEvent:
+			if c.cfg.OnTradeRaw != nil {
+				c.cfg.OnTradeRaw(json.RawMessage(raw), evt)
+			}
 			if c.cfg.OnTrade != nil {
 				c.cfg.OnTrade(evt)
 			}

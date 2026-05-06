@@ -1,7 +1,6 @@
 package types
 
 import (
-	"math/big"
 	"time"
 )
 
@@ -31,12 +30,30 @@ const (
 	OrderTypeFAK OrderType = "FAK"
 )
 
-// SignatureType represents signature types
+// SignatureType matches Polymarket CTF Exchange V2 signature types.
+// Mirrors clob-client-v2 SignatureTypeV2 enum:
+// vendors/clob-client-v2/src/order-utils/model/signatureTypeV2.ts.
 type SignatureType int
 
 const (
-	SignatureTypeEIP712 SignatureType = 0
-	SignatureTypeEthSign SignatureType = 2
+	// SignatureTypeEOA: ECDSA EIP-712 signature signed by an externally
+	// owned account.
+	SignatureTypeEOA SignatureType = 0
+	// SignatureTypePolyProxy: EIP-712 signature signed by an EOA that owns
+	// a Polymarket proxy wallet (created when depositing via the UI).
+	SignatureTypePolyProxy SignatureType = 1
+	// SignatureTypePolyGnosisSafe: EIP-712 signature signed by an EOA that
+	// owns a Polymarket Gnosis Safe.
+	SignatureTypePolyGnosisSafe SignatureType = 2
+	// SignatureTypePoly1271: EIP-1271 signature signed by a smart-contract
+	// wallet (e.g. vaults). New in V2.
+	SignatureTypePoly1271 SignatureType = 3
+
+	// Deprecated: use SignatureTypeEOA. Kept for source compatibility.
+	SignatureTypeEIP712 = SignatureTypeEOA
+	// Deprecated: this name was incorrect — value 2 is POLY_GNOSIS_SAFE,
+	// not eth_sign. Use SignatureTypePolyGnosisSafe.
+	SignatureTypeEthSign = SignatureTypePolyGnosisSafe
 )
 
 // ApiKeyCreds represents API key credentials
@@ -77,21 +94,37 @@ type L2PolyHeader struct {
 	POLYPassphrase string `json:"POLY_PASSPHRASE"`
 }
 
-// SignedOrder represents a signed order
+// SignedOrder is the V2 signed order wire format used by Polymarket CLOB.
+//
+// V2 dropped taker / nonce / feeRateBps from the EIP-712 struct and added
+// timestamp / metadata / builder. The CLOB API rejects V1-shaped orders
+// with `order_version_mismatch`. See clob-client-v2/src/order-utils/model/
+// ctfExchangeV2TypedData.ts and ordersV2.ts for the canonical shape.
+//
+// Wire-format quirks (any one wrong → `Invalid order payload`):
+//
+//   - makerAmount / takerAmount: JSON **strings** (uint256 doesn't fit
+//     reliably in a JSON number).
+//   - salt: JSON **number** (u64). rs-SDK comment: "CLOB expects salt as
+//     a JSON number".
+//   - Other uint256 fields (timestamp, expiration, tokenId): strings.
+//   - signatureType: JSON number (on-chain enum).
+//   - metadata / builder: bytes32 hex strings, default 0x000…000.
+//   - expiration sits in the body but is **not** in the struct hash.
 type SignedOrder struct {
-	Salt         string        `json:"salt"`
-	Maker        string        `json:"maker"`
-	Signer       string        `json:"signer"`
-	Taker        string        `json:"taker"`
-	TokenID      string        `json:"tokenId"`
-	MakerAmount  *big.Int      `json:"makerAmount"`
-	TakerAmount  *big.Int      `json:"takerAmount"`
-	Expiration   string        `json:"expiration"`
-	Nonce        string        `json:"nonce"`
-	FeeRateBps   string        `json:"feeRateBps"`
-	Side         Side          `json:"side"`
+	Salt          uint64        `json:"salt"`        // JSON number (u64)
+	Maker         string        `json:"maker"`
+	Signer        string        `json:"signer"`
+	TokenID       string        `json:"tokenId"`
+	MakerAmount   string        `json:"makerAmount"` // string-encoded uint256
+	TakerAmount   string        `json:"takerAmount"` // string-encoded uint256
+	Side          Side          `json:"side"`
 	SignatureType SignatureType `json:"signatureType"`
-	Signature    string        `json:"signature"`
+	Timestamp     string        `json:"timestamp"`  // unix milliseconds (matches TS Date.now())
+	Expiration    string        `json:"expiration"` // wire-only, "0" for non-GTD
+	Metadata      string        `json:"metadata"`   // bytes32 hex
+	Builder       string        `json:"builder"`    // bytes32 hex
+	Signature     string        `json:"signature"`
 }
 
 // PostOrdersArgs represents arguments for posting orders
@@ -100,36 +133,54 @@ type PostOrdersArgs struct {
 	OrderType OrderType   `json:"orderType"`
 }
 
-// NewOrder represents a new order
+// NewOrder represents a new order (V2 wire format).
 type NewOrder struct {
-	Order      SignedOrder `json:"order"`
-	Owner      string      `json:"owner"`
-	OrderType  OrderType   `json:"orderType"`
-	DeferExec  bool        `json:"deferExec"`
+	Order     SignedOrder `json:"order"`
+	Owner     string      `json:"owner"`
+	OrderType OrderType   `json:"orderType"`
+	DeferExec bool        `json:"deferExec"`
+	PostOnly  bool        `json:"postOnly"`
 }
 
-// UserOrder represents a simplified user order
+// UserOrder is the simplified V2 limit-order request shape, mirroring
+// clob-client-v2 UserOrderV2:
+// vendors/clob-client-v2/src/types/ordersV2.ts.
+//
+// V1's taker / nonce / feeRateBps fields were removed — V2 uses
+// metadata / builderCode / expiration instead.
 type UserOrder struct {
-	TokenID     string  `json:"tokenID"`
-	Price       float64 `json:"price"`
-	Size        float64 `json:"size"`
-	Side        Side    `json:"side"`
-	FeeRateBps  *int    `json:"feeRateBps,omitempty"`
-	Nonce       *int    `json:"nonce,omitempty"`
-	Expiration  *int    `json:"expiration,omitempty"`
-	Taker       string  `json:"taker,omitempty"`
+	TokenID string  `json:"tokenID"`
+	Price   float64 `json:"price"`
+	Size    float64 `json:"size"`
+	Side    Side    `json:"side"`
+	// Metadata is a bytes32 hex string. Defaults to zero on the wire.
+	Metadata string `json:"metadata,omitempty"`
+	// BuilderCode is a bytes32 hex string identifying a fee-share recipient.
+	BuilderCode string `json:"builderCode,omitempty"`
+	// Expiration is unix seconds; only honoured for GTD order type. 0 = none.
+	Expiration *int64 `json:"expiration,omitempty"`
 }
 
-// UserMarketOrder represents a simplified market order
+// UserMarketOrder is the simplified V2 market-order (FOK / FAK) shape,
+// mirroring clob-client-v2 UserMarketOrderV2.
+//
+//   - BUY: Amount is the USDC budget to spend.
+//   - SELL: Amount is the share count to sell.
 type UserMarketOrder struct {
-	TokenID     string        `json:"tokenID"`
-	Price       *float64      `json:"price,omitempty"`
-	Amount      float64       `json:"amount"`
-	Side        Side          `json:"side"`
-	FeeRateBps  *int          `json:"feeRateBps,omitempty"`
-	Nonce       *int          `json:"nonce,omitempty"`
-	Taker       string        `json:"taker,omitempty"`
-	OrderType   *OrderType    `json:"orderType,omitempty"`
+	TokenID string `json:"tokenID"`
+	// Price is optional; when nil the SDK should fetch from the order book.
+	Price  *float64 `json:"price,omitempty"`
+	Amount float64  `json:"amount"`
+	Side   Side     `json:"side"`
+	// OrderType must be FOK or FAK when set.
+	OrderType *OrderType `json:"orderType,omitempty"`
+	// UserUSDCBalance: when sufficient, the order Amount is used as-is.
+	// Otherwise CLOB deducts fees from the amount.
+	UserUSDCBalance *float64 `json:"userUSDCBalance,omitempty"`
+	// Metadata is a bytes32 hex string. Defaults to zero on the wire.
+	Metadata string `json:"metadata,omitempty"`
+	// BuilderCode is a bytes32 hex string identifying a fee-share recipient.
+	BuilderCode string `json:"builderCode,omitempty"`
 }
 
 // OrderPayload represents order payload for cancellation
@@ -195,6 +246,10 @@ type OpenOrderParams struct {
 	ID      *string `json:"id,omitempty"`
 	Market  *string `json:"market,omitempty"`
 	AssetID *string `json:"asset_id,omitempty"`
+	// Limit is the page size hint sent to CLOB. Default server-side is small;
+	// set this to a larger number to reduce round-trips when fetching many
+	// open orders. The cursor walk in GetOpenOrders honours it per page.
+	Limit *int `json:"limit,omitempty"`
 }
 
 // MakerOrder represents a maker order

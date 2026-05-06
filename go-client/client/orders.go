@@ -2,48 +2,75 @@ package client
 
 import (
 	"bytes"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 
 	"github.com/HuakunShen/polymarket-kit/go-client/order"
 	"github.com/HuakunShen/polymarket-kit/go-client/types"
 )
 
 // GetOpenOrders retrieves all open orders for the authenticated user.
+//
+// CLOB returns `/data/orders` as a paginated envelope
+// `{data: [...], next_cursor, limit, count}`; we walk the cursor and
+// accumulate. py-clob-client.client.get_orders does the exact same thing
+// (vendors/py-clob-client/py_clob_client/client.py:750+).
 func (c *ClobClient) GetOpenOrders(params *types.OpenOrderParams) ([]types.OpenOrder, error) {
 	if c.creds == nil {
 		return nil, fmt.Errorf("API credentials required")
 	}
 
-	headerArgs := &types.L2HeaderArgs{
-		Method:      "GET",
-		RequestPath: GetOpenOrders,
-	}
-	headers, err := c.createL2Headers(headerArgs)
-	if err != nil {
-		return nil, fmt.Errorf("create L2 headers: %w", err)
-	}
+	const endCursor = "LTE=" // CLOB sentinel for "end of pagination"
+	cursor := "MA=="          // start
+	var all []types.OpenOrder
 
-	queryParams := url.Values{}
-	if params != nil {
-		if params.ID != nil {
-			queryParams.Add("id", *params.ID)
+	for cursor != endCursor {
+		headerArgs := &types.L2HeaderArgs{
+			Method:      "GET",
+			RequestPath: GetOpenOrders,
 		}
-		if params.Market != nil {
-			queryParams.Add("market", *params.Market)
+		headers, err := c.createL2Headers(headerArgs)
+		if err != nil {
+			return nil, fmt.Errorf("create L2 headers: %w", err)
 		}
-		if params.AssetID != nil {
-			queryParams.Add("asset_id", *params.AssetID)
-		}
-	}
 
-	var result []types.OpenOrder
-	err = c.getJSONWithHeadersAndParams(GetOpenOrders, headers, queryParams, &result)
-	return result, err
+		queryParams := url.Values{}
+		queryParams.Set("next_cursor", cursor)
+		if params != nil {
+			if params.ID != nil {
+				queryParams.Add("id", *params.ID)
+			}
+			if params.Market != nil {
+				queryParams.Add("market", *params.Market)
+			}
+			if params.AssetID != nil {
+				queryParams.Add("asset_id", *params.AssetID)
+			}
+			if params.Limit != nil {
+				queryParams.Set("limit", strconv.Itoa(*params.Limit))
+			}
+		}
+
+		var page struct {
+			Data       []types.OpenOrder `json:"data"`
+			NextCursor string            `json:"next_cursor"`
+			Limit      int               `json:"limit"`
+			Count      int               `json:"count"`
+		}
+		if err := c.getJSONWithHeadersAndParams(GetOpenOrders, headers, queryParams, &page); err != nil {
+			return nil, err
+		}
+		all = append(all, page.Data...)
+		if page.NextCursor == "" || page.NextCursor == cursor {
+			break // server didn't advance — stop to avoid infinite loop
+		}
+		cursor = page.NextCursor
+	}
+	return all, nil
 }
 
 // CancelOrder cancels a specific order by its order ID.
@@ -85,47 +112,63 @@ func (c *ClobClient) CancelOrders(orderIDs []string) error {
 	return c.deleteWithBody(CancelOrders, body)
 }
 
-// PostSignedOrder posts a pre-signed order to the CLOB.
-func (c *ClobClient) PostSignedOrder(signedResult *order.SignedOrderResult, orderType types.OrderType) (*types.OrderResponse, error) {
+// bytesToHex returns the lowercase hex of b without 0x prefix.
+func bytesToHex(b []byte) string {
+	const hexdigits = "0123456789abcdef"
+	out := make([]byte, len(b)*2)
+	for i, v := range b {
+		out[i*2] = hexdigits[v>>4]
+		out[i*2+1] = hexdigits[v&0x0f]
+	}
+	return string(out)
+}
+
+// BuildPostOrderBody constructs the JSON body that PostSignedOrder will send,
+// without performing the network call. Lets callers persist the exact
+// payload alongside the eventual CLOB response.
+func (c *ClobClient) BuildPostOrderBody(signedResult *order.SignedOrderResult, orderType types.OrderType) (*types.NewOrder, []byte, error) {
 	if c.creds == nil {
-		return nil, fmt.Errorf("API credentials required")
+		return nil, nil, fmt.Errorf("API credentials required")
 	}
 
-	so := signedResult.SignedOrder
-
-	// go-order-utils model.SignedOrder → our types.SignedOrder (string fields)
-	side := types.SideBuy
-	if so.Side != nil && so.Side.Int64() == 1 {
-		side = types.SideSell
-	}
-	sigType := types.SignatureType(0) // EOA
-	if so.SignatureType != nil {
-		sigType = types.SignatureType(so.SignatureType.Int64())
+	in := signedResult.Inputs
+	side := types.Side(signedResult.Side)
+	if side == "" {
+		side = types.SideBuy
 	}
 
-	newOrder := types.NewOrder{
+	newOrder := &types.NewOrder{
 		Order: types.SignedOrder{
-			Salt:          so.Salt.String(),
-			Maker:         so.Maker.Hex(),
-			Signer:        so.Signer.Hex(),
-			Taker:         so.Taker.Hex(),
-			TokenID:       so.TokenId.String(),
-			MakerAmount:   so.MakerAmount,
-			TakerAmount:   so.TakerAmount,
-			Expiration:    so.Expiration.String(),
-			Nonce:         so.Nonce.String(),
-			FeeRateBps:    so.FeeRateBps.String(),
+			Salt:          in.Salt.Uint64(),
+			Maker:         in.Maker.Hex(),
+			Signer:        in.Signer.Hex(),
+			TokenID:       in.TokenID.String(),
+			MakerAmount:   in.MakerAmount.String(),
+			TakerAmount:   in.TakerAmount.String(),
 			Side:          side,
-			SignatureType: sigType,
-			Signature:     "0x" + hex.EncodeToString(so.Signature),
+			SignatureType: types.SignatureType(in.SignatureType),
+			Timestamp:     in.Timestamp.String(),
+			Expiration:    signedResult.Expiration,
+			Metadata:      "0x" + bytesToHex(in.Metadata[:]),
+			Builder:       "0x" + bytesToHex(in.Builder[:]),
+			Signature:     signedResult.Signature,
 		},
 		OrderType: orderType,
-		Owner:     so.Maker.Hex(),
+		// Owner must be the API key UUID (creds.Key), not the wallet address.
+		Owner: c.creds.Key,
 	}
-
 	bodyJSON, err := json.Marshal(newOrder)
 	if err != nil {
-		return nil, fmt.Errorf("marshal order: %w", err)
+		return nil, nil, fmt.Errorf("marshal order: %w", err)
+	}
+	return newOrder, bodyJSON, nil
+}
+
+// PostSignedOrder posts a pre-signed order to the CLOB.
+func (c *ClobClient) PostSignedOrder(signedResult *order.SignedOrderResult, orderType types.OrderType) (*types.OrderResponse, error) {
+	newOrder, bodyJSON, err := c.BuildPostOrderBody(signedResult, orderType)
+	if err != nil {
+		return nil, err
 	}
 
 	headerArgs := &types.L2HeaderArgs{
@@ -147,13 +190,15 @@ func (c *ClobClient) PostSignedOrder(signedResult *order.SignedOrderResult, orde
 	return &result, nil
 }
 
-// CreateAndPostOrder builds, signs, and posts a limit order in one call.
-func (c *ClobClient) CreateAndPostOrder(opts order.LimitOrderOpts, orderType types.OrderType) (*types.OrderResponse, error) {
+// CreateSignedLimitOrder builds and signs a limit order without posting it.
+// Returns the signed order (including the EIP-712 hash, used by Polymarket as
+// the venue order ID). Callers can persist a pending DB row keyed on the
+// hash before invoking PostSignedOrder — this gives crash-safety and lets
+// concurrent user-channel trade events resolve to the right local order even
+// if the trade fires before the CLOB POST returns.
+func (c *ClobClient) CreateSignedLimitOrder(opts order.LimitOrderOpts) (*order.SignedOrderResult, error) {
 	if c.wallet == nil {
 		return nil, fmt.Errorf("wallet required for order creation")
-	}
-	if c.creds == nil {
-		return nil, fmt.Errorf("API credentials required")
 	}
 
 	if opts.ChainID == 0 {
@@ -163,6 +208,36 @@ func (c *ClobClient) CreateAndPostOrder(opts order.LimitOrderOpts, orderType typ
 	signed, err := order.BuildSignedLimitOrder(c.wallet.GetPrivateKey(), opts)
 	if err != nil {
 		return nil, fmt.Errorf("build signed order: %w", err)
+	}
+	return signed, nil
+}
+
+// CreateSignedMarketOrder builds and signs a V2 market order (FOK / FAK).
+// For BUY, opts.Amount is the USDC budget; for SELL, it's the share count.
+// See order.MarketOrderOpts for the full contract.
+func (c *ClobClient) CreateSignedMarketOrder(opts order.MarketOrderOpts) (*order.SignedOrderResult, error) {
+	if c.wallet == nil {
+		return nil, fmt.Errorf("wallet required for order creation")
+	}
+	if opts.ChainID == 0 {
+		opts.ChainID = int64(c.chainID)
+	}
+	signed, err := order.BuildSignedMarketOrder(c.wallet.GetPrivateKey(), opts)
+	if err != nil {
+		return nil, fmt.Errorf("build signed market order: %w", err)
+	}
+	return signed, nil
+}
+
+// CreateAndPostOrder builds, signs, and posts a limit order in one call.
+func (c *ClobClient) CreateAndPostOrder(opts order.LimitOrderOpts, orderType types.OrderType) (*types.OrderResponse, error) {
+	if c.creds == nil {
+		return nil, fmt.Errorf("API credentials required")
+	}
+
+	signed, err := c.CreateSignedLimitOrder(opts)
+	if err != nil {
+		return nil, err
 	}
 
 	return c.PostSignedOrder(signed, orderType)

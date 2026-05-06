@@ -2,15 +2,27 @@
 
 A Go implementation of the Polymarket CLOB (Central Limit Order Book) client, providing functionality for interacting with the Polymarket trading API.
 
+> **V2 protocol.** This client targets the **V2 CTF Exchange** typed data
+> (domain version `"2"`, contracts `0xE111...996B` /
+> `0xe2222d27...0F59`). The live CLOB rejects V1-shaped orders with
+> `order_version_mismatch`. The official `rs-clob-client`,
+> `ts-clob-client`, and `py-clob-client` SDKs are still V1; this Go
+> client is aligned with `clob-client-v2` (the canonical V2 reference).
+> See [`.journal/2026-05-07-go-client-v2-alignment.md`](../.journal/2026-05-07-go-client-v2-alignment.md)
+> for the full migration notes.
+
 ## Features
 
 - ✅ **Ethereum Wallet Integration**: Full support for private key management and signing operations
-- ✅ **EIP-712 Authentication**: Complete implementation of EIP-712 typed data signing for Level 1 authentication
-- ✅ **HMAC Authentication**: Secure HMAC-based authentication for API operations (Level 2)
-- ✅ **Order Management**: Create, post, cancel, and query orders
-- ✅ **Market Data**: Access order books, prices, trades, and market information
-- ✅ **API Key Management**: Create, derive, and manage API keys
-- ✅ **Type Safety**: Comprehensive Go types for all API requests and responses
+- ✅ **EIP-712 V2 Signing**: Polymarket CTF Exchange V2 typed data (timestamp / metadata / builder)
+- ✅ **L1 + L2 Auth**: EIP-712 Level 1 + HMAC Level 2 (URL-safe base64 secrets)
+- ✅ **Limit + Market Orders**: GTC / GTD / FOK / FAK with both share-input and USDC-budget builders
+- ✅ **Write-Ahead Friendly**: order hash is computed before POST so callers can persist a pending row keyed on the venue ID
+- ✅ **All Signature Types**: EOA, POLY_PROXY, POLY_GNOSIS_SAFE, POLY_1271
+- ✅ **WebSocket User Channel**: typed events plus raw `json.RawMessage` so no fields are lost
+- ✅ **Market Data**: order books, prices, trades, market info, paginated open-orders walk
+- ✅ **API Key Management**: create, derive, manage L2 API keys
+- ✅ **Type Safety**: comprehensive Go types for all API requests and responses
 
 ## Installation
 
@@ -134,11 +146,11 @@ result, err := clobClient.DeleteApiKey()
 ### Order Management
 
 ```go
-// Get open orders
-orders, err := clobClient.GetOpenOrders(nil, true, "0")
+// Get open orders (paginated cursor walk happens internally)
+orders, err := clobClient.GetOpenOrders(nil)
 
-// Get specific order
-order, err := clobClient.GetOrder("order_id")
+// Get a specific order
+o, err := clobClient.GetOrder("order_id")
 
 // Get trades with filters
 tradeParams := &types.TradeParams{
@@ -146,6 +158,64 @@ tradeParams := &types.TradeParams{
     AssetID: stringPtr("asset_id"),
 }
 trades, err := clobClient.GetTrades(tradeParams, false, "0")
+```
+
+### Placing V2 Orders
+
+#### GTC limit order (input = shares)
+
+```go
+import (
+    "github.com/HuakunShen/polymarket-kit/go-client/order"
+    "github.com/HuakunShen/polymarket-kit/go-client/types"
+)
+
+resp, err := clobClient.CreateAndPostOrder(order.LimitOrderOpts{
+    TokenID:  "71321045679252212594626385532706912750332728571942532289631379312455583992563",
+    Price:    0.50,
+    Size:     5,        // 5 shares
+    Side:     "BUY",
+    NegRisk:  true,     // crypto UpDown markets
+    TickSize: "0.01",
+    // For Polymarket UI deposits (proxy wallets):
+    //   Funder:        "0x...",
+    //   SignatureType: uint8(types.SignatureTypePolyProxy),
+}, types.OrderTypeGTC)
+```
+
+#### Market order — FOK BUY (input = USDC budget)
+
+Mirrors the polymarket.com web UI: the BUY input is **dollars**, not
+shares. `Price` is the worst-case cap (typically the current best ask).
+
+```go
+signed, err := clobClient.CreateSignedMarketOrder(order.MarketOrderOpts{
+    TokenID:  tokenID,
+    Side:     "BUY",
+    Price:    bestAsk,     // worst-case cap
+    Amount:   1.00,        // spend up to $1.00
+    NegRisk:  true,
+    TickSize: "0.01",
+})
+if err != nil { return err }
+resp, err := clobClient.PostSignedOrder(signed, types.OrderTypeFOK)
+```
+
+#### Write-ahead (persist a pending row before POST)
+
+`SignedOrderResult.OrderHash` is the venue order ID. It's computed
+locally during signing, **before** any network call, so callers can
+write a pending DB row keyed on the hash and survive crashes mid-POST.
+
+```go
+signed, err := clobClient.CreateSignedLimitOrder(opts)
+if err != nil { return err }
+
+// Persist {client_order_id, venue_order_id: signed.OrderHash, status: "submitting"}
+db.InsertPending(clientOrderID, signed.OrderHash)
+
+resp, err := clobClient.PostSignedOrder(signed, types.OrderTypeGTC)
+db.UpdateStatus(clientOrderID, statusFor(resp, err))
 ```
 
 ## Wallet Operations
@@ -201,27 +271,23 @@ if err != nil {
 
 ### ✅ Completed Features
 
-- **Authentication**: Full EIP-712 and HMAC authentication support
-- **Wallet Operations**: Complete wallet management and signing
+- **V2 Authentication**: EIP-712 V2 signing + HMAC L2 (URL-safe base64 secrets)
+- **Wallet Operations**: Wallet management and signing (EOA + proxy / Gnosis Safe / 1271)
 - **Public Endpoints**: Server time, markets, order books, prices
-- **API Key Management**: Create, derive, list, and delete API keys
-- **Market Data**: Trades, orders, market information
-- **HTTP Client**: Robust HTTP client with proper error handling
-
-### 🚧 In Progress
-
-- Order creation and posting
-- Advanced order types (market orders, GTD orders)
-- Builder authentication
-- WebSocket streaming
-- Comprehensive tests
+- **API Key Management**: Create, derive, list, and delete L2 API keys
+- **Order Builder**: GTC / GTD limit + FOK / FAK market (USDC-budget BUY)
+- **Order Lifecycle**: Place, cancel, cancel-all, query, paginated open-orders walk
+- **WebSocket User Channel**: Typed events with raw `json.RawMessage` passthrough
+- **Market Data**: Trades, orders, market info
+- **Tests**: V2 EIP-712 golden vector, HMAC URL-safe base64 vector, rounding parity
 
 ### 📋 Planned
 
+- Batch order posting (`POST /orders`)
+- `cancel-market-orders` endpoint
 - Balance and allowance management
 - Rewards endpoints
 - Notification management
-- Performance optimizations
 - Rate limiting
 
 ## Dependencies
