@@ -24,11 +24,21 @@ func (c *ClobClient) GetOpenOrders(params *types.OpenOrderParams) ([]types.OpenO
 		return nil, fmt.Errorf("API credentials required")
 	}
 
-	const endCursor = "LTE=" // CLOB sentinel for "end of pagination"
-	cursor := "MA=="          // start
+	const (
+		endCursor = "LTE=" // CLOB sentinel for "end of pagination"
+		// maxPages caps the cursor walk to bound a buggy / hostile server
+		// that returns a non-terminal cursor that never advances. 200 pages
+		// at the default 100-orders-per-page = 20k orders, well above any
+		// realistic open-order count for a single account.
+		maxPages = 200
+	)
+	cursor := "MA==" // start
 	var all []types.OpenOrder
 
-	for cursor != endCursor {
+	for page := 0; cursor != endCursor; page++ {
+		if page >= maxPages {
+			return all, fmt.Errorf("GetOpenOrders: bailed after %d pages (cursor=%q); server may be misbehaving", page, cursor)
+		}
 		headerArgs := &types.L2HeaderArgs{
 			Method:      "GET",
 			RequestPath: GetOpenOrders,

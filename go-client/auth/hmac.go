@@ -16,13 +16,14 @@ func BuildPolyHmacSignature(secret string, timestamp int64, method string, reque
 		message += *body
 	}
 
-	// Decode the URL-safe base64 secret. Polymarket issues secrets in URL-safe
-	// base64 (`-_` instead of `+/`); decoding with StdEncoding fails on `-_`
-	// and silently produces the wrong HMAC key, leading to HTTP 401
-	// "Unauthorized/Invalid api key". py-clob-client uses urlsafe_b64decode.
+	// Polymarket secrets use the URL-safe alphabet (`-_` instead of `+/`).
+	// `URLEncoding` decodes them correctly; `StdEncoding` would silently
+	// fail on `-_` and the literal-string fallback below would produce the
+	// wrong HMAC key (→ HTTP 401 "Unauthorized/Invalid api key").
+	// py-clob-client uses `urlsafe_b64decode` for the same reason.
+	// `StdEncoding` is kept as a fallback only for legacy / `+/` secrets.
 	base64Secret, err := base64.URLEncoding.DecodeString(secret)
 	if err != nil {
-		// Fallback: try standard base64 in case the server ever returns it.
 		base64Secret, err = base64.StdEncoding.DecodeString(secret)
 		if err != nil {
 			base64Secret = []byte(secret)
