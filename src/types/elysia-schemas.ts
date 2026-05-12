@@ -1757,6 +1757,125 @@ export type ClobTokenQueryType = typeof ClobTokenQuerySchema.static;
 /** TypeScript type for CLOB batch price history query */
 export type ClobPricesHistoryBatchQueryType = typeof ClobPricesHistoryBatchQuerySchema.static;
 
+/**
+ * Schema for CLOB midpoint response
+ */
+export const ClobMidpointResponseSchema = t.Object({
+	mid_price: t.String({ description: "Midpoint price as a string" }),
+});
+export type ClobMidpointResponseType = typeof ClobMidpointResponseSchema.static;
+
+/**
+ * Schema for CLOB spread response
+ */
+export const ClobSpreadResponseSchema = t.Object({
+	spread: t.String({ description: "Spread as a string" }),
+});
+export type ClobSpreadResponseType = typeof ClobSpreadResponseSchema.static;
+
+/**
+ * Order side enum
+ */
+export const ClobOrderSideSchema = t.Union([t.Literal("BUY"), t.Literal("SELL")]);
+export type ClobOrderSideType = typeof ClobOrderSideSchema.static;
+
+/**
+ * Schema for CLOB market price query (single)
+ */
+export const ClobPriceQuerySchema = t.Object({
+	token_id: t.String({ description: "CLOB token ID" }),
+	side: ClobOrderSideSchema,
+});
+export type ClobPriceQueryType = typeof ClobPriceQuerySchema.static;
+
+/**
+ * Schema for CLOB market price response
+ */
+export const ClobPriceResponseSchema = t.Object({
+	price: t.Number({ description: "Market price as a decimal" }),
+});
+export type ClobPriceResponseType = typeof ClobPriceResponseSchema.static;
+
+/**
+ * Schema for CLOB last trade price with token and side (batch response)
+ */
+export const ClobLastTradePriceWithSideSchema = t.Object({
+	token_id: t.String(),
+	price: t.String({ description: "Last trade price" }),
+	side: t.Union([t.Literal("BUY"), t.Literal("SELL"), t.Literal("")]),
+});
+export type ClobLastTradePriceWithSideType =
+	typeof ClobLastTradePriceWithSideSchema.static;
+
+/**
+ * Schema for a single order summary level (bid or ask)
+ */
+export const ClobOrderSummarySchema = t.Object({
+	price: t.String(),
+	size: t.String(),
+});
+export type ClobOrderSummaryType = typeof ClobOrderSummarySchema.static;
+
+/**
+ * Schema for the CLOB order book summary response
+ */
+export const ClobOrderBookSummarySchema = t.Object({
+	market: t.String({ description: "Market condition ID" }),
+	asset_id: t.String({ description: "Token ID (asset ID)" }),
+	timestamp: t.String({ description: "Timestamp of the order book snapshot" }),
+	hash: t.String({ description: "Hash of the order book summary" }),
+	bids: t.Array(ClobOrderSummarySchema, {
+		description: "Bid orders sorted by price descending",
+	}),
+	asks: t.Array(ClobOrderSummarySchema, {
+		description: "Ask orders sorted by price ascending",
+	}),
+	min_order_size: t.String(),
+	tick_size: t.String(),
+	neg_risk: t.Boolean(),
+	last_trade_price: t.String(),
+});
+export type ClobOrderBookSummaryType = typeof ClobOrderBookSummarySchema.static;
+
+/**
+ * Schema for the batch prices history request body
+ */
+export const ClobBatchPricesHistoryRequestSchema = t.Object({
+	markets: t.Array(t.String(), {
+		description: "Market asset IDs to query. Max 20.",
+		maxItems: 20,
+	}),
+	start_ts: t.Optional(t.Number({ description: "Unix seconds — lower bound" })),
+	end_ts: t.Optional(t.Number({ description: "Unix seconds — upper bound" })),
+	interval: t.Optional(
+		t.Union([
+			t.Literal("max"),
+			t.Literal("all"),
+			t.Literal("1m"),
+			t.Literal("1h"),
+			t.Literal("6h"),
+			t.Literal("1d"),
+			t.Literal("1w"),
+		]),
+	),
+	fidelity: t.Optional(
+		t.Number({ description: "Data resolution in minutes. Default 1." }),
+	),
+});
+export type ClobBatchPricesHistoryRequestType =
+	typeof ClobBatchPricesHistoryRequestSchema.static;
+
+/**
+ * Schema for the batch prices history response
+ */
+export const ClobBatchPricesHistoryResponseSchema = t.Object({
+	history: t.Record(t.String(), t.Array(PriceHistoryPointSchema), {
+		description: "Map of asset id → price history points",
+	}),
+});
+export type ClobBatchPricesHistoryResponseType =
+	typeof ClobBatchPricesHistoryResponseSchema.static;
+
 // ============================================================
 // CLOB Rewards API (public, no auth required)
 // ============================================================

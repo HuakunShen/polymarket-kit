@@ -45,7 +45,7 @@
  * });
  * ```
  */
-export { GammaSDK, PolymarketSDK, DataSDK } from "./sdk";
+export { ClobSDK, DataSDK, GammaSDK, PolymarketSDK } from "./sdk";
 
 /**
  * WebSocket message schemas for real-time market data
