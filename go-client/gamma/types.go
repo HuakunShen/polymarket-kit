@@ -295,7 +295,7 @@ type Series struct {
 	StartDate     *string    `json:"startDate,omitempty"`
 	CreatedAt     string     `json:"createdAt"`
 	UpdatedAt     string     `json:"updatedAt"`
-	Competitive   *float64   `json:"competitive,omitempty"`
+	Competitive   *string    `json:"competitive,omitempty"`
 	Volume24hr    *float64   `json:"volume24hr,omitempty"`
 	PythTokenID   *string    `json:"pythTokenId,omitempty"`
 	LastActiveAt  *string    `json:"lastActiveAt,omitempty"`
