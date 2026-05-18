@@ -113,6 +113,17 @@ func (c *RealTimeDataClient) connectLoop() {
 
 		c.mu.Lock()
 		c.conn = conn
+		// If Disconnect was called while we were dialing, bail out before
+		// entering the read loop (otherwise wg.Wait() in Disconnect blocks).
+		select {
+		case <-c.stopChan:
+			c.conn = nil
+			c.mu.Unlock()
+			conn.Close()
+			c.notifyStatusChange(ConnectionStatusDisconnected)
+			return
+		default:
+		}
 		c.mu.Unlock()
 
 		c.notifyStatusChange(ConnectionStatusConnected)
