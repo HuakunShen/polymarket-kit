@@ -200,13 +200,17 @@ type BanStatus struct {
 
 // OrderResponse represents order response
 type OrderResponse struct {
-	Success          bool     `json:"success"`
-	ErrorMsg         string   `json:"errorMsg"`
-	OrderID          string   `json:"orderID"`
+	Success            bool     `json:"success"`
+	ErrorMsg           string   `json:"errorMsg"`
+	OrderID            string   `json:"orderID"`
 	TransactionsHashes []string `json:"transactionsHashes"`
-	Status           string   `json:"status"`
-	TakingAmount     string   `json:"takingAmount"`
-	MakingAmount     string   `json:"makingAmount"`
+	Status             string   `json:"status"`
+	TakingAmount       string   `json:"takingAmount"`
+	MakingAmount       string   `json:"makingAmount"`
+	// Trade IDs returned for FAK/FOK orders that matched immediately.
+	// Confirmed in Rust SDK (rs-clob-client PostOrderResponse.trade_ids)
+	// and Polymarket docs. Go SDK was missing this until now.
+	TradeIDs []string `json:"tradeIds"`
 }
 
 // OpenOrder represents an open order
