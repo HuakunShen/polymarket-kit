@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -256,6 +257,13 @@ func (c *ClobClient) GetPricesHistory(params types.PriceHistoryFilterParams) (in
 
 // GetPricesHistoryTyped gets price history with a typed response
 func (c *ClobClient) GetPricesHistoryTyped(params types.PriceHistoryFilterParams) ([]types.MarketPrice, error) {
+	return c.GetPricesHistoryTypedCtx(context.Background(), params)
+}
+
+// GetPricesHistoryTypedCtx is the cancellable variant of GetPricesHistoryTyped.
+// Pass a ctx that's tied to your shutdown signal so backfill goroutines
+// abort their HTTP calls instead of running out the 30s client timeout.
+func (c *ClobClient) GetPricesHistoryTypedCtx(ctx context.Context, params types.PriceHistoryFilterParams) ([]types.MarketPrice, error) {
 	queryParams := url.Values{}
 	if params.Market != nil {
 		queryParams.Add("market", *params.Market)
@@ -274,7 +282,7 @@ func (c *ClobClient) GetPricesHistoryTyped(params types.PriceHistoryFilterParams
 	}
 
 	var result types.PriceHistoryResponse
-	if err := c.getJSONWithParams(GetPricesHistory, queryParams, &result); err != nil {
+	if err := c.getJSONWithParamsCtx(ctx, GetPricesHistory, queryParams, &result); err != nil {
 		return nil, err
 	}
 	return result.History, nil
@@ -558,12 +566,19 @@ func (c *ClobClient) getJSON(endpoint string, result interface{}) error {
 // getRawWithParams makes a GET request and returns the raw response bytes,
 // avoiding the double marshal/unmarshal overhead of getWithParams → getJSONWithParams.
 func (c *ClobClient) getRawWithParams(endpoint string, params url.Values) ([]byte, error) {
+	return c.getRawWithParamsCtx(context.Background(), endpoint, params)
+}
+
+// getRawWithParamsCtx is the ctx-aware variant of getRawWithParams.
+// ctx cancellation aborts the in-flight HTTP request (cancels Do via
+// the request context — works regardless of the client timeout).
+func (c *ClobClient) getRawWithParamsCtx(ctx context.Context, endpoint string, params url.Values) ([]byte, error) {
 	fullURL := c.host + endpoint
 	if len(params) > 0 {
 		fullURL += "?" + params.Encode()
 	}
 
-	req, err := http.NewRequest("GET", fullURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", fullURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -589,7 +604,11 @@ func (c *ClobClient) getRawWithParams(endpoint string, params url.Values) ([]byt
 }
 
 func (c *ClobClient) getJSONWithParams(endpoint string, params url.Values, result interface{}) error {
-	data, err := c.getRawWithParams(endpoint, params)
+	return c.getJSONWithParamsCtx(context.Background(), endpoint, params, result)
+}
+
+func (c *ClobClient) getJSONWithParamsCtx(ctx context.Context, endpoint string, params url.Values, result interface{}) error {
+	data, err := c.getRawWithParamsCtx(ctx, endpoint, params)
 	if err != nil {
 		return err
 	}

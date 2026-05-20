@@ -2,6 +2,7 @@ package gamma
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -145,9 +146,11 @@ func (g *GammaSDK) buildURL(endpoint string, query interface{}) (string, error) 
 	return u.String(), nil
 }
 
-// createRequest creates an HTTP request with proper headers and proxy support
-func (g *GammaSDK) createRequest(method, url string) (*http.Request, error) {
-	req, err := http.NewRequest(method, url, nil)
+// createRequest creates an HTTP request with proper headers and proxy support.
+// ctx is forwarded to http.NewRequestWithContext so callers can cancel
+// in-flight requests; pass context.Background() if you don't care.
+func (g *GammaSDK) createRequest(ctx context.Context, method, url string) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, method, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -158,8 +161,17 @@ func (g *GammaSDK) createRequest(method, url string) (*http.Request, error) {
 	return req, nil
 }
 
-// makeRequest makes an HTTP request and returns the response
+// makeRequest is the ctx-less convenience wrapper; existing callers go
+// through here with context.Background().
 func (g *GammaSDK) makeRequest(method, endpoint string, query interface{}) (*APIResponse, error) {
+	return g.makeRequestCtx(context.Background(), method, endpoint, query)
+}
+
+// makeRequestCtx makes an HTTP request and returns the response. ctx
+// cancellation aborts the in-flight HTTP call (via net/http context
+// support); useful when the caller is inside an errgroup that just
+// received SIGTERM and doesn't want to wait the full client timeout.
+func (g *GammaSDK) makeRequestCtx(ctx context.Context, method, endpoint string, query interface{}) (*APIResponse, error) {
 	// Build URL with query parameters
 	fullURL, err := g.buildURL(endpoint, query)
 	if err != nil {
@@ -167,7 +179,7 @@ func (g *GammaSDK) makeRequest(method, endpoint string, query interface{}) (*API
 	}
 
 	// Create request
-	req, err := g.createRequest(method, fullURL)
+	req, err := g.createRequest(ctx, method, fullURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -531,7 +543,13 @@ func (g *GammaSDK) GetTeams(query *TeamQuery) ([]Team, error) {
 // Tags API
 // GetTags gets list of tags with optional filtering
 func (g *GammaSDK) GetTags(query TagQuery) ([]UpdatedTag, error) {
-	resp, err := g.makeRequest("GET", "/tags", query)
+	return g.GetTagsCtx(context.Background(), query)
+}
+
+// GetTagsCtx is the cancellable variant of GetTags. ctx cancellation
+// aborts the in-flight HTTP request.
+func (g *GammaSDK) GetTagsCtx(ctx context.Context, query TagQuery) ([]UpdatedTag, error) {
+	resp, err := g.makeRequestCtx(ctx, "GET", "/tags", query)
 	if err != nil {
 		return nil, err
 	}
@@ -626,11 +644,16 @@ func (g *GammaSDK) GetTagsRelatedToTagSlug(slug string, query *RelatedTagsQuery)
 // Events API
 // GetEvents gets list of events with optional filtering
 func (g *GammaSDK) GetEvents(query *UpdatedEventQuery) ([]Event, error) {
+	return g.GetEventsCtx(context.Background(), query)
+}
+
+// GetEventsCtx is the cancellable variant of GetEvents.
+func (g *GammaSDK) GetEventsCtx(ctx context.Context, query *UpdatedEventQuery) ([]Event, error) {
 	if query == nil {
 		query = &UpdatedEventQuery{}
 	}
 
-	resp, err := g.makeRequest("GET", "/events", query)
+	resp, err := g.makeRequestCtx(ctx, "GET", "/events", query)
 	if err != nil {
 		return nil, err
 	}
@@ -674,11 +697,16 @@ func (g *GammaSDK) GetEventsPaginated(query PaginatedEventQuery) (*PaginatedEven
 
 // GetEventById gets a specific event by ID
 func (g *GammaSDK) GetEventById(id int, query *EventByIdQuery) (*Event, error) {
+	return g.GetEventByIdCtx(context.Background(), id, query)
+}
+
+// GetEventByIdCtx is the cancellable variant of GetEventById.
+func (g *GammaSDK) GetEventByIdCtx(ctx context.Context, id int, query *EventByIdQuery) (*Event, error) {
 	if query == nil {
 		query = &EventByIdQuery{}
 	}
 
-	resp, err := g.makeRequest("GET", fmt.Sprintf("/events/%d", id), query)
+	resp, err := g.makeRequestCtx(ctx, "GET", fmt.Sprintf("/events/%d", id), query)
 	if err != nil {
 		return nil, err
 	}
@@ -830,7 +858,12 @@ func (g *GammaSDK) GetMarketBySlug(slug string, query *MarketByIdQuery) (*Market
 // Series API
 // GetSeries gets list of series with filtering and pagination
 func (g *GammaSDK) GetSeries(query SeriesQuery) ([]Series, error) {
-	resp, err := g.makeRequest("GET", "/series", query)
+	return g.GetSeriesCtx(context.Background(), query)
+}
+
+// GetSeriesCtx is the cancellable variant of GetSeries.
+func (g *GammaSDK) GetSeriesCtx(ctx context.Context, query SeriesQuery) ([]Series, error) {
+	resp, err := g.makeRequestCtx(ctx, "GET", "/series", query)
 	if err != nil {
 		return nil, err
 	}
