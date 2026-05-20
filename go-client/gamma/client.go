@@ -663,7 +663,14 @@ func (g *GammaSDK) GetEventsCtx(ctx context.Context, query *UpdatedEventQuery) (
 
 // GetEventsPaginated gets paginated list of events
 func (g *GammaSDK) GetEventsPaginated(query PaginatedEventQuery) (*PaginatedEventsResponse, error) {
-	resp, err := g.makeRequest("GET", "/events/pagination", query)
+	return g.GetEventsPaginatedCtx(context.Background(), query)
+}
+
+// GetEventsPaginatedCtx is the cancellable variant of GetEventsPaginated.
+// Hits /events/pagination, which is not subject to the ~10100 offset cap
+// that /events enforces — use this for full population scans.
+func (g *GammaSDK) GetEventsPaginatedCtx(ctx context.Context, query PaginatedEventQuery) (*PaginatedEventsResponse, error) {
+	resp, err := g.makeRequestCtx(ctx, "GET", "/events/pagination", query)
 	if err != nil {
 		return nil, err
 	}
