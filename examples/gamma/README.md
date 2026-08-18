@@ -14,6 +14,13 @@ Comprehensive example demonstrating Gamma API functionality:
 ### `gamma_example.py`
 Comprehensive example demonstrating Gamma API functionality using the Python SDK.
 
+### `tennis_event.py`
+Read-only example that discovers a Polymarket tennis event via the Python `GammaClient`
+and annotates it with an **independent** live match state (score, server, break point)
+from an external live-scores feed. Executes no trades. The live overlay is opt-in via
+`LIVETENNIS_API_KEY`; without a key it prints the Gamma side only. See the module
+docstring for the vendor disclosure and free-tier limits.
+
 ## Running the Example
 
 ```bash
@@ -22,6 +29,12 @@ go run gamma_example.go
 
 ```bash
 python gamma_example.py
+```
+
+```bash
+# Read-only tennis event + independent live-state overlay (overlay needs a free key)
+python tennis_event.py
+LIVETENNIS_API_KEY=your-free-key python tennis_event.py
 ```
 ## Features Demonstrated
 
